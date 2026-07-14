@@ -34,3 +34,9 @@ VITE_DEFAULT_LOCALE=ru
 ```
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the exact v1.0.1 scope.
+
+## HR workspace
+
+The `hr-department` branch adds a frontend-only HR vertical slice at `/departments/hr`. Select `Зарина Ахметова / HR специалист` to test HR operations or `Мадина Садыкова / Сотрудник` to test employee self-service. The mock data is deterministic and the Reset action restores its initial state.
+
+See [docs/HR_IMPLEMENTATION_PLAN.md](docs/HR_IMPLEMENTATION_PLAN.md) and [docs/HR_FEATURE_MATRIX.md](docs/HR_FEATURE_MATRIX.md) for implemented and deferred scope.

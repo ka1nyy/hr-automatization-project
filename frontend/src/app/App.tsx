@@ -10,6 +10,10 @@ const CorrespondenceDetailPage = lazy(() => import('../features/correspondence/C
 const TasksPage = lazy(() => import('../features/tasks/TasksPage'));
 const ProcessesPage = lazy(() => import('../features/processes/ProcessesPage'));
 const OrganizationPage = lazy(() => import('../features/organization/OrganizationPage'));
+const HrOverviewPage = lazy(() => import('../features/hr/pages/HrOverviewPage'));
+const HrEmployeesPage = lazy(() => import('../features/hr/pages/HrEmployeesPage'));
+const HrEmployeeProfilePage = lazy(() => import('../features/hr/pages/HrEmployeeProfilePage'));
+const HrLeavePage = lazy(() => import('../features/hr/pages/HrLeavePage'));
 
 function LoadingState() {
   return <div className="page-loading" aria-label="Загрузка"><span /><span /><span /></div>;
@@ -32,6 +36,10 @@ export function App() {
         <Route path="tasks" element={<Suspense fallback={<LoadingState />}><TasksPage /></Suspense>} />
         <Route path="processes" element={<Suspense fallback={<LoadingState />}><ProcessesPage /></Suspense>} />
         <Route path="organization" element={<Suspense fallback={<LoadingState />}><OrganizationPage /></Suspense>} />
+        <Route path="departments/hr" element={<Suspense fallback={<LoadingState />}><HrOverviewPage /></Suspense>} />
+        <Route path="departments/hr/employees" element={<Suspense fallback={<LoadingState />}><HrEmployeesPage /></Suspense>} />
+        <Route path="departments/hr/employees/:employeeId" element={<Suspense fallback={<LoadingState />}><HrEmployeeProfilePage /></Suspense>} />
+        <Route path="departments/hr/leave" element={<Suspense fallback={<LoadingState />}><HrLeavePage /></Suspense>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

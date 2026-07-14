@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, Building2, CheckSquare2, ChevronDown, Command, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, X } from 'lucide-react';
+import { Bell, Blocks, Building2, CheckSquare2, ChevronDown, Command, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UsersRound, X } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
+import { hrRepository } from '../features/hr/api';
 import { getPermissions } from '../shared/permissions';
 import { t } from '../shared/i18n';
 import { useDeveloperStore } from '../shared/store';
@@ -12,6 +13,7 @@ const personas: { id: PersonaId; name: string; role: string }[] = [
   { id: 'secretary', name: 'Алия Омарова', role: 'Секретарь' },
   { id: 'executive', name: 'Айдар Нурланов', role: 'Председатель Правления' },
   { id: 'employee', name: 'Мадина Садыкова', role: 'Главный эксперт' },
+  { id: 'hr-specialist', name: 'Зарина Ахметова', role: 'HR специалист' },
   { id: 'process-designer', name: 'Диана Абилова', role: 'Процессный архитектор' }
 ];
 
@@ -23,16 +25,19 @@ export function AppShell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentPersona = personas.find((item) => item.id === store.persona)!;
+  const canOpenHr = getPermissions(store.persona).includes('hr.read');
   const nav = [
     { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
     { to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: 5 },
     { to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'incoming'), badge: 12 },
     { to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: 1 },
-    { to: '/organization', icon: Building2, label: t(store.locale, 'organization') }
+    { to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
+    ...(canOpenHr ? [{ to: '/departments/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : [])
   ];
 
   const resetDatabase = async () => {
     await repositories.operations.reset();
+    await hrRepository.reset();
     await queryClient.invalidateQueries();
   };
 
@@ -60,9 +65,9 @@ export function AppShell() {
       <div className="workspace">
         <header className="topbar">
           <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button>
-          <div className="breadcrumbs"><span>АО «СПК «Ертіс»</span><b>/</b><strong>{location.pathname.includes('incoming') ? 'Входящая корреспонденция' : location.pathname.includes('tasks') ? 'Моя работа' : location.pathname.includes('processes') ? 'Процессы' : location.pathname.includes('organization') ? 'Организация' : 'Главная'}</strong></div>
+          <div className="breadcrumbs"><span>АО «СПК «Ертіс»</span><b>/</b><strong>{location.pathname.includes('/departments/hr') ? 'Департамент управления персоналом' : location.pathname.includes('incoming') ? 'Входящая корреспонденция' : location.pathname.includes('tasks') ? 'Моя работа' : location.pathname.includes('processes') ? 'Процессы' : location.pathname.includes('organization') ? 'Организация' : 'Главная'}</strong></div>
           <button className="global-search" aria-label="Глобальный поиск"><Search size={17} /><span>{t(store.locale, 'search')}</span><kbd><Command size={12} /> K</kbd></button>
-          <button className="create-button" onClick={() => navigate('/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button>
+          <button className="create-button" onClick={() => navigate(location.pathname.includes('/departments/hr') ? '/departments/hr/leave' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button>
           <button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
           <div className="notification-wrap"><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong><span>3 новых</span></div><div className="notification-item"><i className="tone-coral" /><span><strong>Срок задачи истёк</strong><small>ВХ-2026-000839 · 24 мин назад</small></span></div><div className="notification-item"><i className="tone-gold" /><span><strong>Документ ожидает подписи</strong><small>Ответ по реестру имущества</small></span></div><div className="notification-item"><i className="tone-violet" /><span><strong>Новая задача соисполнителя</strong><small>Юридическое заключение</small></span></div></div>}</div>
         </header>
