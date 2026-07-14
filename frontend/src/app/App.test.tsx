@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDeveloperStore } from '../shared/store';
@@ -23,6 +23,16 @@ describe('application runtime', () => {
     renderRoute('/');
     expect(screen.getByRole('navigation', { name: 'Основная навигация' })).toBeTruthy();
     expect(screen.queryByText(/войти|login/i)).toBeNull();
+  });
+
+  it('opens the global search dialog from the header', async () => {
+    renderRoute('/');
+    fireEvent.click(screen.getByLabelText('Глобальный поиск'));
+
+    expect(await screen.findByRole('dialog', { name: 'Глобальный поиск' })).toBeTruthy();
+    const input = screen.getByPlaceholderText('Поиск документов, задач, сотрудников');
+    fireEvent.change(input, { target: { value: 'Задачи' } });
+    expect(await screen.findByRole('button', { name: /Задачи.*Раздел системы/i })).toBeTruthy();
   });
 
   it('opens the employee directory for the HR specialist persona', async () => {
