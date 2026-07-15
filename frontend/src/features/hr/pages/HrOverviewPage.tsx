@@ -48,7 +48,7 @@ export default function HrOverviewPage() {
   const pending = leaveRequests.data!.filter((item) => item.status === 'hr_review');
   const activeTasks = tasks.data!.filter((task) => task.state !== 'completed');
   return <>
-    <PageHeader eyebrow="HR · Главная" title="Рабочее пространство HR" description="Сотрудники, сообщения, задачи и кадровые процессы в едином рабочем контексте." actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
+    <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
     <div className="hr-metric-grid">
       <article><span className="tone-teal"><UsersRound size={18} /></span><div><small>Активные сотрудники</small><strong>{stats.activeEmployees}</strong><em>Штат HR Core</em></div></article>
       <article><span className="tone-violet"><UserCheck size={18} /></span><div><small>На испытательном</small><strong>{stats.onProbation}</strong><em>5 сроков в июле</em></div></article>

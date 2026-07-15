@@ -47,7 +47,7 @@ describe('application runtime', () => {
     useDeveloperStore.setState({ persona: 'hr-specialist' });
     renderRoute('/');
 
-    expect(await screen.findByRole('heading', { name: 'Рабочее пространство HR' }, { timeout: 5000 })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Рабочее пространство' }, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByText('HR', { selector: '.breadcrumbs span' })).toBeTruthy();
     expect(screen.getByText('Главная', { selector: '.breadcrumbs strong' })).toBeTruthy();
     expect(screen.getAllByRole('link', { name: /Входящие сообщения/i }).length).toBeGreaterThan(0);
