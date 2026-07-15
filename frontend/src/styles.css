@@ -341,13 +341,15 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hr-status-probation, .hr-status-hr_review { background: color-mix(in srgb, var(--gold) 8%, transparent); color: var(--gold); }
 .hr-status-on_leave, .hr-status-pending_manager { background: color-mix(in srgb, var(--violet) 8%, transparent); color: var(--violet); }
 .hr-status-sick_leave, .hr-status-rejected { background: color-mix(in srgb, var(--coral) 8%, transparent); color: var(--coral); }
-.hr-focus-list-horizontal { display: flex; padding: 14px 20px; gap: 0; background: var(--paper); }
-.hr-focus-list-horizontal > div { align-items: center; display: flex; gap: 14px; flex: 1; padding: 10px 16px; border-right: 1px solid var(--border); }
+.hr-focus-list-horizontal { display: flex; padding: 6px 16px; gap: 0; background: var(--paper); }
+.hr-focus-list-horizontal > div { align-items: center; display: flex; gap: 14px; flex: 1; padding: 4px 14px; border-right: 1px solid var(--border); }
 .hr-focus-list-horizontal > div:last-child { border-right: 0; }
 .hr-focus-list-horizontal b { font-family: var(--font-condensed); font-size: 26px; font-weight: 600; line-height: 1; }
 .hr-focus-list-horizontal span { display: flex; flex-direction: column; }
 .hr-focus-list-horizontal strong { font-size: 9px; font-weight: 600; }
 .hr-focus-list-horizontal small { color: var(--muted); font-size: 7.5px; margin-top: 4px; }
+
+.panel-link-compact { align-items: center; color: var(--teal); display: flex; font-size: 9px; gap: 6px; justify-content: flex-end; padding: 4px 16px 10px; }
 
 @media (max-width: 768px) {
   .hr-focus-list-horizontal { flex-direction: column; }

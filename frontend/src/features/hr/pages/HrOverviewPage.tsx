@@ -50,7 +50,7 @@ export default function HrOverviewPage() {
     <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
     
     <div style={{ marginBottom: '14px' }}>
-      <Section title="СОТРУДНИКИ И ОТСУТСТВИЯ" meta={`${stats.activeEmployees} активных`}>
+      <Section title="СОТРУДНИКИ И ОТСУТСТВИЯ" meta={`${stats.activeEmployees} активных, ${stats.onLeave + stats.onBusinessTrip + stats.onSickLeave} отсутствуют`}>
         <div className="hr-focus-list-horizontal">
           <div>
             <b className="tone-teal">{stats.activeEmployees}</b>
@@ -81,7 +81,7 @@ export default function HrOverviewPage() {
             </span>
           </div>
         </div>
-        <Link className="panel-link" to="/hr/employees">Открыть сотрудников <ArrowRight size={15} /></Link>
+        <Link className="panel-link-compact" to="/hr/employees">Открыть сотрудников <ArrowRight size={15} /></Link>
       </Section>
     </div>
 
