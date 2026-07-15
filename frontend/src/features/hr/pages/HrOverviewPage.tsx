@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Activity, AlertCircle, ArrowRight, CalendarCheck2, CheckSquare2, Clock3, FileWarning, GraduationCap, HeartPulse, UserCheck, UserPlus, UsersRound } from 'lucide-react';
+import { Activity, AlertCircle, ArrowRight, CalendarCheck2, CheckSquare2, FileWarning, GraduationCap, UserCheck, UserPlus, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { repositories } from '../../../repositories';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
@@ -47,21 +47,43 @@ export default function HrOverviewPage() {
   const addEmployeeDraft = restoreEmployeeDraft(localStorage);
   const pending = leaveRequests.data!.filter((item) => item.status === 'hr_review');
   const activeTasks = tasks.data!.filter((task) => task.state !== 'completed');
+
   return <>
     <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
-    <div className="hr-metric-grid">
-      <article><span className="tone-teal"><UsersRound size={18} /></span><div><small>Активные сотрудники</small><strong>{stats.activeEmployees}</strong><em>Штат HR Core</em></div></article>
-      <article><span className="tone-violet"><UserCheck size={18} /></span><div><small>На испытательном</small><strong>{stats.onProbation}</strong><em>5 сроков в июле</em></div></article>
-      <article><span className="tone-gold"><CalendarCheck2 size={18} /></span><div><small>Сейчас в отпуске</small><strong>{stats.onLeave}</strong><em>Текущие отсутствия</em></div></article>
-      <article><span className="tone-coral"><HeartPulse size={18} /></span><div><small>На больничном</small><strong>{stats.onSickLeave}</strong><em>Детали ограничены</em></div></article>
-      <article><span className="tone-coral"><Clock3 size={18} /></span><div><small>Просрочено задач</small><strong>{stats.overdueTasks}</strong><em>Требуют внимания</em></div></article>
-      <article><span className="tone-teal"><Activity size={18} /></span><div><small>Активные процессы</small><strong>{stats.activeProcesses}</strong><em>Кадровые маршруты</em></div></article>
+    
+    <div style={{ marginBottom: '14px' }}>
+      <Section title="СОТРУДНИКИ И ОТСУТСТВИЯ" meta={`${stats.activeEmployees} активных`}>
+        <div className="hr-focus-list">
+          <div>
+            <b className="tone-teal">{stats.activeEmployees}</b>
+            <span>
+              <strong>Сотрудники</strong>
+              <small>{stats.incompleteFiles} личных дел требуют внимания</small>
+            </span>
+          </div>
+          <div>
+            <b className="tone-gold">{stats.onLeave}</b>
+            <span>
+              <strong>В отпуске</strong>
+              <small>Текущие согласованные отсутствия</small>
+            </span>
+          </div>
+          <div>
+            <b className="tone-coral">{stats.onSickLeave}</b>
+            <span>
+              <strong>На больничном</strong>
+              <small>Без раскрытия медицинских деталей</small>
+            </span>
+          </div>
+        </div>
+        <Link className="panel-link" to="/hr/employees">Открыть сотрудников <ArrowRight size={15} /></Link>
+      </Section>
     </div>
+
     <div className="hr-dashboard-grid">
       <Section title="Входящие сообщения" meta={`${messages.data!.length} в очереди`} className="span-two"><div className="queue-table"><div className="table-head"><span>Сообщение</span><span>Отправитель</span><span>Этап</span><span>Срок</span><span /></div>{messages.data!.slice(0, 10).map((item) => <Link to={`/correspondence/incoming/${item.id}`} className="table-row" key={item.id}><span><strong>{item.number}</strong><small>{item.subject}</small></span><span>{item.sender}</span><span><i className={`status-dot status-${item.status}`} />{statusLabels[item.status]}</span><span className={item.priority === 'urgent' ? 'text-coral' : ''}>{formatDate(item.dueDate, locale, 'dd MMM')}</span><ArrowRight size={15} /></Link>)}</div><Link className="panel-link" to="/correspondence/incoming">Все сообщения <ArrowRight size={15} /></Link></Section>
       <Section title="Задачи" meta={`${activeTasks.length} активных`}><div className="task-compact-list">{activeTasks.slice(0, 4).map((task) => <Link to="/tasks" key={task.id}><span className={`priority-line priority-${task.priority}`} /><span><strong>{task.title}</strong><small>{task.process} · до {formatDate(task.dueDate, locale, 'dd MMM')}</small></span><ArrowRight size={15} /></Link>)}</div><Link className="panel-link" to="/tasks">Все задачи <ArrowRight size={15} /></Link></Section>
       <Section title="Активные согласования" meta={`${pending.length} ожидают HR`}><div className="hr-request-list">{pending.length ? pending.map((request) => <article key={request.id}><span className="hr-list-icon"><CalendarCheck2 size={17} /></span><div><strong>{request.employeeName}</strong><small>{request.leaveType} · {request.days} дней · {request.documentNumber}</small></div><LeaveStatus status={request.status} /></article>) : <div className="hr-inline-empty">Очередь согласований пуста</div>}</div><Link className="panel-link" to="/processes">Открыть процессы <ArrowRight size={15} /></Link></Section>
-      <Section title="Сотрудники и отсутствия" meta={`${stats.activeEmployees} активных`}><div className="hr-focus-list"><div><b className="tone-teal">{stats.activeEmployees}</b><span><strong>Сотрудники</strong><small>{stats.incompleteFiles} личных дел требуют внимания</small></span></div><div><b className="tone-gold">{stats.onLeave}</b><span><strong>В отпуске</strong><small>Текущие согласованные отсутствия</small></span></div><div><b className="tone-coral">{stats.onSickLeave}</b><span><strong>На больничном</strong><small>Без раскрытия медицинских деталей</small></span></div></div><Link className="panel-link" to="/hr/employees">Открыть сотрудников <ArrowRight size={15} /></Link></Section>
       <Section title="Добавить сотрудника" meta={addEmployeeDraft ? '1 локальный черновик' : 'Черновиков нет'}><div className="hr-add-employee-shortcut"><span className="tone-teal"><UserPlus size={20} /></span><div><strong>Служебная записка на приём</strong><p>Подготовьте кадровые данные и официальный DOCX для согласования.</p>{addEmployeeDraft && <small>Черновик сохранён локально</small>}</div><Link className="primary-button" to="/hr/hiring/add-employee">{addEmployeeDraft ? 'Продолжить' : 'Добавить'}</Link></div></Section>
       <Section title="HR предупреждения"><div className="hr-process-health"><div><span className="tone-gold"><FileWarning size={16} /></span><strong>{stats.expiringContracts}</strong><small>Договоры истекают</small></div><div><span className="tone-coral"><AlertCircle size={16} /></span><strong>{stats.overdueTasks}</strong><small>Просроченные задачи</small></div><div><span className="tone-teal"><CheckSquare2 size={16} /></span><strong>{stats.activeProcesses}</strong><small>Процессы в работе</small></div></div></Section>
     </div>
