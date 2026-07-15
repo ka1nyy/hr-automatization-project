@@ -4,7 +4,7 @@
 
 The monorepo has a React/Vite frontend and a NestJS/Prisma backend. The shared application shell provides sidebar, contextual header, theme, permission-aware personas, queries, common panels/forms/dialogs, tasks, processes and organization pages. Backend foundation provides request context, RBAC guard, correlation IDs, audit/outbox records and Document/Workflow ports.
 
-Existing HR implementation covers department context, dashboard counters, employee directory/profile, leave foundation and frontend-only Add Employee. Canonical routes are `/hr`, `/hr/employees`, `/hr/employees/:employeeId`, `/hr/leave` and `/hr/hiring/add-employee`; legacy `/departments/hr/*` paths remain compatible.
+Existing HR implementation covers authenticated-persona department context, a role-aware main dashboard, employee directory/profile, leave foundation and frontend-only Add Employee. For an HR user, `/` is the HR Home and the shared sidebar exposes Incoming Messages, Employees, Add Employee, Leave, Tasks, Processes and Organization. Feature routes remain `/hr/employees`, `/hr/employees/:employeeId`, `/hr/leave` and `/hr/hiring/add-employee`; legacy `/departments/hr/*` paths remain compatible.
 
 ## Ownership and boundaries
 
@@ -24,7 +24,7 @@ Supported backend endpoints are permission-aware and use DTO mapping, correlatio
 
 ## Delivery order
 
-1. Preserve shell/design and resolve HR context from authenticated/development persona.
+1. Preserve shell/design and resolve HR context from authenticated/development persona on every shared route, including `/`, `/tasks`, `/processes`, `/organization` and Incoming Messages.
 2. Complete frontend-only Add Employee and ATS removal.
 3. Complete dashboard/employee directory and protected profile projections.
 4. Implement incoming messages and user-specific receipts.

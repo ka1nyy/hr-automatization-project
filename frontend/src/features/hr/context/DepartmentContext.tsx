@@ -1,11 +1,12 @@
 import { createContext, useContext, useMemo, type PropsWithChildren } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getPermissions } from '../../../shared/permissions';
+import { getPersonaProfile, type DepartmentCode } from '../../../shared/personas';
 import { useDeveloperStore } from '../../../shared/store';
 import type { PersonaId } from '../../../shared/types';
 
-type DepartmentContextValue = { departmentId: string | null; departmentCode: 'HR' | null; departmentName: string | null; pageTitle: string; role: PersonaId; permissions: string[] };
-const DepartmentContext = createContext<DepartmentContextValue>({ departmentId: null, departmentCode: null, departmentName: null, pageTitle: 'Главная', role: 'secretary', permissions: [] });
+type DepartmentContextValue = { departmentId: string; departmentCode: DepartmentCode; departmentName: string; pageTitle: string; role: PersonaId; permissions: string[]; isHrWorkspace: boolean };
+const DepartmentContext = createContext<DepartmentContextValue>({ departmentId: 'department-secretariat', departmentCode: 'SECRETARIAT', departmentName: 'Секретариат', pageTitle: 'Главная', role: 'secretary', permissions: [], isHrWorkspace: false });
 
 const hrPages: Array<[RegExp, string]> = [
   [/\/employees\/[^/]+$/, 'Профиль сотрудника'], [/\/employees$/, 'Сотрудники'],
@@ -21,14 +22,25 @@ export function DepartmentProvider({ children }: PropsWithChildren) {
   const { pathname } = useLocation();
   const persona = useDeveloperStore((state) => state.persona);
   const value = useMemo<DepartmentContextValue>(() => {
-    const isHr = pathname === '/hr' || pathname.startsWith('/hr/') || pathname === '/departments/hr' || pathname.startsWith('/departments/hr/');
-    const base = { role: persona, permissions: getPermissions(persona) as string[] };
-    if (isHr) return { ...base, departmentId: 'department-hr', departmentCode: 'HR', departmentName: 'Департамент управления персоналом', pageTitle: hrPages.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'Рабочее пространство' };
-    if (pathname.includes('incoming')) return { ...base, departmentId: null, departmentCode: null, departmentName: null, pageTitle: 'Входящая корреспонденция' };
-    if (pathname.includes('tasks')) return { ...base, departmentId: null, departmentCode: null, departmentName: null, pageTitle: 'Задачи' };
-    if (pathname.includes('processes')) return { ...base, departmentId: null, departmentCode: null, departmentName: null, pageTitle: 'Процессы' };
-    if (pathname.includes('organization')) return { ...base, departmentId: null, departmentCode: null, departmentName: null, pageTitle: 'Организация' };
-    return { ...base, departmentId: null, departmentCode: null, departmentName: null, pageTitle: 'Главная' };
+    const profile = getPersonaProfile(persona);
+    const isHrRoute = pathname === '/hr' || pathname.startsWith('/hr/') || pathname === '/departments/hr' || pathname.startsWith('/departments/hr/');
+    const isHrWorkspace = profile.departmentCode === 'HR';
+    const pageTitle = isHrRoute
+      ? hrPages.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'Главная'
+      : pathname.includes('incoming') ? (isHrWorkspace ? 'Входящие сообщения' : 'Входящая корреспонденция')
+      : pathname.includes('tasks') ? 'Задачи'
+      : pathname.includes('processes') ? 'Процессы'
+      : pathname.includes('organization') ? 'Организация'
+      : 'Главная';
+    return {
+      role: persona,
+      permissions: getPermissions(persona) as string[],
+      departmentId: profile.departmentId,
+      departmentCode: isHrRoute ? 'HR' : profile.departmentCode,
+      departmentName: isHrRoute ? 'Департамент управления персоналом' : profile.departmentName,
+      pageTitle,
+      isHrWorkspace
+    };
   }, [pathname, persona]);
   return <DepartmentContext.Provider value={value}>{children}</DepartmentContext.Provider>;
 }

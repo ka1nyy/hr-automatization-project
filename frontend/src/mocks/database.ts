@@ -36,6 +36,9 @@ export const seedTasks: WorkTask[] = [
 ];
 
 export const seedProcesses: ProcessDefinition[] = [
+  { id: 'p-hr-leave', name: 'Согласование отпуска', version: 5, state: 'published', activeInstances: 9, owner: 'Департамент управления персоналом', updatedAt: '2026-07-14', steps: ['Заявка', 'Руководитель', 'Проверка HR', 'Приказ', 'Календарь'] },
+  { id: 'p-hr-change', name: 'Изменение данных сотрудника', version: 2, state: 'published', activeInstances: 4, owner: 'Департамент управления персоналом', updatedAt: '2026-07-12', steps: ['Инициирование', 'Проверка HR', 'Согласование', 'Обновление HR Core'] },
+  { id: 'p-hr-onboarding', name: 'Адаптация сотрудника', version: 3, state: 'published', activeInstances: 7, owner: 'Департамент управления персоналом', updatedAt: '2026-07-10', steps: ['План адаптации', 'Доступы', 'Рабочее место', 'Контрольная встреча'] },
   { id: 'p-incoming', name: 'Обработка входящей корреспонденции', version: 7, state: 'published', activeInstances: 48, owner: 'Секретариат', updatedAt: '2026-07-11', steps: ['Регистрация', 'Резолюция', 'Исполнение', 'Согласование', 'ЭЦП', 'Отправка'] },
   { id: 'p-contract', name: 'Согласование договорной переписки', version: 4, state: 'published', activeInstances: 19, owner: 'Юридический департамент', updatedAt: '2026-07-09', steps: ['Автор', 'Директор', 'Экономика', 'Юристы', 'Риск', 'Подписание'] },
   { id: 'p-invest', name: 'Инвестиционное заключение', version: 3, state: 'draft', activeInstances: 0, owner: 'Инвестиционный департамент', updatedAt: '2026-07-14', steps: ['Инициатор', 'Аналитик', 'Экономика', 'Риск', 'Комитет'] },

@@ -6,16 +6,18 @@ import { EmptyState, PageHeader, QueryState } from '../../shared/components';
 import { formatDate } from '../../shared/format';
 import { PermissionGate } from '../../shared/permissions';
 import { useDeveloperStore } from '../../shared/store';
+import { useDepartmentContext } from '../hr/context/DepartmentContext';
 
 export default function TasksPage() {
   const locale = useDeveloperStore((state) => state.locale);
+  const department = useDepartmentContext();
   const [filter, setFilter] = useState('active');
   const queryClient = useQueryClient();
   const result = useQuery({ queryKey: ['tasks'], queryFn: () => repositories.tasks.list() });
   const mutation = useMutation({ mutationFn: ({ id, action }: { id: string; action: 'claim' | 'complete' }) => action === 'claim' ? repositories.tasks.claim(id) : repositories.tasks.complete(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }) });
   const tasks = (result.data ?? []).filter((task) => filter === 'all' || (filter === 'active' && task.state !== 'completed') || task.state === filter);
   return <>
-    <PageHeader eyebrow="Моя работа · Task Gateway" title="Единый центр задач" description="Личные и доступные задачи всех корпоративных процессов в одной очереди." actions={<button className="secondary-button"><Filter size={16} /> Настроить представление</button>} />
+    <PageHeader eyebrow={`${department.departmentCode} · Моя работа`} title={department.isHrWorkspace ? 'Задачи HR' : 'Единый центр задач'} description={department.isHrWorkspace ? 'Личные и доступные кадровые задачи из общих корпоративных процессов.' : 'Личные и доступные задачи всех корпоративных процессов в одной очереди.'} actions={<button className="secondary-button"><Filter size={16} /> Настроить представление</button>} />
     <div className="task-workspace">
       <aside className="task-filters"><button className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}><Inbox size={17} /> Активные <b>{result.data?.filter((t) => t.state !== 'completed').length ?? 0}</b></button><button className={filter === 'available' ? 'active' : ''} onClick={() => setFilter('available')}><Hand size={17} /> Доступные <b>{result.data?.filter((t) => t.state === 'available').length ?? 0}</b></button><button className={filter === 'claimed' ? 'active' : ''} onClick={() => setFilter('claimed')}><UserRound size={17} /> Назначенные мне</button><button className={filter === 'overdue' ? 'active' : ''} onClick={() => setFilter('overdue')}><Clock3 size={17} /> Просроченные</button><button className={filter === 'completed' ? 'active' : ''} onClick={() => setFilter('completed')}><CheckCircle2 size={17} /> Завершённые</button></aside>
       <div className="task-list-panel"><div className="task-list-toolbar"><label className="field-search"><Search size={16} /><input placeholder="Поиск по задачам" /></label><span>{tasks.length} задач</span></div>

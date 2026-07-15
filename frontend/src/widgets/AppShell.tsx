@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, Building2, CheckSquare2, ChevronDown, Command, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UsersRound, X } from 'lucide-react';
+import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, ChevronDown, Command, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserPlus, UsersRound, X } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
 import { getPermissions } from '../shared/permissions';
+import { getPersonaProfile, personaProfiles } from '../shared/personas';
 import { t } from '../shared/i18n';
 import { useDeveloperStore } from '../shared/store';
 import type { PersonaId } from '../shared/types';
@@ -12,13 +13,7 @@ import { useDepartmentContext } from '../features/hr/context/DepartmentContext';
 
 type SearchResult = { id: string; title: string; detail: string; to: string; type: 'section' | 'document' | 'task' | 'employee' };
 
-const personas: { id: PersonaId; name: string; role: string }[] = [
-  { id: 'secretary', name: 'Алия Омарова', role: 'Секретарь' },
-  { id: 'executive', name: 'Айдар Нурланов', role: 'Председатель Правления' },
-  { id: 'employee', name: 'Мадина Садыкова', role: 'Главный эксперт' },
-  { id: 'hr-specialist', name: 'Зарина Ахметова', role: 'HR специалист' },
-  { id: 'process-designer', name: 'Диана Абилова', role: 'Процессный архитектор' }
-];
+const personas = Object.values(personaProfiles);
 
 export function AppShell() {
   const store = useDeveloperStore();
@@ -29,17 +24,26 @@ export function AppShell() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const currentPersona = personas.find((item) => item.id === store.persona)!;
+  const currentPersona = getPersonaProfile(store.persona);
   const department = useDepartmentContext();
   const canOpenHr = getPermissions(store.persona).includes('hr.read');
-  const nav = useMemo(() => [
+  const nav = useMemo(() => department.isHrWorkspace ? [
+    { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
+    { to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: 12 },
+    { to: '/hr/employees', icon: UsersRound, label: t(store.locale, 'employees') },
+    { to: '/hr/hiring/add-employee', icon: UserPlus, label: t(store.locale, 'addEmployee') },
+    { to: '/hr/leave', icon: CalendarDays, label: t(store.locale, 'leave'), badge: 3 },
+    { to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: 5 },
+    { to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: 1 },
+    { to: '/organization', icon: Building2, label: t(store.locale, 'organization') }
+  ] : [
     { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
     { to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: 5 },
     { to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'incoming'), badge: 12 },
     { to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: 1 },
     { to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
-    ...(canOpenHr ? [{ to: '/departments/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : [])
-  ], [canOpenHr, store.locale]);
+    ...(canOpenHr ? [{ to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : [])
+  ], [canOpenHr, department.isHrWorkspace, store.locale]);
   const searchData = useQuery({
     queryKey: ['global-search', canOpenHr],
     enabled: searchOpen,
@@ -57,7 +61,7 @@ export function AppShell() {
     const dataResults: SearchResult[] = [
       ...(searchData.data?.correspondence ?? []).map((item) => ({ id: `document-${item.id}`, title: item.subject, detail: `${item.number} · ${item.sender}`, to: `/correspondence/incoming/${item.id}`, type: 'document' as const })),
       ...(searchData.data?.tasks ?? []).map((item) => ({ id: `task-${item.id}`, title: item.title, detail: `${item.documentNumber} · ${item.process}`, to: '/tasks', type: 'task' as const })),
-      ...(searchData.data?.employees ?? []).map((item) => ({ id: `employee-${item.id}`, title: item.fullName, detail: `${item.position} · ${item.department}`, to: `/departments/hr/employees/${item.id}`, type: 'employee' as const }))
+      ...(searchData.data?.employees ?? []).map((item) => ({ id: `employee-${item.id}`, title: item.fullName, detail: `${item.position} · ${item.department}`, to: `/hr/employees/${item.id}`, type: 'employee' as const }))
     ];
     const normalized = searchQuery.trim().toLocaleLowerCase();
     const results = normalized ? [...sections, ...dataResults].filter((item) => `${item.title} ${item.detail}`.toLocaleLowerCase().includes(normalized)) : [...sections, ...dataResults];
@@ -113,7 +117,7 @@ export function AppShell() {
           <button onClick={store.toggleDeveloper} title="Developer toolbar"><Settings2 size={18} /><span>Developer tools</span><i className="live-dot" /></button>
         </nav>
         <div className="sidebar-footer">
-          <button className="persona-card" onClick={store.toggleDeveloper} title="Сменить персону"><span className="avatar">{currentPersona.name.split(' ').map((v) => v[0]).join('').slice(0, 2)}</span>{!store.sidebarCollapsed && <span><strong>{currentPersona.name}</strong><small>{currentPersona.role}</small></span>}</button>
+          <button className="persona-card" onClick={store.toggleDeveloper} title="Профиль пользователя"><span className="avatar">{currentPersona.name.split(' ').map((v) => v[0]).join('').slice(0, 2)}</span>{!store.sidebarCollapsed && <span><strong>{currentPersona.name}</strong><small>{currentPersona.role}</small><small>{currentPersona.departmentName}</small></span>}</button>
           <button className="icon-button collapse-button" onClick={store.toggleSidebar} aria-label="Свернуть боковую панель">{store.sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button>
         </div>
       </aside>
@@ -121,9 +125,9 @@ export function AppShell() {
       <div className="workspace">
         <header className="topbar">
           <div className="topbar-inner">
-            <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button><div className="breadcrumbs"><span>{department.departmentCode ?? 'АО «СПК «Ертіс»'}</span><b>/</b><strong>{department.pageTitle}</strong></div></div>
+            <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button><div className="breadcrumbs"><span>{department.departmentCode}</span><b>/</b><strong>{department.pageTitle}</strong></div></div>
             <button className="global-search" onClick={openSearch} aria-label="Глобальный поиск"><Search size={17} /><span>{t(store.locale, 'search')}</span><kbd><Command size={12} /> K</kbd></button>
-            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.departmentCode === 'HR' ? '/hr/hiring/add-employee' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap"><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong><span>3 новых</span></div><div className="notification-item"><i className="tone-coral" /><span><strong>Срок задачи истёк</strong><small>ВХ-2026-000839 · 24 мин назад</small></span></div><div className="notification-item"><i className="tone-gold" /><span><strong>Документ ожидает подписи</strong><small>Ответ по реестру имущества</small></span></div><div className="notification-item"><i className="tone-violet" /><span><strong>Новая задача соисполнителя</strong><small>Юридическое заключение</small></span></div></div>}</div></div>
+            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.isHrWorkspace ? '/hr/hiring/add-employee' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap"><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong><span>3 новых</span></div><div className="notification-item"><i className="tone-coral" /><span><strong>Срок задачи истёк</strong><small>ВХ-2026-000839 · 24 мин назад</small></span></div><div className="notification-item"><i className="tone-gold" /><span><strong>Документ ожидает подписи</strong><small>Ответ по реестру имущества</small></span></div><div className="notification-item"><i className="tone-violet" /><span><strong>Новая задача соисполнителя</strong><small>Юридическое заключение</small></span></div></div>}</div></div>
           </div>
         </header>
         <main className="content"><Outlet /></main>
@@ -133,7 +137,8 @@ export function AppShell() {
 
       {store.developerOpen && <aside className="developer-panel" aria-label="Developer toolbar">
         <div className="developer-head"><span><i className="live-dot" /> Developer workspace</span><button className="icon-button" onClick={store.toggleDeveloper}><X size={18} /></button></div>
-        <label>Текущая персона<select value={store.persona} onChange={(e) => store.setPersona(e.target.value as PersonaId)}>{personas.map((item) => <option key={item.id} value={item.id}>{item.role}</option>)}</select></label>
+        <label>Текущий пользователь<select value={store.persona} onChange={(e) => { store.setPersona(e.target.value as PersonaId); navigate('/'); }}>{personas.map((item) => <option key={item.id} value={item.id}>{item.role} · {item.departmentCode}</option>)}</select></label>
+        <div className="developer-user-context"><span>Контекст входа</span><strong>{currentPersona.name}</strong><small>{currentPersona.email}</small><small>{currentPersona.departmentName}</small></div>
         <label>Сценарий<select value={store.scenario} onChange={(e) => store.setScenario(e.target.value)}><option value="normal">Обычная работа</option><option value="morning">Утренняя очередь</option><option value="incident">Инцидент процесса</option><option value="restricted">Закрытые документы</option></select></label>
         <div className="developer-grid"><div><span>DATA</span><strong>{store.dataMode}</strong></div><div><span>WORKFLOW</span><strong>{store.workflowMode}</strong></div><div><span>SIGNATURE</span><strong>{store.signatureMode}</strong></div><div><span>API</span><strong className="status-ok">mock ready</strong></div></div>
         <label>Язык<select value={store.locale} onChange={(e) => store.setLocale(e.target.value as 'ru' | 'kk' | 'en')}><option value="ru">Русский</option><option value="kk">Қазақша</option><option value="en">English</option></select></label>

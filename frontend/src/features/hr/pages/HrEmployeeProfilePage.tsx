@@ -6,7 +6,6 @@ import { formatDate } from '../../../shared/format';
 import { usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
 import { hrRepository } from '../api';
-import { HrSubnav } from '../components/HrSubnav';
 import { EmployeeStatus } from '../components/HrStatus';
 
 export default function HrEmployeeProfilePage() {
@@ -22,7 +21,6 @@ export default function HrEmployeeProfilePage() {
   if (result.error || !result.data) return <QueryState error={result.error ?? new Error('Сотрудник не найден')} retry={() => result.refetch()} />;
   const employee = result.data;
   return <>
-    <HrSubnav />
     <PageHeader eyebrow={`Сотрудники · ${employee.employeeNumber}`} title={employee.fullName} description={`${employee.position} · ${employee.department}`} actions={<><Link className="secondary-button" to={canReadAll ? '/departments/hr/employees' : '/departments/hr'}><ArrowLeft size={16} /> Назад</Link>{canReadAll && <button className="primary-button">Изменить данные</button>}</>} />
     <div className="hr-profile-header">
       <span className="avatar hr-avatar-xl">{employee.initials}</span><div className="hr-profile-identity"><EmployeeStatus status={employee.status} /><strong>{employee.position}</strong><span>{employee.department}</span></div>

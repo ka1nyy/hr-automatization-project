@@ -8,7 +8,6 @@ import { formatDate } from '../../../shared/format';
 import { usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
 import { hrRepository } from '../api';
-import { HrSubnav } from '../components/HrSubnav';
 import { LeaveStatus } from '../components/HrStatus';
 import { calculateLeaveDays, leaveRequestSchema, type LeaveRequestForm } from '../model/schemas';
 
@@ -40,7 +39,6 @@ export default function HrLeavePage() {
   const visibleRequests = isHr ? requests.data! : requests.data!.filter((item) => item.employeeId === 'e-3');
 
   return <>
-    <HrSubnav />
     <PageHeader eyebrow={isHr ? 'HR · Absence management' : 'HR · Self service'} title={isHr ? 'Управление отпусками' : 'Мои отпуска'} description={isHr ? 'Проверка заявок, балансов и workflow-статусов сотрудников.' : 'Баланс, история и новая заявка на отпуск.'} />
     {successNumber && <div className="success-banner"><CheckCircle2 size={20} /><span><strong>Заявка создана</strong>Документ {successNumber} зарегистрирован, процесс Leave Request v2 запущен.</span><button className="icon-button" onClick={() => setSuccessNumber(null)}><X size={16} /></button></div>}
     {isHr ? <>

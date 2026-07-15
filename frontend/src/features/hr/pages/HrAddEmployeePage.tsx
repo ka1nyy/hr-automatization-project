@@ -11,7 +11,6 @@ import { createAddEmployeeDocx, downloadBlob } from '../add-employee/docx';
 import { attachmentCategories, currencies, departments, educationLevels, employmentTypes, executives, hiringReasons, managers, positions, teams, workArrangements, workSchedules, type AttachmentCategory } from '../add-employee/referenceData';
 import { addEmployeeSchema, type AddEmployeeFormValues } from '../add-employee/schema';
 import { buildEmployeeFullName, buildRequestText, createEmployeeRequestFilename, validateAttachment, type EmployeeAttachment } from '../add-employee/utils';
-import { HrSubnav } from '../components/HrSubnav';
 
 type CommonFieldProps = { name: keyof AddEmployeeFormValues; label: string; register: UseFormRegister<AddEmployeeFormValues>; errors: FieldErrors<AddEmployeeFormValues>; required?: boolean };
 function Field({ name, label, register, errors, required, ...props }: InputHTMLAttributes<HTMLInputElement> & CommonFieldProps) {
@@ -81,7 +80,6 @@ export default function HrAddEmployeePage() {
   const section = (title: string, content: ReactNode) => <Section title={title}><div className="field-grid hr-add-employee-fields">{content}</div></Section>;
 
   return <>
-    <HrSubnav />
     <PageHeader eyebrow="HR · Добавить сотрудника" title="Служебная записка на приём" description="Заполните данные будущего сотрудника и сформируйте официальный DOCX для руководства." />
     <div className="hr-local-only-banner"><FileText size={18} /><span><strong>Локальный режим</strong><small>Черновик хранится на устройстве, вложения — только в памяти, DOCX создаётся в браузере.</small></span></div>
     {notice && <div className="hr-form-notice" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={14} /></button></div>}

@@ -43,6 +43,33 @@ describe('application runtime', () => {
     expect(screen.getByText('Зарина Ахметова')).toBeTruthy();
   });
 
+  it('opens the HR department workspace on the main page after HR login', async () => {
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    renderRoute('/');
+
+    expect(await screen.findByRole('heading', { name: 'Рабочее пространство HR' }, { timeout: 5000 })).toBeTruthy();
+    expect(screen.getByText('HR', { selector: '.breadcrumbs span' })).toBeTruthy();
+    expect(screen.getByText('Главная', { selector: '.breadcrumbs strong' })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /Входящие сообщения/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /^Сотрудники$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /^Процессы/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Операционный день|Сводка дня|HR пространство/i)).toBeNull();
+  });
+
+  it('keeps shared messages and processes inside the HR department context', async () => {
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    const view = renderRoute('/correspondence/incoming');
+    expect(await screen.findByRole('heading', { name: 'Входящие сообщения' })).toBeTruthy();
+    expect(screen.getByRole('tablist', { name: 'Категории сообщений' })).toBeTruthy();
+    expect(screen.getByText('HR', { selector: '.breadcrumbs span' })).toBeTruthy();
+
+    view.unmount();
+    renderRoute('/processes');
+    expect(await screen.findByRole('heading', { name: 'Процессы HR' })).toBeTruthy();
+    expect((await screen.findAllByText('Согласование отпуска')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Обработка входящей корреспонденции')).toBeNull();
+  });
+
   it('keeps the employee in self-service and out of the HR directory', async () => {
     useDeveloperStore.setState({ persona: 'employee' });
     const view = renderRoute('/departments/hr/leave');

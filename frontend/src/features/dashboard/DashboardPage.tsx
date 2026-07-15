@@ -5,8 +5,14 @@ import { repositories } from '../../repositories';
 import { LinkArrow, PageHeader, QueryState, Section } from '../../shared/components';
 import { formatDate, statusLabels } from '../../shared/format';
 import { useDeveloperStore } from '../../shared/store';
+import HrOverviewPage from '../hr/pages/HrOverviewPage';
 
 export default function DashboardPage() {
+  const persona = useDeveloperStore((state) => state.persona);
+  return persona === 'hr-specialist' ? <HrOverviewPage /> : <OperationsDashboard />;
+}
+
+function OperationsDashboard() {
   const locale = useDeveloperStore((state) => state.locale);
   const snapshot = useQuery({ queryKey: ['dashboard'], queryFn: () => repositories.operations.dashboard() });
   const correspondence = useQuery({ queryKey: ['incoming'], queryFn: () => repositories.correspondence.listIncoming() });
