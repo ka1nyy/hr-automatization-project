@@ -37,7 +37,7 @@ export function DepartmentProvider({ children }: PropsWithChildren) {
       permissions: getPermissions(persona) as string[],
       departmentId: profile.departmentId,
       departmentCode: isHrRoute ? 'HR' : profile.departmentCode,
-      departmentName: isHrRoute ? 'Департамент управления персоналом' : profile.departmentName,
+      departmentName: isHrRoute ? 'Департамент документооборота и управления персоналом' : profile.departmentName,
       pageTitle,
       isHrWorkspace
     };

@@ -24,11 +24,11 @@ export const personaProfiles: Record<PersonaId, PersonaProfile> = {
   },
   employee: {
     id: 'employee', name: 'Мадина Садыкова', role: 'Главный эксперт', departmentId: 'department-strategy',
-    departmentCode: 'STRATEGY', departmentName: 'Стратегия и аналитика', email: 'm.sadykova@ertis.kz', homePath: '/'
+    departmentCode: 'STRATEGY', departmentName: 'Департамент экономического планирования', email: 'm.sadykova@ertis.kz', homePath: '/'
   },
   'hr-specialist': {
     id: 'hr-specialist', name: 'Зарина Ахметова', role: 'HR специалист', departmentId: 'department-hr',
-    departmentCode: 'HR', departmentName: 'Департамент управления персоналом', email: 'z.akhmetova@ertis.kz', homePath: '/'
+    departmentCode: 'HR', departmentName: 'Департамент документооборота и управления персоналом', email: 'z.akhmetova@ertis.kz', homePath: '/'
   },
   'process-designer': {
     id: 'process-designer', name: 'Диана Абилова', role: 'Процессный архитектор', departmentId: 'department-digital',

@@ -32,7 +32,7 @@ function OperationsDashboard() {
     </div>
     <div className="dashboard-grid">
       <Section title="Операционная очередь" meta="Обновлено сейчас" className="span-two">
-        <div className="queue-table"><div className="table-head"><span>Документ</span><span>Отправитель</span><span>Этап</span><span>Срок</span><span /></div>{correspondence.data!.slice(0, 5).map((item) => <Link to={`/correspondence/incoming/${item.id}`} className="table-row" key={item.id}><span><strong>{item.number}</strong><small>{item.subject}</small></span><span>{item.sender}</span><span><i className={`status-dot status-${item.status}`} />{statusLabels[item.status]}</span><span className={item.priority === 'urgent' ? 'text-coral' : ''}>{formatDate(item.dueDate, locale, 'dd MMM')}</span><LinkArrow /></Link>)}</div>
+        <div className="queue-table"><div className="table-head"><span>Документ</span><span>Отправитель</span><span>Этап</span><span>Срок</span><span /></div>{correspondence.data!.slice(0, 10).map((item) => <Link to={`/correspondence/incoming/${item.id}`} className="table-row" key={item.id}><span><strong>{item.number}</strong><small>{item.subject}</small></span><span>{item.sender}</span><span><i className={`status-dot status-${item.status}`} />{statusLabels[item.status]}</span><span className={item.priority === 'urgent' ? 'text-coral' : ''}>{formatDate(item.dueDate, locale, 'dd MMM')}</span><LinkArrow /></Link>)}</div>
         <Link className="panel-link" to="/correspondence/incoming">Весь реестр <ArrowRight size={15} /></Link>
       </Section>
       <Section title="Мои ближайшие задачи" meta={`${tasks.data!.length} активных`}>
