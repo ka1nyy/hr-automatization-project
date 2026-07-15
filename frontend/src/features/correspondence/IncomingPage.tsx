@@ -9,6 +9,7 @@ import { useDeveloperStore } from '../../shared/store';
 import { useDepartmentContext } from '../hr/context/DepartmentContext';
 
 const departmentsList = [
+  { name: 'Руководство', label: 'Председатель Правления' },
   { name: 'Департамент документооборота и управления персоналом', label: 'Документооборот и кадры' },
   { name: 'Департамент инвестиций', label: 'Инвестиции' },
   { name: 'Департамент кредитования', label: 'Кредитование' },
@@ -29,6 +30,7 @@ function normalizeDept(name: string): string {
   if (n.startsWith('строитель')) return 'строительство';
   if (n.startsWith('экономическ')) return 'экономическое планирование';
   if (n.startsWith('управления персоналом') || n.startsWith('документооборота')) return 'управление персоналом';
+  if (n.includes('руководство') || n.includes('председатель') || n.includes('правления')) return 'руководство';
   return n;
 }
 
