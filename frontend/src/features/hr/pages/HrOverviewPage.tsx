@@ -90,9 +90,33 @@ export default function HrOverviewPage() {
       <Section title="Активные согласования" meta={`${pending.length} ожидают HR`}><div className="hr-request-list">{pending.length ? pending.map((request) => <article key={request.id}><span className="hr-list-icon"><CalendarCheck2 size={17} /></span><div><strong>{request.employeeName}</strong><small>{request.leaveType} · {request.days} дней · {request.documentNumber}</small></div><LeaveStatus status={request.status} /></article>) : <div className="hr-inline-empty">Очередь согласований пуста</div>}</div><Link className="panel-link" to="/processes">Открыть процессы <ArrowRight size={15} /></Link></Section>
     </div>
 
-    <div className="hr-dashboard-grid">
+    <div className="hr-overview-row-split-reverse">
+      <Section title="HR предупреждения">
+        <div className="hr-process-health-rich">
+          <div className="hr-alert-card tone-gold">
+            <span className="alert-icon"><FileWarning size={18} /></span>
+            <div className="alert-details">
+              <strong>{stats.expiringContracts} договоров</strong>
+              <small>Истекают в ближайшие 30 дней. Требуется продление.</small>
+            </div>
+          </div>
+          <div className="hr-alert-card tone-coral">
+            <span className="alert-icon"><AlertCircle size={18} /></span>
+            <div className="alert-details">
+              <strong>{stats.overdueTasks} просрочено</strong>
+              <small>Задачи вышли за рамки планового SLA.</small>
+            </div>
+          </div>
+          <div className="hr-alert-card tone-teal">
+            <span className="alert-icon"><CheckSquare2 size={18} /></span>
+            <div className="alert-details">
+              <strong>{stats.activeProcesses} процессов</strong>
+              <small>Маршруты выполняются в штатном режиме.</small>
+            </div>
+          </div>
+        </div>
+      </Section>
       <Section title="Задачи" meta={`${activeTasks.length} активных`}><div className="task-compact-list">{activeTasks.slice(0, 4).map((task) => <Link to="/tasks" key={task.id}><span className={`priority-line priority-${task.priority}`} /><span><strong>{task.title}</strong><small>{task.process} · до {formatDate(task.dueDate, locale, 'dd MMM')}</small></span><ArrowRight size={15} /></Link>)}</div><Link className="panel-link" to="/tasks">Все задачи <ArrowRight size={15} /></Link></Section>
-      <Section title="HR предупреждения"><div className="hr-process-health"><div><span className="tone-gold"><FileWarning size={16} /></span><strong>{stats.expiringContracts}</strong><small>Договоры истекают</small></div><div><span className="tone-coral"><AlertCircle size={16} /></span><strong>{stats.overdueTasks}</strong><small>Просроченные задачи</small></div><div><span className="tone-teal"><CheckSquare2 size={16} /></span><strong>{stats.activeProcesses}</strong><small>Процессы в работе</small></div></div></Section>
     </div>
   </>;
 }
