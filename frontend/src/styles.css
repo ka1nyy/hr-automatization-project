@@ -276,14 +276,14 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .developer-user-context span { color: #7c817f; font-family: var(--font-mono); font-size: 6px; text-transform: uppercase; }
 .developer-user-context strong { font-size: 9px; }
 .developer-user-context small { color: #929795; font-size: 7px; }
-.message-tabs { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 4px; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.message-tabs { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 0px; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .message-tabs::-webkit-scrollbar { height: 3px; }
 .message-tabs::-webkit-scrollbar-track { background: transparent; }
 .message-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .message-tabs::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-.message-tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font-size: 9px; min-height: 38px; padding: 0 14px; white-space: nowrap; flex-shrink: 0; }
+.message-tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font-size: 8.5px; min-height: 38px; padding: 0 8px; white-space: nowrap; flex-shrink: 0; }
 .message-tabs button.active { border-bottom-color: var(--ember); color: var(--ink); }
-.message-tabs b { background: var(--soft); border-radius: 12px; font-family: var(--font-mono); font-size: 7px; margin-left: 5px; padding: 3px 6px; }
+.message-tabs b { background: var(--soft); border-radius: 12px; font-family: var(--font-mono); font-size: 7px; margin-left: 3px; padding: 2px 5px; }
 
 @media (max-width: 1180px) {
   .metric-grid { grid-template-columns: repeat(3, 1fr); }

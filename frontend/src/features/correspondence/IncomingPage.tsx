@@ -9,13 +9,13 @@ import { useDeveloperStore } from '../../shared/store';
 import { useDepartmentContext } from '../hr/context/DepartmentContext';
 
 const departmentsList = [
-  { name: 'Руководство', label: 'Председатель Правления' },
-  { name: 'Департамент документооборота и управления персоналом', label: 'Документооборот и кадры' },
+  { name: 'Руководство', label: 'Руководство' },
+  { name: 'Департамент документооборота и управления персоналом', label: 'Кадры и ДО' },
   { name: 'Департамент инвестиций', label: 'Инвестиции' },
   { name: 'Департамент кредитования', label: 'Кредитование' },
   { name: 'Департамент активов', label: 'Активы' },
   { name: 'Департамент строительства', label: 'Строительство' },
-  { name: 'Департамент стабильности фонда', label: 'Стабильность фонда' },
+  { name: 'Департамент стабильности фонда', label: 'Стабильность' },
   { name: 'Департамент экономического планирования', label: 'Экономика' },
   { name: 'Юридический департамент', label: 'Юридический' },
   { name: 'Бухгалтерия', label: 'Бухгалтерия' }
@@ -39,7 +39,7 @@ export default function IncomingPage() {
   const department = useDepartmentContext();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('external');
   const result = useQuery({ queryKey: ['incoming'], queryFn: () => repositories.correspondence.listIncoming() });
 
   const filtered = useMemo(() => (result.data ?? []).filter((item) => {
@@ -64,7 +64,6 @@ export default function IncomingPage() {
   return <>
     <PageHeader eyebrow={isHr ? 'HR · Сообщения' : 'Секретариат · Реестр'} title={isHr ? 'Входящие сообщения' : 'Входящая корреспонденция'} actions={<><button className="secondary-button"><Download size={16} /> Экспорт</button>{!isHr && <Link className="primary-button" to="/correspondence/incoming/new"><Plus size={16} /> Зарегистрировать письмо</Link>}</>} />
     <div className="message-tabs" role="tablist" aria-label="Категории сообщений">
-      <button className={activeTab === 'all' ? 'active' : ''} onClick={() => setActiveTab('all')}>Все <b>{getCount('all')}</b></button>
       <button className={activeTab === 'external' ? 'active' : ''} onClick={() => setActiveTab('external')}>Внешние <b>{getCount('external')}</b></button>
       {departmentsList.map((dept) => (
         <button key={dept.name} className={activeTab === dept.name ? 'active' : ''} onClick={() => setActiveTab(dept.name)}>
