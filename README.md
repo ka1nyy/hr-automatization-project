@@ -1,22 +1,32 @@
 # HR Automatization Project
 
-Monorepo for the ERTIS OPERATIONS corporate document management and workflow automation platform.
+ERTIS OPERATIONS combines the modular SPK FastAPI backend with the React HR and document-workflow frontend.
 
-## Structure
+## Start the complete application
 
-- `frontend/` - React, TypeScript and Vite application with deterministic mock repositories.
-- `backend/` - NestJS/Prisma HR backend with employee, dashboard and leave capabilities plus shared workflow/document ports.
-
-## Frontend
+From the repository root:
 
 ```powershell
+docker compose up --build
+```
+
+Open `http://localhost:5173`. This starts PostgreSQL, applies Alembic migrations, seeds the development organization, starts the backend, and serves the frontend through nginx. Browser requests use the same-origin `/api/v1` route; nginx forwards them to the backend.
+
+Stop the application with:
+
+```powershell
+docker compose down
+```
+
+## Frontend development
+
+Start PostgreSQL and the backend first, then run Vite:
+
+```powershell
+docker compose up -d postgres backend
 cd frontend
 pnpm install
 pnpm dev
 ```
 
-The frontend opens at `http://localhost:5173` by default. Detailed architecture and release scope are documented in `frontend/docs/`.
-
-## Backend
-
-The backend is included in this branch and remains intentionally free of Hiring/Add Employee APIs. See `docs/HR_HIRING_BACKEND_EXCLUSION.md` for the integration boundary.
+Vite proxies `/api` to `http://localhost:8000`, so the browser never needs a hard-coded backend origin.

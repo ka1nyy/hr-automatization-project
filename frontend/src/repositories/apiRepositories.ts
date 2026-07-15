@@ -24,7 +24,7 @@ function currentDevUser() {
 }
 
 export class ApiClient {
-  constructor(readonly baseUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000/api/v1') {}
+  constructor(readonly baseUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api/v1') {}
 
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const isFormData = init?.body instanceof FormData;
