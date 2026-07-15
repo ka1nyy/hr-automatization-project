@@ -126,10 +126,11 @@ export interface ReviewLeaveCommand {
 }
 
 export interface HrOverviewRecord {
+  totalEmployees: number;
   activeEmployees: number;
   onProbation: number;
   onLeave: number;
-  openVacancies: number;
+  onSickLeave: number;
   incompleteFiles: number;
   expiringContracts: number;
 }

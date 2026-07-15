@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { CurrentContext } from '../auth/request-context';
 import { RequestContext } from '../auth/auth.types';
 import { RequirePermissions } from '../auth/permissions.decorator';
-import { CreateEmployeeDto, EmployeeQueryDto } from './dto/employee.dto';
+import { EmployeeQueryDto } from './dto/employee.dto';
 import { EmployeeService } from './employee.service';
 
 @ApiTags('HR employees')
@@ -18,6 +18,11 @@ export class EmployeeController {
   @ApiOperation({ summary: 'Get HR operational counters' })
   overview() { return this.employees.overview(); }
 
+  @Get('dashboard')
+  @RequirePermissions('hr.employee.read.all')
+  @ApiOperation({ summary: 'Get aggregated HR dashboard metrics' })
+  dashboard() { return this.employees.overview(); }
+
   @Get('employees')
   @ApiOperation({ summary: 'List employees (HR only)' })
   list(@Query() query: EmployeeQueryDto, @CurrentContext() context: RequestContext) {
@@ -30,10 +35,4 @@ export class EmployeeController {
     return this.employees.get(id, context);
   }
 
-  @Post('employees')
-  @RequirePermissions('hr.employee.write')
-  @ApiOperation({ summary: 'Create employee and occupy a staffing position' })
-  create(@Body() dto: CreateEmployeeDto, @CurrentContext() context: RequestContext) {
-    return this.employees.create(dto, context);
-  }
 }

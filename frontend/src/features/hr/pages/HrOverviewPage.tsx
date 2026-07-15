@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, ArrowRight, BriefcaseBusiness, CalendarCheck2, Clock3, FileWarning, GraduationCap, UserCheck, UsersRound } from 'lucide-react';
+import { Activity, AlertCircle, ArrowRight, CalendarCheck2, Clock3, FileWarning, GraduationCap, HeartPulse, UserCheck, UserPlus, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
 import { formatDate } from '../../../shared/format';
@@ -44,14 +44,15 @@ export default function HrOverviewPage() {
   const pending = leaveRequests.data!.filter((item) => item.status === 'hr_review');
   return <>
     <HrSubnav />
-    <PageHeader eyebrow="Департамент управления персоналом" title="HR Operations" description="Состояние персонала, кадровых процессов и задач на текущий день." actions={<Link className="secondary-button" to="/departments/hr/employees"><UsersRound size={16} /> Каталог сотрудников</Link>} />
+    <PageHeader eyebrow="HR · Главная" title="HR Operations" description="Состояние персонала, кадровых процессов и задач." actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
     <div className="hr-metric-grid">
       <article><span className="tone-teal"><UsersRound size={18} /></span><div><small>Активные сотрудники</small><strong>{stats.activeEmployees}</strong><em>+4 с начала месяца</em></div></article>
       <article><span className="tone-violet"><UserCheck size={18} /></span><div><small>На испытательном</small><strong>{stats.onProbation}</strong><em>5 сроков в июле</em></div></article>
       <article><span className="tone-gold"><CalendarCheck2 size={18} /></span><div><small>Сейчас в отпуске</small><strong>{stats.onLeave}</strong><em>8% штата</em></div></article>
-      <article><span className="tone-emerald"><BriefcaseBusiness size={18} /></span><div><small>Открытые вакансии</small><strong>{stats.openVacancies}</strong><em>38 кандидатов</em></div></article>
+      <article><span className="tone-coral"><HeartPulse size={18} /></span><div><small>На больничном</small><strong>{stats.onSickLeave}</strong><em>Ограниченные медданные</em></div></article>
       <article><span className="tone-coral"><Clock3 size={18} /></span><div><small>Просрочено задач</small><strong>{stats.overdueTasks}</strong><em>Требуют внимания</em></div></article>
       <article><span className="tone-gold"><FileWarning size={18} /></span><div><small>Неполные дела</small><strong>{stats.incompleteFiles}</strong><em>{stats.expiringContracts} договоров истекают</em></div></article>
+      <article><span className="tone-teal"><Activity size={18} /></span><div><small>Активные процессы</small><strong>{stats.activeProcesses}</strong><em>Согласования HR</em></div></article>
     </div>
     <div className="hr-dashboard-grid">
       <Section title="Заявки на проверку" meta={`${pending.length} ожидают HR`}><div className="hr-request-list">{pending.length ? pending.map((request) => <article key={request.id}><span className="hr-list-icon"><CalendarCheck2 size={17} /></span><div><strong>{request.employeeName}</strong><small>{request.leaveType} · {request.days} дней · {request.documentNumber}</small></div><LeaveStatus status={request.status} /></article>) : <div className="hr-inline-empty">Очередь проверки пуста</div>}</div><Link className="panel-link" to="/departments/hr/leave">Вся очередь <ArrowRight size={15} /></Link></Section>

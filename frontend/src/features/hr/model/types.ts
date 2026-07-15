@@ -62,12 +62,15 @@ export interface CreateLeaveRequestInput {
 }
 
 export interface HrOverview {
+  totalEmployees: number;
   activeEmployees: number;
   onProbation: number;
   onLeave: number;
-  openVacancies: number;
+  onSickLeave: number;
+  onBusinessTrip: number;
   onboardingCases: number;
   overdueTasks: number;
   incompleteFiles: number;
   expiringContracts: number;
+  activeProcesses: number;
 }

@@ -39,7 +39,7 @@ describe('application runtime', () => {
     useDeveloperStore.setState({ persona: 'hr-specialist' });
     renderRoute('/departments/hr/employees');
 
-    expect(await screen.findByRole('heading', { name: 'Каталог сотрудников' }, { timeout: 5000 })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Сотрудники' }, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByText('Зарина Ахметова')).toBeTruthy();
   });
 
@@ -51,5 +51,16 @@ describe('application runtime', () => {
     view.unmount();
     renderRoute('/departments/hr/employees');
     expect(await screen.findByRole('heading', { name: 'Доступ ограничен' })).toBeTruthy();
+  });
+
+  it('shows dynamic HR context and stores Add Employee drafts locally', async () => {
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    renderRoute('/hr/hiring/add-employee');
+
+    expect(await screen.findByRole('heading', { name: 'Служебная записка на приём' })).toBeTruthy();
+    expect(screen.getByText('Добавить сотрудника', { selector: '.breadcrumbs strong' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Сохранить черновик/i }));
+    expect(localStorage.getItem('ertis.hr.add-employee.draft.v1')).toContain('Зарина Ахметова');
+    expect(screen.getByText(/Файлы не сохраняются/i)).toBeTruthy();
   });
 });

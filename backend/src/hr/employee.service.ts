@@ -38,7 +38,7 @@ export class EmployeeService {
   }
 
   async overview() {
-    return { ...(await this.repository.getOverview()), onboardingCases: 0, overdueTasks: 0 };
+    return { ...(await this.repository.getOverview()), onBusinessTrip: 0, onboardingCases: 0, overdueTasks: 0, activeProcesses: 0 };
   }
 
   private present(employee: EmployeeRecord, context: RequestContext) {

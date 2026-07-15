@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, Blocks, Building2, CheckSquare2, ChevronDown, Command, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UsersRound, X } from 'lucide-react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
 import { getPermissions } from '../shared/permissions';
 import { t } from '../shared/i18n';
 import { useDeveloperStore } from '../shared/store';
 import type { PersonaId } from '../shared/types';
+import { useDepartmentContext } from '../features/hr/context/DepartmentContext';
 
 type SearchResult = { id: string; title: string; detail: string; to: string; type: 'section' | 'document' | 'task' | 'employee' };
 
@@ -26,10 +27,10 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentPersona = personas.find((item) => item.id === store.persona)!;
+  const department = useDepartmentContext();
   const canOpenHr = getPermissions(store.persona).includes('hr.read');
   const nav = useMemo(() => [
     { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
@@ -104,7 +105,7 @@ export function AppShell() {
           {!store.sidebarCollapsed && <span><strong>ERTIS</strong><small>OPERATIONS</small></span>}
           <button className="icon-button mobile-close" onClick={() => setMobileOpen(false)} aria-label="Закрыть меню"><X size={18} /></button>
         </div>
-        {!store.sidebarCollapsed && <button className="organization-switch"><span className="org-monogram">СПК</span><span><strong>АО «СПК «Ертіс»</strong><small>Корпоративный офис</small></span><ChevronDown size={14} /></button>}
+        {!store.sidebarCollapsed && <button className="organization-switch"><span className="org-monogram">СПК</span><span><strong>АО «СПК «Ертіс»</strong></span><ChevronDown size={14} /></button>}
         <nav className="primary-nav" aria-label="Основная навигация">
           {!store.sidebarCollapsed && <span className="nav-label">Рабочее пространство</span>}
           {nav.map(({ to, icon: Icon, label, badge, end }) => <NavLink key={to} to={to} end={end} onClick={() => setMobileOpen(false)} title={label}><Icon size={18} /><span>{label}</span>{badge && <b>{badge}</b>}</NavLink>)}
@@ -120,9 +121,9 @@ export function AppShell() {
       <div className="workspace">
         <header className="topbar">
           <div className="topbar-inner">
-            <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button><div className="breadcrumbs"><span>АО «СПК «Ертіс»</span><b>/</b><strong>{location.pathname.includes('/departments/hr') ? 'Департамент управления персоналом' : location.pathname.includes('incoming') ? 'Входящая корреспонденция' : location.pathname.includes('tasks') ? 'Моя работа' : location.pathname.includes('processes') ? 'Процессы' : location.pathname.includes('organization') ? 'Организация' : 'Главная'}</strong></div></div>
+            <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button><div className="breadcrumbs"><span>{department.departmentCode ?? 'АО «СПК «Ертіс»'}</span><b>/</b><strong>{department.pageTitle}</strong></div></div>
             <button className="global-search" onClick={openSearch} aria-label="Глобальный поиск"><Search size={17} /><span>{t(store.locale, 'search')}</span><kbd><Command size={12} /> K</kbd></button>
-            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(location.pathname.includes('/departments/hr') ? '/departments/hr/leave' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap"><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong><span>3 новых</span></div><div className="notification-item"><i className="tone-coral" /><span><strong>Срок задачи истёк</strong><small>ВХ-2026-000839 · 24 мин назад</small></span></div><div className="notification-item"><i className="tone-gold" /><span><strong>Документ ожидает подписи</strong><small>Ответ по реестру имущества</small></span></div><div className="notification-item"><i className="tone-violet" /><span><strong>Новая задача соисполнителя</strong><small>Юридическое заключение</small></span></div></div>}</div></div>
+            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.departmentCode === 'HR' ? '/hr/hiring/add-employee' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap"><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong><span>3 новых</span></div><div className="notification-item"><i className="tone-coral" /><span><strong>Срок задачи истёк</strong><small>ВХ-2026-000839 · 24 мин назад</small></span></div><div className="notification-item"><i className="tone-gold" /><span><strong>Документ ожидает подписи</strong><small>Ответ по реестру имущества</small></span></div><div className="notification-item"><i className="tone-violet" /><span><strong>Новая задача соисполнителя</strong><small>Юридическое заключение</small></span></div></div>}</div></div>
           </div>
         </header>
         <main className="content"><Outlet /></main>

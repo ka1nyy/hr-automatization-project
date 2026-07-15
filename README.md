@@ -5,7 +5,7 @@ Monorepo for the ERTIS OPERATIONS corporate document management and workflow aut
 ## Structure
 
 - `frontend/` - React, TypeScript and Vite application with deterministic mock repositories.
-- `backend/` - reserved backend service boundary for the future API Gateway/BFF and domain services.
+- `backend/` - NestJS/Prisma HR backend with employee, dashboard and leave capabilities plus shared workflow/document ports.
 
 ## Frontend
 
@@ -19,4 +19,4 @@ The frontend opens at `http://localhost:5173` by default. Detailed architecture 
 
 ## Backend
 
-Backend implementation has not started yet. Its folder documents the intended security and integration boundaries without committing placeholder production code.
+The backend is included in this branch and remains intentionally free of Hiring/Add Employee APIs. See `docs/HR_HIRING_BACKEND_EXCLUSION.md` for the integration boundary.

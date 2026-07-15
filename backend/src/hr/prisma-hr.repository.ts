@@ -148,15 +148,16 @@ export class PrismaHrRepository implements HrRepository {
     const now = new Date();
     const ninetyDays = new Date(now);
     ninetyDays.setUTCDate(ninetyDays.getUTCDate() + 90);
-    const [activeEmployees, onProbation, onLeave, openVacancies, incompleteFiles, expiringContracts] = await this.prisma.$transaction([
+    const [totalEmployees, activeEmployees, onProbation, onLeave, onSickLeave, incompleteFiles, expiringContracts] = await this.prisma.$transaction([
+      this.prisma.employee.count(),
       this.prisma.employee.count({ where: { status: EmployeeStatus.ACTIVE } }),
       this.prisma.employee.count({ where: { status: EmployeeStatus.ACTIVE, probationEndDate: { gte: now } } }),
-      this.prisma.employee.count({ where: { status: { in: [EmployeeStatus.ON_LEAVE, EmployeeStatus.SICK_LEAVE, EmployeeStatus.LONG_TERM_LEAVE] } } }),
-      this.prisma.staffingPosition.count({ where: { status: StaffingStatus.VACANT } }),
+      this.prisma.employee.count({ where: { status: { in: [EmployeeStatus.ON_LEAVE, EmployeeStatus.LONG_TERM_LEAVE] } } }),
+      this.prisma.employee.count({ where: { status: EmployeeStatus.SICK_LEAVE } }),
       this.prisma.employee.count({ where: { personnelFileCompleteness: { lt: 90 } } }),
       this.prisma.employee.count({ where: { contractEndDate: { gte: now, lte: ninetyDays } } })
     ]);
-    return { activeEmployees, onProbation, onLeave, openVacancies, incompleteFiles, expiringContracts };
+    return { totalEmployees, activeEmployees, onProbation, onLeave, onSickLeave, incompleteFiles, expiringContracts };
   }
 
   async listLeaveRequests(query: LeaveListQuery): Promise<Paginated<LeaveRecord>> {

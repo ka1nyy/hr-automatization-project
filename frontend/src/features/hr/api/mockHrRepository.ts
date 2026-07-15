@@ -21,14 +21,17 @@ export class MockHrRepository implements HrRepository {
   async getOverview() {
     const database = read();
     return wait({
+      totalEmployees: 180,
       activeEmployees: 180,
       onProbation: database.employees.filter((item) => item.status === 'probation').length + 11,
       onLeave: database.employees.filter((item) => item.status === 'on_leave').length + 14,
-      openVacancies: 10,
+      onSickLeave: database.employees.filter((item) => item.status === 'sick_leave').length + 3,
+      onBusinessTrip: 3,
       onboardingCases: 7,
       overdueTasks: 4,
       incompleteFiles: database.employees.filter((item) => item.personnelFileCompleteness < 90).length + 9,
-      expiringContracts: database.employees.filter((item) => item.contractEnd?.startsWith('2026')).length + 5
+      expiringContracts: database.employees.filter((item) => item.contractEnd?.startsWith('2026')).length + 5,
+      activeProcesses: 14
     });
   }
 
