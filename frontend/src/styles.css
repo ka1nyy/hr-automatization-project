@@ -570,10 +570,30 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
   .hr-add-employee-shortcut .primary-button { grid-column: 1 / -1; justify-content: center; }
 }
 
-.filter-dropdown-panel { align-items: center; background: var(--canvas); border: 1px solid var(--border); border-radius: var(--radius); display: flex; gap: 15px; margin-bottom: 10px; padding: 10px 14px; }
-.filter-dropdown-panel label { align-items: center; color: var(--muted); display: flex; font-size: 9px; gap: 8px; }
-.filter-dropdown-panel input, .filter-dropdown-panel select { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); font-size: 9px; height: 28px; padding: 0 8px; }
-.clear-filter-btn { background: transparent; border: 0; color: var(--coral); cursor: pointer; font-size: 9px; font-weight: 600; }
+.drawer-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); z-index: 1000; display: flex; justify-content: flex-end; animation: drawerFadeIn 0.2s ease-out; }
+.drawer-panel { background: var(--paper); border-left: 1px solid var(--border); width: 320px; height: 100%; display: flex; flex-direction: column; box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15); animation: drawerSlideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.drawer-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.drawer-header h2 { font-family: var(--font-condensed); font-size: 14px; font-weight: 600; margin: 0; }
+.drawer-close { background: transparent; border: 0; font-size: 20px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; }
+.drawer-close:hover { color: var(--ink); }
+.drawer-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; }
+.drawer-section h3 { font-family: var(--font-mono); font-size: 8px; color: var(--muted); text-transform: uppercase; margin: 0 0 12px 0; letter-spacing: 0.5px; }
+.drawer-field-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.drawer-field-group label { display: flex; flex-direction: column; gap: 5px; font-size: 9px; color: var(--muted); }
+.drawer-field-group input { background: var(--canvas); border: 1px solid var(--border); border-radius: var(--radius); font-size: 9px; height: 32px; padding: 0 8px; width: 100%; }
+.drawer-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; font-size: 9px; color: var(--muted); }
+.drawer-field select { background: var(--canvas); border: 1px solid var(--border); border-radius: var(--radius); font-size: 9px; height: 32px; padding: 0 8px; width: 100%; }
+.drawer-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: var(--canvas); }
+.drawer-footer button { flex: 1; font-size: 9px; }
+
+@keyframes drawerFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes drawerSlideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
 
 .correspondence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
 .correspondence-card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; display: flex; flex-direction: column; padding: 14px; transition: transform 0.15s ease, box-shadow 0.15s ease; }

@@ -44,15 +44,14 @@ export default function IncomingPage() {
   const [activeTab, setActiveTab] = useState('external');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
-  // Date range filter
+  // Filters state (shared in the side drawer)
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // Advanced filters (Sliders)
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [confidentialityFilter, setConfidentialityFilter] = useState('all');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  
+  // Right Drawer toggle
+  const [isFiltersDrawerOpen, setIsFiltersDrawerOpen] = useState(false);
 
   const result = useQuery({ queryKey: ['incoming'], queryFn: () => repositories.correspondence.listIncoming() });
 
@@ -130,11 +129,11 @@ export default function IncomingPage() {
         <option value="dispatch">К отправке</option>
       </select>
 
-      <button className={`toolbar-button ${showDatePicker ? 'active' : ''}`} onClick={() => setShowDatePicker(!showDatePicker)}>
+      <button className={`toolbar-button ${hasActivePeriod ? 'active' : ''}`} onClick={() => setIsFiltersDrawerOpen(true)}>
         <CalendarDays size={16} /> Период {hasActivePeriod && '●'}
       </button>
 
-      <button className={`toolbar-button icon-only ${showAdvancedFilters ? 'active' : ''}`} onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
+      <button className={`toolbar-button icon-only ${hasActiveAdvanced ? 'active' : ''}`} onClick={() => setIsFiltersDrawerOpen(true)}>
         <SlidersHorizontal size={16} />
       </button>
 
@@ -148,43 +147,69 @@ export default function IncomingPage() {
       </span>
     </div>
 
-    {showDatePicker && (
-      <div className="filter-dropdown-panel">
-        <label>От: <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
-        <label>До: <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
-        {hasActivePeriod && (
-          <button className="clear-filter-btn" onClick={() => { setStartDate(''); setEndDate(''); }}>
-            Сбросить период
-          </button>
-        )}
-      </div>
-    )}
+    {/* Right Sliding Filters Drawer */}
+    {isFiltersDrawerOpen && (
+      <div className="drawer-overlay" onClick={() => setIsFiltersDrawerOpen(false)}>
+        <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+          <header className="drawer-header">
+            <h2>Фильтры и период</h2>
+            <button className="drawer-close" onClick={() => setIsFiltersDrawerOpen(false)} aria-label="Закрыть">×</button>
+          </header>
+          
+          <div className="drawer-content">
+            <section className="drawer-section">
+              <h3>Период получения</h3>
+              <div className="drawer-field-group">
+                <label>
+                  <span>Дата от</span>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </label>
+                <label>
+                  <span>Дата до</span>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                </label>
+              </div>
+            </section>
+            
+            <section className="drawer-section">
+              <h3>Параметры письма</h3>
+              
+              <label className="drawer-field">
+                <span>Приоритет</span>
+                <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+                  <option value="all">Все приоритеты</option>
+                  <option value="normal">Обычный</option>
+                  <option value="high">Высокий</option>
+                  <option value="urgent">Срочный</option>
+                </select>
+              </label>
 
-    {showAdvancedFilters && (
-      <div className="filter-dropdown-panel">
-        <label>
-          Приоритет:
-          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="all">Все приоритеты</option>
-            <option value="normal">Обычный</option>
-            <option value="high">Высокий</option>
-            <option value="urgent">Срочный</option>
-          </select>
-        </label>
-        <label>
-          Конфиденциальность:
-          <select value={confidentialityFilter} onChange={(e) => setConfidentialityFilter(e.target.value)}>
-            <option value="all">Все уровни</option>
-            <option value="public">Открытый</option>
-            <option value="internal">ДСП</option>
-            <option value="restricted">Ограниченный</option>
-          </select>
-        </label>
-        {hasActiveAdvanced && (
-          <button className="clear-filter-btn" onClick={() => { setPriorityFilter('all'); setConfidentialityFilter('all'); }}>
-            Сбросить фильтры
-          </button>
-        )}
+              <label className="drawer-field">
+                <span>Конфиденциальность</span>
+                <select value={confidentialityFilter} onChange={(e) => setConfidentialityFilter(e.target.value)}>
+                  <option value="all">Все уровни</option>
+                  <option value="public">Открытый</option>
+                  <option value="internal">ДСП</option>
+                  <option value="restricted">Ограниченный доступ</option>
+                </select>
+              </label>
+            </section>
+          </div>
+
+          <footer className="drawer-footer">
+            <button className="secondary-button" onClick={() => {
+              setStartDate('');
+              setEndDate('');
+              setPriorityFilter('all');
+              setConfidentialityFilter('all');
+            }}>
+              Сбросить
+            </button>
+            <button className="primary-button" onClick={() => setIsFiltersDrawerOpen(false)}>
+              Применить
+            </button>
+          </footer>
+        </div>
       </div>
     )}
 
