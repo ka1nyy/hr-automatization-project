@@ -44,13 +44,6 @@ export default function HrEmployeesPage() {
 
   return <>
     <PageHeader eyebrow="HR · Сотрудники" title="Сотрудники" actions={<Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link>} />
-    <div className="hr-directory-summary">
-      <span><strong>{result.data?.length ?? 0}</strong> сотрудников</span>
-      <span><strong>{departments.length}</strong> подразделений</span>
-      <span><strong>{(result.data ?? []).filter((employee) => employee.status === 'probation').length}</strong> на испытательном сроке</span>
-      <span><strong>{(result.data ?? []).filter((employee) => employee.status === 'on_leave' || employee.status === 'sick_leave').length}</strong> отсутствуют</span>
-    </div>
-
     <div className="message-tabs" role="tablist" aria-label="Фильтр по департаментам">
       <button
         className={department === 'all' ? 'active' : ''}
