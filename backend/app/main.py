@@ -5,12 +5,13 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from app.core.audit.router import router as audit_router
@@ -173,6 +174,35 @@ def _employee_service_provider(runtime: Settings) -> Callable[[], EmployeeServic
     return provide
 
 
+def _install_frontend(application: FastAPI, runtime: Settings) -> None:
+    """Serve the repository's compiled SPA from the backend process when configured."""
+
+    if not runtime.frontend_dist_path:
+        return
+
+    frontend_root = Path(runtime.frontend_dist_path).resolve()
+    index_file = frontend_root / "index.html"
+    if not index_file.is_file():
+        msg = f"Compiled frontend index is missing: {index_file}"
+        raise RuntimeError(msg)
+
+    api_prefix = runtime.api_prefix.rstrip("/")
+
+    @application.get("/{requested_path:path}", include_in_schema=False)
+    async def serve_frontend(requested_path: str) -> FileResponse:
+        request_path = f"/{requested_path}"
+        if request_path == api_prefix or request_path.startswith(f"{api_prefix}/"):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+        candidate = (frontend_root / requested_path).resolve()
+        try:
+            candidate.relative_to(frontend_root)
+        except ValueError:
+            candidate = index_file
+
+        return FileResponse(candidate if candidate.is_file() else index_file)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     runtime = settings or get_settings()
     employee_service_provider = _employee_service_provider(runtime)
@@ -267,6 +297,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         prefix=runtime.api_prefix,
     )
     _install_openapi_contract(application)
+    _install_frontend(application, runtime)
     return application
 
 

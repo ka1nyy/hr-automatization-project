@@ -7,6 +7,7 @@ from app.core.config import Environment, Settings
 from app.main import create_app
 from app.open_api import validate
 from fastapi import APIRouter
+from fastapi.testclient import TestClient
 
 HTTP_METHODS = frozenset({"delete", "get", "head", "options", "patch", "post", "put", "trace"})
 
@@ -119,3 +120,19 @@ def test_paginated_collections_publish_allowlisted_sort_contracts() -> None:
         parameters = schema["paths"][path]["get"]["parameters"]
         sort_parameter = next(item for item in parameters if item["name"] == "sort")
         assert required_values <= set(sort_parameter["schema"]["enum"])
+
+
+def test_compiled_frontend_is_served_with_spa_fallback(tmp_path: Any) -> None:
+    frontend_dir = tmp_path / "frontend-dist"
+    frontend_dir.mkdir()
+    (frontend_dir / "index.html").write_text("<main>HR application</main>", encoding="utf-8")
+    (frontend_dir / "asset.txt").write_text("compiled asset", encoding="utf-8")
+    settings = _test_settings().model_copy(
+        update={"frontend_dist_path": str(frontend_dir)}
+    )
+
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/").text == "<main>HR application</main>"
+        assert client.get("/hr/employees").text == "<main>HR application</main>"
+        assert client.get("/asset.txt").text == "compiled asset"
+        assert client.get("/api/v1/not-a-route").status_code == 404

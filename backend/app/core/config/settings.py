@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     sensitive_data_key: SecretStr | None = None
     log_level: str = "INFO"
     cors_origins: CsvList = Field(default_factory=lambda: ["http://localhost:5173"])
+    frontend_dist_path: str | None = None
 
     dev_auth_enabled: bool = False
     dev_default_user: str = "admin"

@@ -28,10 +28,6 @@ export default function HrEmployeesPage() {
   const [department, setDepartment] = useState('all');
   const result = useQuery({ queryKey: ['hr', 'employees'], queryFn: () => hrRepository.listEmployees(), enabled: canRead });
   
-  const departments = useMemo(() => {
-    return [...new Set((result.data ?? []).map((item) => item.department))];
-  }, [result.data]);
-
   const filtered = useMemo(() => {
     return (result.data ?? []).filter((employee) => {
       const matchesDept = department === 'all' || employee.department === department;
