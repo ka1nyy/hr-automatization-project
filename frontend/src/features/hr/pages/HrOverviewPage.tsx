@@ -91,7 +91,7 @@ export default function HrOverviewPage() {
     </div>
 
     <div className="hr-overview-row-split-reverse">
-      <Section title="HR предупреждения">
+      <Section title="Предупреждения">
         <div className="hr-process-health-rich">
           <div className="hr-alert-card tone-gold">
             <span className="alert-icon"><FileWarning size={18} /></span>
