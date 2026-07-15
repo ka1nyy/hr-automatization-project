@@ -1,21 +1,21 @@
-FROM node:22-bookworm-slim AS build
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
-RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY prisma/schema.prisma ./prisma/schema.prisma
-RUN pnpm install --frozen-lockfile
-COPY . .
-RUN pnpm prisma:generate && pnpm build
+FROM python:3.12-slim AS runtime
 
-FROM node:22-bookworm-slim AS runtime
-WORKDIR /app
-ENV NODE_ENV=production
-RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
-RUN corepack enable
-COPY --from=build /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-EXPOSE 3000
-CMD ["node", "dist/main.js"]
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /srv/app
+
+COPY pyproject.toml README.md ./
+COPY app ./app
+COPY alembic.ini ./
+COPY migrations ./migrations
+
+RUN pip install --upgrade pip && pip install .
+
+RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /srv/app
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

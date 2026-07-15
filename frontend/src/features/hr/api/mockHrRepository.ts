@@ -43,6 +43,8 @@ export class MockHrRepository implements HrRepository {
     return wait(employee);
   }
 
+  async getCurrentEmployee() { return this.getEmployee('e-3'); }
+
   async listLeaveRequests() { return wait(read().leaveRequests); }
 
   async createLeaveRequest(input: CreateLeaveRequestInput) {
@@ -88,6 +90,10 @@ export class MockHrRepository implements HrRepository {
     }
     write(database);
     return wait(request);
+  }
+
+  async submitHiringRequest() {
+    return wait({ id: 'mock-hiring', number: 'HR-HIRE-MOCK', status: 'on_check', currentStep: 'HR completeness check' });
   }
 
   async reset() { localStorage.removeItem(STORAGE_KEY); }

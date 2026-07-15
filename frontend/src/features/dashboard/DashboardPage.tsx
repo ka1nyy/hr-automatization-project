@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertOctagon, ArrowRight, CheckCircle2, Clock3, FileCheck2, FileInput, PenTool, Send, Sparkles } from 'lucide-react';
+import { AlertOctagon, ArrowRight, CheckCircle2, Clock3, FileCheck2, FileInput, PenTool, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { repositories } from '../../repositories';
 import { LinkArrow, PageHeader, QueryState, Section } from '../../shared/components';
@@ -21,13 +21,13 @@ function OperationsDashboard() {
   if (snapshot.error || correspondence.error || tasks.error) return <QueryState error={(snapshot.error || correspondence.error || tasks.error) as Error} retry={() => { snapshot.refetch(); correspondence.refetch(); tasks.refetch(); }} />;
   const stats = snapshot.data!;
   return <>
-    <PageHeader eyebrow="Операционный день · 14 июля 2026" title="Центр управления" actions={<><button className="secondary-button"><Sparkles size={16} /> Сводка дня</button><Link className="primary-button" to="/correspondence/incoming/new"><FileInput size={16} /> Регистрация письма</Link></>} />
+    <PageHeader eyebrow="Операционный центр" title="Центр управления" actions={<Link className="primary-button" to="/correspondence/incoming/new"><FileInput size={16} /> Регистрация письма</Link>} />
     <div className="metric-grid">
       <article><span className="metric-icon tone-teal"><FileInput size={18} /></span><div><small>Поступило сегодня</small><strong>{stats.incomingToday}</strong><em>+2 за последний час</em></div></article>
       <article><span className="metric-icon tone-gold"><PenTool size={18} /></span><div><small>Ожидают резолюции</small><strong>{stats.awaitingResolution}</strong><em>3 срочных</em></div></article>
       <article><span className="metric-icon tone-violet"><Clock3 size={18} /></span><div><small>Активные задачи</small><strong>{stats.activeTasks}</strong><em>В работе сотрудников</em></div></article>
       <article><span className="metric-icon tone-coral"><AlertOctagon size={18} /></span><div><small>Просрочено</small><strong>{stats.overdue}</strong><em>Требуют внимания</em></div></article>
-      <article><span className="metric-icon tone-gold"><FileCheck2 size={18} /></span><div><small>На подписи</small><strong>{stats.signatureQueue}</strong><em>ЭЦП mock</em></div></article>
+      <article><span className="metric-icon tone-gold"><FileCheck2 size={18} /></span><div><small>На подписи</small><strong>{stats.signatureQueue}</strong><em>Очередь подписания</em></div></article>
       <article><span className="metric-icon tone-emerald"><Send size={18} /></span><div><small>К отправке</small><strong>{stats.dispatchQueue}</strong><em>Секретариат</em></div></article>
     </div>
     <div className="dashboard-grid">

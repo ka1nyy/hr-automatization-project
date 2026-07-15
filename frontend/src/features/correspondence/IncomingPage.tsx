@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, Download, LayoutGrid, List, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { CalendarDays, LayoutGrid, List, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { repositories } from '../../repositories';
 import { EmptyState, PageHeader, QueryState } from '../../shared/components';
@@ -103,7 +103,7 @@ export default function IncomingPage() {
   const hasActiveAdvanced = priorityFilter !== 'all' || confidentialityFilter !== 'all';
 
   return <>
-    <PageHeader eyebrow={isHr ? 'HR · Сообщения' : 'Секретариат · Реестр'} title={isHr ? 'Входящие сообщения' : 'Входящая корреспонденция'} actions={<><button className="secondary-button"><Download size={16} /> Экспорт</button>{!isHr && <Link className="primary-button" to="/correspondence/incoming/new"><Plus size={16} /> Зарегистрировать письмо</Link>}</>} />
+    <PageHeader eyebrow={isHr ? 'HR · Сообщения' : 'Секретариат · Реестр'} title={isHr ? 'Входящие сообщения' : 'Входящая корреспонденция'} actions={!isHr ? <Link className="primary-button" to="/correspondence/incoming/new"><Plus size={16} /> Зарегистрировать письмо</Link> : undefined} />
     
     <div className="message-tabs" role="tablist" aria-label="Категории сообщений">
       <button className={activeTab === 'external' ? 'active' : ''} onClick={() => setActiveTab('external')}>Внешние <b>{getCount('external')}</b></button>

@@ -1,0 +1,48 @@
+"""Application event vocabulary for the transactional outbox."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
+from uuid import UUID
+
+from app.shared.identifiers import new_uuid
+from app.shared.time import utc_now
+
+
+class EventName(StrEnum):
+    ORGANIZATION_STRUCTURE_PUBLISHED = "organizationStructurePublished"
+    ORGANIZATION_UNIT_CHANGED = "organizationUnitChanged"
+    STAFFING_SLOT_CREATED = "staffingSlotCreated"
+    STAFFING_SLOT_VACATED = "staffingSlotVacated"
+    STAFFING_SLOT_CLOSURE_SCHEDULED = "staffingSlotClosureScheduled"
+    EMPLOYEE_CREATED = "employeeCreated"
+    EMPLOYEE_ASSIGNMENT_STARTED = "employeeAssignmentStarted"
+    EMPLOYEE_ASSIGNMENT_ENDED = "employeeAssignmentEnded"
+    EMPLOYEE_ASSIGNMENT_END_SCHEDULED = "employeeAssignmentEndScheduled"
+    EMPLOYEE_ASSIGNMENT_REVIEW_REQUESTED = "employeeAssignmentReviewRequested"
+    EMPLOYEE_ASSIGNMENT_REVIEW_REJECTED = "employeeAssignmentReviewRejected"
+    DELEGATION_STARTED = "delegationStarted"
+    DELEGATION_REVOKED = "delegationRevoked"
+    ROLE_ASSIGNMENT_CHANGED = "roleAssignmentChanged"
+
+
+@dataclass(frozen=True, slots=True)
+class ApplicationEvent:
+    name: EventName
+    aggregate_type: str
+    aggregate_id: UUID
+    payload: Mapping[str, Any]
+    id: UUID = field(default_factory=new_uuid)
+    occurred_at: datetime = field(default_factory=utc_now)
+    schema_version: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class OutboxMessage:
+    event: ApplicationEvent
+    attempts: int
+    available_at: datetime

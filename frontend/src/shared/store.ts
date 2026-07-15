@@ -7,9 +7,9 @@ interface DeveloperState {
   locale: Locale;
   theme: ThemeMode;
   scenario: string;
-  dataMode: 'mock' | 'api';
-  workflowMode: 'mock' | 'camunda';
-  signatureMode: 'mock' | 'api';
+  dataMode: 'api';
+  workflowMode: 'backend';
+  signatureMode: 'api';
   developerOpen: boolean;
   sidebarCollapsed: boolean;
   setPersona: (persona: PersonaId) => void;
@@ -21,7 +21,7 @@ interface DeveloperState {
 }
 
 export const useDeveloperStore = create<DeveloperState>()(persist((set) => ({
-  persona: 'secretary', locale: 'ru', theme: 'dark', scenario: 'normal', dataMode: 'mock', workflowMode: 'mock', signatureMode: 'mock', developerOpen: false, sidebarCollapsed: false,
+  persona: 'secretary', locale: 'ru', theme: 'dark', scenario: 'normal', dataMode: 'api', workflowMode: 'backend', signatureMode: 'api', developerOpen: false, sidebarCollapsed: false,
   setPersona: (persona) => set({ persona }),
   setLocale: (locale) => set({ locale }),
   setTheme: (theme) => set({ theme }),

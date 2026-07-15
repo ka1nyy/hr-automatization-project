@@ -1,6 +1,10 @@
-node_modules
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+tests
 dist
-coverage
+*.egg-info
 .env
-.git
-*.log

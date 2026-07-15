@@ -21,13 +21,12 @@ export default function HrEmployeeProfilePage() {
   if (result.error || !result.data) return <QueryState error={result.error ?? new Error('Сотрудник не найден')} retry={() => result.refetch()} />;
   const employee = result.data;
   return <>
-    <PageHeader eyebrow={`Сотрудники · ${employee.employeeNumber}`} title={employee.fullName} description={`${employee.position} · ${employee.department}`} actions={<><Link className="secondary-button" to={canReadAll ? '/departments/hr/employees' : '/departments/hr'}><ArrowLeft size={16} /> Назад</Link>{canReadAll && <button className="primary-button">Изменить данные</button>}</>} />
+    <PageHeader eyebrow={`Сотрудники · ${employee.employeeNumber}`} title={employee.fullName} description={`${employee.position} · ${employee.department}`} actions={<Link className="secondary-button" to={canReadAll ? '/departments/hr/employees' : '/departments/hr'}><ArrowLeft size={16} /> Назад</Link>} />
     <div className="hr-profile-header">
       <span className="avatar hr-avatar-xl">{employee.initials}</span><div className="hr-profile-identity"><EmployeeStatus status={employee.status} /><strong>{employee.position}</strong><span>{employee.department}</span></div>
       <div className="hr-profile-contact"><span><Mail size={15} />{employee.workEmail}</span><span><Phone size={15} />{employee.phone}</span><span><MapPin size={15} />{employee.location}</span></div>
       <div className="hr-profile-score"><span>Личное дело</span><strong>{employee.personnelFileCompleteness}%</strong><i><b style={{ width: `${employee.personnelFileCompleteness}%` }} /></i></div>
     </div>
-    <div className="case-tabs hr-profile-tabs"><button className="active">Обзор</button><button>Занятость</button><button>Документы</button><button>Отпуска</button><button>Компенсация</button><button>Обучение</button><button>Процессы</button><button>История</button></div>
     <div className="hr-profile-grid">
       <div className="hr-profile-main">
         <Section title="Рабочая информация"><dl className="metadata-grid"><div><dt>Табельный номер</dt><dd>{employee.employeeNumber}</dd></div><div><dt>Дата выхода</dt><dd>{formatDate(employee.startDate, locale)}</dd></div><div><dt>Тип занятости</dt><dd>{employee.employmentType}</dd></div><div><dt>Локация</dt><dd>{employee.location}</dd></div><div><dt>Руководитель</dt><dd>{employee.manager ?? 'Не назначен'}</dd></div><div><dt>Окончание договора</dt><dd>{employee.contractEnd ? formatDate(employee.contractEnd, locale) : 'Бессрочный'}</dd></div><div><dt>Испытательный срок</dt><dd>{employee.probationEnd ? `до ${formatDate(employee.probationEnd, locale)}` : 'Завершён'}</dd></div></dl></Section>
@@ -37,7 +36,7 @@ export default function HrEmployeeProfilePage() {
       <aside className="hr-profile-aside">
         <Section title="Отпуск"><div className="hr-leave-card"><CalendarDays size={21} /><strong>{employee.leaveBalance}<small>дней доступно</small></strong><Link to="/departments/hr/leave">Создать заявку</Link></div></Section>
         <Section title="Компенсация"><div className="hr-sensitive-field"><span>Текущий оклад</span>{canReadSensitive ? <strong>{new Intl.NumberFormat('ru-RU').format(employee.salary)} {employee.currency}</strong> : <strong className="restricted-value"><ShieldCheck size={15} /> Ограничено</strong>}<small>{canReadSensitive ? 'Ежемесячно · gross' : 'Требуется hr.sensitive.read'}</small></div></Section>
-        <Section title="Документы"><div className="hr-document-shortcuts"><button><FileText size={16} />Трудовой договор <span>активен</span></button><button><FileText size={16} />Приказ о приёме <span>подписан</span></button><button><UserRound size={16} />Личная карточка <span>{employee.personnelFileCompleteness}%</span></button></div></Section>
+        <Section title="Документы"><div className="hr-document-shortcuts"><div><FileText size={16} />Трудовой договор <span>активен</span></div><div><FileText size={16} />Приказ о приёме <span>подписан</span></div><div><UserRound size={16} />Личная карточка <span>{employee.personnelFileCompleteness}%</span></div></div></Section>
       </aside>
     </div>
   </>;

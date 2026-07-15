@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Download, Eye, FileText, LoaderCircle, Paperclip, RotateCcw, Save, Trash2, X } from 'lucide-react';
+import { Download, Eye, FileText, LoaderCircle, Paperclip, RotateCcw, Save, Send, Trash2, X } from 'lucide-react';
 import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useForm, type FieldErrors, type UseFormRegister } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { PageHeader, Section } from '../../../shared/components';
 import { usePermission } from '../../../shared/permissions';
+import { hrRepository } from '../api';
 import { clearEmployeeDraft, restoreEmployeeDraft, saveEmployeeDraft } from '../add-employee/draft';
 import { addEmployeeDefaults } from '../add-employee/defaults';
 import { createAddEmployeeDocx, downloadBlob } from '../add-employee/docx';
@@ -36,6 +37,7 @@ export default function HrAddEmployeePage() {
   const [notice, setNotice] = useState('');
   const [generationError, setGenerationError] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestTextEdited, setRequestTextEdited] = useState(false);
   const { register, formState: { errors, isDirty }, getValues, reset, handleSubmit, setValue, watch } = form;
 
@@ -71,6 +73,17 @@ export default function HrAddEmployeePage() {
     catch { setGenerationError('Не удалось создать DOCX. Проверьте данные и повторите попытку.'); }
     finally { setIsGenerating(false); }
   });
+  const submit = handleSubmit(async (values) => {
+    setGenerationError(''); setIsSubmitting(true);
+    try {
+      const result = await hrRepository.submitHiringRequest(values, attachments.map((item) => ({ name: item.file.name, size: item.file.size, category: item.category })));
+      clearEmployeeDraft(localStorage);
+      reset(values);
+      setNotice(`Заявка ${result.number} направлена в HR. Текущий этап: ${result.currentStep}.`);
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : 'Не удалось направить заявку в HR.');
+    } finally { setIsSubmitting(false); }
+  });
   const addFiles = (files: File[]) => {
     const accepted: EmployeeAttachment[] = []; const rejected: string[] = [];
     files.forEach((file) => { const error = validateAttachment(file); if (error) rejected.push(`${file.name}: ${error}`); else accepted.push({ id: `${file.name}-${file.size}-${file.lastModified}`, category: attachmentCategory, file }); });
@@ -81,7 +94,7 @@ export default function HrAddEmployeePage() {
 
   return <>
     <PageHeader eyebrow="HR · Добавить сотрудника" title="Служебная записка на приём" />
-    <div className="hr-local-only-banner"><FileText size={18} /><span><strong>Локальный режим</strong><small>Черновик хранится на устройстве, вложения — только в памяти, DOCX создаётся в браузере.</small></span></div>
+    <div className="hr-local-only-banner"><FileText size={18} /><span><strong>Backend-процесс найма</strong><small>Черновик остаётся на устройстве, а готовая заявка фиксируется на сервере вместе со снимком версии маршрута.</small></span></div>
     {notice && <div className="hr-form-notice" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={14} /></button></div>}
     {generationError && <div className="hr-generation-error" role="alert">{generationError}</div>}
     <form className="hr-add-employee-form" onSubmit={(event) => event.preventDefault()}>
@@ -92,7 +105,7 @@ export default function HrAddEmployeePage() {
       {section('5. Образование и квалификация', <><SelectField name="educationLevel" label="Уровень образования" options={educationLevels} register={register} errors={errors} required /><Field name="institution" label="Учебное заведение" register={register} errors={errors} required /><Field name="specialization" label="Специальность" register={register} errors={errors} required /><Field name="graduationYear" label="Год окончания" type="number" min="1950" max="2100" register={register} errors={errors} /><Field name="qualification" label="Квалификация" register={register} errors={errors} /><Field name="totalExperience" label="Общий опыт" register={register} errors={errors} /><Field name="relevantExperience" label="Релевантный опыт" register={register} errors={errors} /><Field name="languages" label="Языки" register={register} errors={errors} /><TextArea name="skills" label="Профессиональные навыки" register={register} errors={errors} /><TextArea name="certifications" label="Сертификаты" register={register} errors={errors} /><TextArea name="additionalInfo" label="Дополнительная информация" register={register} errors={errors} /></>)}
       <Section title="6. Вложения" meta="PDF, DOC, DOCX, JPG, PNG · до 10 МБ"><div className="hr-attachment-controls"><select value={attachmentCategory} onChange={(event) => setAttachmentCategory(event.target.value as AttachmentCategory)}>{attachmentCategories.map((category) => <option key={category}>{category}</option>)}</select><label className="secondary-button"><Paperclip size={16} /> Добавить файлы<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ''; }} /></label></div>{attachments.length > 0 ? <ul className="hr-attachment-list">{attachments.map((item) => <li key={item.id}><span><strong>{item.file.name}</strong><small>{item.category} · {(item.file.size / 1024).toFixed(1)} КБ</small></span><button type="button" className="icon-button" onClick={() => setAttachments((current) => current.filter((attachment) => attachment.id !== item.id))} aria-label={`Удалить ${item.file.name}`}><Trash2 size={15} /></button></li>)}</ul> : <div className="hr-attachments-empty">Файлы ещё не добавлены. Они не сохраняются в черновике.</div>}</Section>
       {section('7. Текст обращения', <TextArea name="requestText" label="Официальный текст служебной записки" rows={6} register={register} errors={errors} required onChange={() => setRequestTextEdited(true)} />)}
-      <div className="hr-add-employee-actions"><span>{isDirty ? 'Есть несохранённые изменения' : 'Черновик синхронизирован'} · backend-запросы отсутствуют</span><button type="button" className="secondary-button" onClick={() => setConfirmClear(true)}><RotateCcw size={16} /> Очистить</button><button type="button" className="secondary-button" onClick={saveDraft} disabled={isGenerating}><Save size={16} /> Сохранить черновик</button><button type="button" className="secondary-button" onClick={openPreview} disabled={isGenerating}><Eye size={16} /> Предпросмотр</button><button type="button" className="primary-button" onClick={generate} disabled={isGenerating}>{isGenerating ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}{isGenerating ? 'Формирование…' : 'Создать DOCX'}</button></div>
+      <div className="hr-add-employee-actions"><span>{isDirty ? 'Есть несохранённые изменения' : 'Черновик синхронизирован'} · отправка запускает маршрут найма</span><button type="button" className="secondary-button" onClick={() => setConfirmClear(true)}><RotateCcw size={16} /> Очистить</button><button type="button" className="secondary-button" onClick={saveDraft} disabled={isGenerating || isSubmitting}><Save size={16} /> Сохранить черновик</button><button type="button" className="secondary-button" onClick={openPreview} disabled={isGenerating || isSubmitting}><Eye size={16} /> Предпросмотр</button><button type="button" className="secondary-button" onClick={generate} disabled={isGenerating || isSubmitting}>{isGenerating ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />}{isGenerating ? 'Формирование…' : 'Создать DOCX'}</button><button type="button" className="primary-button" onClick={submit} disabled={isGenerating || isSubmitting}>{isSubmitting ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />}{isSubmitting ? 'Отправка…' : 'Направить в HR'}</button></div>
     </form>
     {preview && <div className="dialog-backdrop" onMouseDown={() => setPreview(null)}><section className="dialog hr-memorandum-preview" role="dialog" aria-modal="true" aria-label="Предпросмотр служебной записки" onMouseDown={(event) => event.stopPropagation()}><header><span>Предпросмотр документа</span><button className="icon-button" onClick={() => setPreview(null)} aria-label="Закрыть предпросмотр"><X size={18} /></button></header><article><p className="memo-recipient">Кому: {preview.recipient}<br />{preview.recipientPosition}<br /><br />От: {preview.initiatorName}<br />{preview.initiatorPosition}</p><h2>СЛУЖЕБНАЯ ЗАПИСКА</h2><h3>О рассмотрении вопроса о приёме сотрудника</h3><p>{preview.requestText}</p><dl><dt>Будущий сотрудник</dt><dd>{buildEmployeeFullName(preview)}</dd><dt>Должность</dt><dd>{preview.position}</dd><dt>Подразделение</dt><dd>{preview.department}</dd><dt>Дата выхода</dt><dd>{preview.startDate}</dd><dt>Приложения</dt><dd>{attachments.length || 'Нет'}</dd></dl><p><strong>Обоснование:</strong> {preview.justification}</p><footer>Инициатор: {preview.initiatorName} ____________________</footer></article></section></div>}
     {confirmClear && <div className="dialog-backdrop"><section className="dialog hr-confirm-dialog" role="dialog" aria-modal="true" aria-label="Очистить форму"><header><span>Очистить форму?</span><button className="icon-button" onClick={() => setConfirmClear(false)} aria-label="Закрыть подтверждение"><X size={18} /></button></header><p>Все введённые данные и локальный черновик будут удалены. Вложения также будут очищены.</p><footer><button className="secondary-button" onClick={() => setConfirmClear(false)}>Отмена</button><button className="primary-button" onClick={clearForm}>Очистить</button></footer></section></div>}

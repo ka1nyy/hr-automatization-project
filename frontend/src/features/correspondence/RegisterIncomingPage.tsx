@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, ArrowLeft, CheckCircle2, FileCheck2, Paperclip, Save, ScanLine } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, FileCheck2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ export default function RegisterIncomingPage() {
   const checkDuplicate = async () => { const values = getValues(); const found = await repositories.correspondence.checkDuplicate(values.sender, values.senderNumber); setDuplicate(found ? found.number : 'clear'); };
 
   return <form onSubmit={handleSubmit((data) => mutation.mutate(data))}>
-    <PageHeader eyebrow="Секретариат · Новая запись" title="Регистрация входящего письма" actions={<><Link className="secondary-button" to="/correspondence/incoming"><ArrowLeft size={16} /> К реестру</Link><button type="button" className="secondary-button"><Save size={16} /> Черновик</button><button className="primary-button" disabled={!isValid || mutation.isPending}><FileCheck2 size={16} /> {mutation.isPending ? 'Регистрация…' : 'Зарегистрировать'}</button></>} />
+    <PageHeader eyebrow="Секретариат · Новая запись" title="Регистрация входящего письма" actions={<><Link className="secondary-button" to="/correspondence/incoming"><ArrowLeft size={16} /> К реестру</Link><button className="primary-button" disabled={!isValid || mutation.isPending}><FileCheck2 size={16} /> {mutation.isPending ? 'Регистрация…' : 'Зарегистрировать'}</button></>} />
     <div className="form-progress"><span className="active"><i>1</i>Регистрационные данные</span><b /><span><i>2</i>Документы</span><b /><span><i>3</i>Проверка</span></div>
     <div className="form-layout">
       <div className="form-main">
@@ -52,11 +52,9 @@ export default function RegisterIncomingPage() {
         </div></Section>
       </div>
       <aside className="form-aside">
-        <Section title="Скан документа"><button type="button" className="upload-zone"><ScanLine size={28} /><strong>Загрузить скан</strong><span>PDF, JPG или PNG · до 50 МБ</span></button></Section>
-        <Section title="Вложения" meta="0 файлов"><button type="button" className="upload-compact"><Paperclip size={17} /> Добавить вложения</button><p className="helper-text">Файлы появятся в карточке дела и будут доступны участникам процесса.</p></Section>
-        <Section title="Готовность"><ul className="check-list"><li className={watch('sender') ? 'done' : ''}><CheckCircle2 size={15} /> Отправитель</li><li className={watch('subject') ? 'done' : ''}><CheckCircle2 size={15} /> Содержание</li><li className={isValid ? 'done' : ''}><CheckCircle2 size={15} /> Обязательные поля</li><li><ScanLine size={15} /> Скан документа</li></ul></Section>
+        <Section title="Готовность"><ul className="check-list"><li className={watch('sender') ? 'done' : ''}><CheckCircle2 size={15} /> Отправитель</li><li className={watch('subject') ? 'done' : ''}><CheckCircle2 size={15} /> Содержание</li><li className={isValid ? 'done' : ''}><CheckCircle2 size={15} /> Обязательные поля</li></ul></Section>
         {mutation.error && <div className="mutation-error"><AlertTriangle size={18} /><span><strong>Регистрация не выполнена</strong>{mutation.error.message}</span></div>}
-        <div className="autosave-note"><i className={isDirty ? 'saving' : ''} />{isDirty ? 'Изменения сохраняются локально' : 'Все изменения сохранены'}</div>
+        <div className="autosave-note"><i className={isDirty ? 'saving' : ''} />{isDirty ? 'Есть несохранённые изменения' : 'Форма готова'}</div>
       </aside>
     </div>
   </form>;

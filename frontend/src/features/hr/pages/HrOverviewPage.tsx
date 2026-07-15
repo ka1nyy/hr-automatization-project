@@ -15,7 +15,7 @@ export default function HrOverviewPage() {
   const canOpen = usePermission('hr.read');
   const isHr = persona === 'hr-specialist';
   const overview = useQuery({ queryKey: ['hr', 'overview'], queryFn: () => hrRepository.getOverview(), enabled: canOpen && isHr });
-  const employee = useQuery({ queryKey: ['hr', 'employee', 'e-3'], queryFn: () => hrRepository.getEmployee('e-3'), enabled: canOpen && !isHr });
+  const employee = useQuery({ queryKey: ['hr', 'employee', 'me'], queryFn: () => hrRepository.getCurrentEmployee(), enabled: canOpen && !isHr });
   const leaveRequests = useQuery({ queryKey: ['hr', 'leave'], queryFn: () => hrRepository.listLeaveRequests(), enabled: canOpen });
   const messages = useQuery({ queryKey: ['incoming'], queryFn: () => repositories.correspondence.listIncoming(), enabled: canOpen && isHr });
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: () => repositories.tasks.list(), enabled: canOpen && isHr });
