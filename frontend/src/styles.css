@@ -327,6 +327,7 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hr-metric-grid strong { font-family: var(--font-condensed); font-size: 28px; font-weight: 500; line-height: 1; margin: 7px 0 4px; }
 .hr-metric-grid em { color: var(--muted); font-size: 7px; font-style: normal; }
 .hr-dashboard-grid { display: grid; gap: 14px; grid-template-columns: 1.5fr 1fr; }
+.hr-overview-row-split { display: grid; gap: 14px; grid-template-columns: 65fr 35fr; margin-bottom: 14px; }
 .hr-dashboard-grid.employee-view { grid-template-columns: 1.25fr 1fr; }
 .hr-request-list { display: grid; }
 .hr-request-list article { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 10px; min-height: 65px; padding: 10px 14px; }
@@ -548,7 +549,7 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 }
 
 @media (max-width: 900px) {
-  .hr-dashboard-grid, .hr-dashboard-grid.employee-view, .hr-profile-grid, .hr-leave-layout { grid-template-columns: 1fr; }
+  .hr-dashboard-grid, .hr-overview-row-split, .hr-dashboard-grid.employee-view, .hr-profile-grid, .hr-leave-layout { grid-template-columns: 1fr; }
   .hr-profile-aside, .hr-leave-aside { position: static; }
   .hr-profile-header { grid-template-columns: 56px 1fr 1fr; }
   .hr-profile-score { grid-column: 1 / -1; }
