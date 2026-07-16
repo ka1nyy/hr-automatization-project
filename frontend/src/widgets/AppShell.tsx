@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UsersRound, X } from 'lucide-react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, X } from 'lucide-react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
 import { getPermissions } from '../shared/permissions';
@@ -10,6 +10,7 @@ import { t } from '../shared/i18n';
 import { useDeveloperStore } from '../shared/store';
 import type { PersonaId } from '../shared/types';
 import { useDepartmentContext } from '../features/hr/context/DepartmentContext';
+import { plannedHrService } from '../features/hr/mocks/plannedHrService';
 
 type SearchResult = { id: string; title: string; detail: string; to: string; type: 'section' | 'document' | 'task' | 'employee' };
 
@@ -24,6 +25,7 @@ export function AppShell() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const currentPersona = getPersonaProfile(store.persona);
   const department = useDepartmentContext();
@@ -47,21 +49,28 @@ export function AppShell() {
   });
   const counts = navCounts.data;
   const nav = useMemo(() => department.isHrWorkspace ? [
-    { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
-    { to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: counts?.correspondence },
-    { to: '/hr/employees', icon: UsersRound, label: t(store.locale, 'employees') },
-    { to: '/hr/leave', icon: CalendarDays, label: t(store.locale, 'leave'), badge: counts?.leaves },
-    { to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
-    { to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
-    { to: '/organization', icon: Building2, label: t(store.locale, 'organization') }
+    { section: 'Обзор', to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
+    { section: 'Обзор', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: counts?.correspondence },
+    { section: 'Обзор', to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
+    { section: 'Персонал', to: '/hr/employees', icon: UsersRound, label: t(store.locale, 'employees') },
+    { section: 'Персонал', to: '/hr/employees?add=true', icon: UserPlus, label: 'Найм' },
+    { section: 'Персонал', to: '/hr/terminations', icon: UserMinus, label: 'Увольнения' },
+    { section: 'Время и отсутствия', to: '/hr/calendar', icon: CalendarDays, label: 'Календарь' },
+    { section: 'Время и отсутствия', to: '/hr/leave', icon: CalendarDays, label: t(store.locale, 'leave'), badge: counts?.leaves },
+    { section: 'Время и отсутствия', to: '/hr/sick-leave', icon: HeartPulse, label: 'Больничные' },
+    { section: 'Управление', to: '/hr/documents', icon: FileText, label: 'Документы' },
+    { section: 'Управление', to: '/hr/approvals', icon: ClipboardCheck, label: 'Согласования' },
+    { section: 'Управление', to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
+    { section: 'Управление', to: '/organization', icon: Building2, label: t(store.locale, 'organization') }
   ] : [
-    { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
-    { to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
-    { to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'incoming'), badge: counts?.correspondence },
-    { to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
-    { to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
-    ...(canOpenHr ? [{ to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : [])
+    { section: 'Меню', to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
+    { section: 'Меню', to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
+    { section: 'Меню', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'incoming'), badge: counts?.correspondence },
+    { section: 'Управление', to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
+    { section: 'Управление', to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
+    ...(canOpenHr ? [{ section: 'HR', to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : [])
   ], [canOpenHr, counts, department.isHrWorkspace, store.locale]);
+  const notificationQuery = useQuery({ queryKey: ['hr', 'planned-notifications'], queryFn: () => plannedHrService.listNotifications(), enabled: notificationsOpen });
   const searchData = useQuery({
     queryKey: ['global-search', canOpenHr],
     enabled: searchOpen,
@@ -139,8 +148,7 @@ export function AppShell() {
         </div>
         {!store.sidebarCollapsed && <div className="organization-switch"><span className="org-monogram">СПК</span><span><strong>АО «СПК «Ертіс»</strong></span></div>}
         <nav className="primary-nav" aria-label="Основная навигация">
-          {!store.sidebarCollapsed && <span className="nav-label">Рабочее пространство</span>}
-          {nav.map(({ to, icon: Icon, label, badge, end }) => <NavLink key={to} to={to} end={end} onClick={() => setMobileOpen(false)} title={label}><Icon size={18} /><span>{label}</span>{badge && <b>{badge}</b>}</NavLink>)}
+          {nav.map(({ section, to, icon: Icon, label, badge, end }, index) => <Fragment key={to}>{!store.sidebarCollapsed && (index === 0 || nav[index - 1]?.section !== section) && <span className={`nav-label ${index > 0 ? 'nav-label-spaced' : ''}`}>{section}</span>}<NavLink to={to} end={end} className={({ isActive }) => { const addEmployeeOpen = location.pathname === '/hr/employees' && new URLSearchParams(location.search).get('add') === 'true'; if (to.includes('?')) return `${location.pathname}${location.search}` === to ? 'active' : ''; if (to === '/hr/employees' && addEmployeeOpen) return ''; return isActive ? 'active' : ''; }} onClick={() => setMobileOpen(false)} title={label}><Icon size={19} /><span>{label}</span>{badge ? <b>{badge}</b> : null}</NavLink></Fragment>)}
           {!store.sidebarCollapsed && <span className="nav-label nav-label-spaced">Контроль</span>}
           <button onClick={store.toggleDeveloper} title="Developer toolbar"><Settings2 size={18} /><span>Developer tools</span><i className="live-dot" /></button>
         </nav>
@@ -155,7 +163,7 @@ export function AppShell() {
           <div className="topbar-inner">
             <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button><div className="breadcrumbs"><span>{department.departmentCode}</span><b>/</b><strong>{department.pageTitle}</strong></div></div>
             <button className="global-search" onClick={openSearch} aria-label="Глобальный поиск"><Search size={17} /><span>{t(store.locale, 'search')}</span></button>
-            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.isHrWorkspace ? '/hr/employees?add=true' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap" ref={notificationRef}><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong></div><p className="search-state">Новых уведомлений нет. Актуальные действия находятся в очереди задач.</p></div>}</div></div>
+            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.isHrWorkspace ? '/hr/employees?add=true' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap" ref={notificationRef}><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong><span>{notificationQuery.data?.filter((item) => item.unread).length ?? 0} новых</span></div><div className="notification-list">{notificationQuery.isLoading ? <p className="search-state">Загрузка...</p> : notificationQuery.data?.map((item) => <article key={item.id} className={item.unread ? 'unread' : ''}><i /><div><strong>{item.title}</strong><small>{item.detail}</small><time>{item.time}</time></div></article>)}</div></div>}</div></div>
           </div>
         </header>
         <main className="content"><Outlet /></main>

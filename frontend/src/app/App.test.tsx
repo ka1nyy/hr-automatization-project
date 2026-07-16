@@ -90,4 +90,16 @@ describe('application runtime', () => {
     expect(localStorage.getItem('ertis.hr.add-employee.draft.v1')).toContain('Зарина Ахметова');
     expect(screen.getByText(/Файлы не сохраняются/i)).toBeTruthy();
   });
+
+  it('opens planned HR modules only for HR roles', async () => {
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    const view = renderRoute('/hr/calendar');
+    expect(await screen.findByRole('heading', { name: 'Календарь' })).toBeTruthy();
+    expect(screen.getByText('Ближайшие события')).toBeTruthy();
+
+    view.unmount();
+    useDeveloperStore.setState({ persona: 'employee' });
+    renderRoute('/hr/terminations');
+    expect(await screen.findByRole('heading', { name: 'Доступ ограничен' })).toBeTruthy();
+  });
 });
