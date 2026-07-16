@@ -23,6 +23,7 @@ from app.modules.organization.infrastructure.models import (
     OrganizationStructureVersionModel,
     StaffingSlotModel,
 )
+from app.modules.workflow.infrastructure.operations import SqlAlchemyWorkflowOperations
 from app.shared.time import utc_now
 
 from .models import (
@@ -70,12 +71,31 @@ class SqlAlchemyTerminationOperations:
             return value
 
     async def list_cases(
-        self, organization_id: UUID, offset: int, limit: int
+        self,
+        organization_id: UUID,
+        offset: int,
+        limit: int,
+        employee_id: UUID | None = None,
+        unit_id: UUID | None = None,
     ) -> tuple[Sequence[Mapping[str, object]], int]:
         async with self._sessions() as s:
             stmt = select(TerminationCaseModel).where(
                 TerminationCaseModel.organization_id == organization_id
             )
+            if employee_id is not None:
+                stmt = stmt.where(TerminationCaseModel.employee_id == employee_id)
+            if unit_id is not None:
+                stmt = (
+                    stmt.join(
+                        EmployeeAssignmentModel,
+                        EmployeeAssignmentModel.id == TerminationCaseModel.primary_assignment_id,
+                    )
+                    .join(
+                        StaffingSlotModel,
+                        StaffingSlotModel.id == EmployeeAssignmentModel.staffing_slot_id,
+                    )
+                    .where(StaffingSlotModel.organization_unit_id == unit_id)
+                )
             rows = (
                 await s.scalars(
                     stmt.order_by(TerminationCaseModel.created_at.desc())
@@ -85,6 +105,44 @@ class SqlAlchemyTerminationOperations:
             ).all()
             total = int(await s.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
             return [_view(x) for x in rows], total
+
+    async def get_case(
+        self,
+        case_id: UUID,
+        organization_id: UUID,
+        employee_id: UUID | None = None,
+        unit_id: UUID | None = None,
+    ) -> Mapping[str, object]:
+        rows, _ = await self.list_cases(
+            organization_id, 0, 1, employee_id=employee_id, unit_id=unit_id
+        )
+        result = next((item for item in rows if item["id"] == case_id), None)
+        if result is None:
+            async with self._sessions() as session:
+                stmt = select(TerminationCaseModel).where(
+                    TerminationCaseModel.id == case_id,
+                    TerminationCaseModel.organization_id == organization_id,
+                )
+                if employee_id is not None:
+                    stmt = stmt.where(TerminationCaseModel.employee_id == employee_id)
+                if unit_id is not None:
+                    stmt = (
+                        stmt.join(
+                            EmployeeAssignmentModel,
+                            EmployeeAssignmentModel.id
+                            == TerminationCaseModel.primary_assignment_id,
+                        )
+                        .join(
+                            StaffingSlotModel,
+                            StaffingSlotModel.id == EmployeeAssignmentModel.staffing_slot_id,
+                        )
+                        .where(StaffingSlotModel.organization_unit_id == unit_id)
+                    )
+                row = await session.scalar(stmt)
+                if row is None:
+                    raise ResourceNotFoundError("termination case", case_id)
+                return _view(row)
+        return result
 
     async def initiate(
         self, organization_id: UUID, actor_id: UUID, data: Mapping[str, object]
@@ -155,6 +213,22 @@ class SqlAlchemyTerminationOperations:
             )
             s.add(row)
             await s.flush()
+            process = await SqlAlchemyWorkflowOperations(self._sessions).start_linked_instance(
+                s,
+                organization_id,
+                actor_id,
+                {
+                    "definitionCode": "termination",
+                    "businessType": "terminationCase",
+                    "businessEntityId": row.id,
+                    "context": {
+                        "subjectEmployeeId": str(employee.id),
+                        "unitId": str(slot.organization_unit_id),
+                        "legalReviewRequired": bool(reason.legal_review_required),
+                    },
+                },
+            )
+            row.process_instance_id = UUID(str(process["id"]))
             await self._change(
                 s,
                 actor_id,
@@ -163,6 +237,7 @@ class SqlAlchemyTerminationOperations:
                 row,
                 EventName.TERMINATION_CASE_STARTED,
             )
+            await s.flush()
             return _view(row)
 
     async def decide(
@@ -197,6 +272,57 @@ class SqlAlchemyTerminationOperations:
             )
             if decision == "approve" and stage == "hr_review":
                 await self._event(s, EventName.TERMINATION_CASE_APPROVED, row)
+            return _view(row)
+
+    async def resubmit(
+        self, case_id: UUID, actor_id: UUID, revision: int, data: Mapping[str, object]
+    ) -> Mapping[str, object]:
+        async with self._sessions.begin() as s:
+            row = await _locked(s, TerminationCaseModel, case_id)
+            _rev(row, revision)
+            if (
+                row.status != "returned"
+                or row.initiated_by_user_id != actor_id
+                or _uuid(data, "employeeId") != row.employee_id
+            ):
+                raise ValidationError(
+                    "Only the initiator may correct a returned termination case.",
+                    code=ErrorCode.AUTH_SCOPE_VIOLATION,
+                )
+            assignment = await s.get(EmployeeAssignmentModel, row.primary_assignment_id)
+            slot = (
+                await s.get(StaffingSlotModel, assignment.staffing_slot_id) if assignment else None
+            )
+            if slot is None or slot.organization_unit_id != _uuid(data, "unitId"):
+                raise ValidationError(
+                    "Termination case unit does not match the actual assignment.",
+                    code=ErrorCode.AUTH_SCOPE_VIOLATION,
+                )
+            requested = _date(data["requestedDate"])
+            if requested < date.today():
+                raise ValidationError(
+                    "Termination date cannot be in the past.",
+                    code=ErrorCode.TERMINATION_DATE_INVALID,
+                )
+            legal_basis = str(data["legalBasis"]).strip()
+            if not legal_basis:
+                raise ValidationError(
+                    "Termination basis is required.",
+                    code=ErrorCode.TERMINATION_BASIS_REQUIRED,
+                )
+            before = _view(row)
+            row.legal_basis = legal_basis
+            row.requested_date = requested
+            row.status = "hr_review"
+            row.revision += 1
+            await self._audit(
+                s,
+                actor_id,
+                row.organization_id,
+                "termination.case.corrected",
+                row,
+                before,
+            )
             return _view(row)
 
     async def register_order(
@@ -411,6 +537,7 @@ class SqlAlchemyTerminationOperations:
                     .where(
                         DocumentChecklistItemModel.business_entity_type == "terminationCase",
                         DocumentChecklistItemModel.business_entity_id == row.id,
+                        DocumentChecklistItemModel.organization_id == row.organization_id,
                         DocumentChecklistItemModel.mandatory.is_(True),
                         DocumentChecklistItemModel.status != "validated",
                     )
@@ -424,6 +551,7 @@ class SqlAlchemyTerminationOperations:
                     .where(
                         DocumentChecklistItemModel.business_entity_type == "terminationCase",
                         DocumentChecklistItemModel.business_entity_id == row.id,
+                        DocumentChecklistItemModel.organization_id == row.organization_id,
                         DocumentChecklistItemModel.mandatory.is_(True),
                     )
                 )

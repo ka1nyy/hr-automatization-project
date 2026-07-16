@@ -447,7 +447,7 @@ class SqlAlchemyDocumentOperations:
                 "document.acknowledged",
                 "documentAcknowledgement",
                 row.id,
-                _ack_view(row),
+                {**_ack_view(row), "evidenceMetadata": "[redacted]"},
             )
             return _ack_view(row)
 
@@ -507,6 +507,11 @@ class SqlAlchemyDocumentOperations:
         self, organization_id: UUID, actor_id: UUID, data: Mapping[str, object]
     ) -> Mapping[str, object]:
         async with self._sessions.begin() as session:
+            business_type = str(data["businessEntityType"])
+            business_id = UUID(str(data["businessEntityId"]))
+            business_org = await _business_entity_organization(session, business_type, business_id)
+            if business_org != organization_id:
+                raise ResourceNotFoundError("checklist business entity", business_id)
             document_type = await _required(
                 session,
                 DocumentTypeModel,
@@ -529,8 +534,8 @@ class SqlAlchemyDocumentOperations:
                 process_instance_id=UUID(str(data["processInstanceId"]))
                 if data.get("processInstanceId")
                 else None,
-                business_entity_type=str(data["businessEntityType"]),
-                business_entity_id=UUID(str(data["businessEntityId"])),
+                business_entity_type=business_type,
+                business_entity_id=business_id,
                 document_type_id=UUID(str(data["documentTypeId"])),
                 document_id=UUID(str(data["documentId"])) if data.get("documentId") else None,
                 mandatory=bool(data.get("mandatory", True)),
@@ -566,6 +571,64 @@ class SqlAlchemyDocumentOperations:
                 )
             ).all()
             return [_checklist_view(row) for row in rows]
+
+
+async def _business_entity_organization(
+    session: AsyncSession, business_type: str, business_id: UUID
+) -> UUID | None:
+    from app.modules.recruitment.infrastructure.models import (
+        CandidateApplicationModel,
+        HiringCaseModel,
+        RecruitmentRequestModel,
+        VacancyModel,
+    )
+    from app.modules.termination.infrastructure.models import TerminationCaseModel
+
+    if business_type == "hiringCase":
+        return cast(
+            UUID | None,
+            await session.scalar(
+                select(HiringCaseModel.organization_id).where(HiringCaseModel.id == business_id)
+            ),
+        )
+    if business_type == "terminationCase":
+        return cast(
+            UUID | None,
+            await session.scalar(
+                select(TerminationCaseModel.organization_id).where(
+                    TerminationCaseModel.id == business_id
+                )
+            ),
+        )
+    if business_type == "recruitmentRequest":
+        return cast(
+            UUID | None,
+            await session.scalar(
+                select(RecruitmentRequestModel.organization_id).where(
+                    RecruitmentRequestModel.id == business_id
+                )
+            ),
+        )
+    if business_type == "vacancy":
+        return cast(
+            UUID | None,
+            await session.scalar(
+                select(VacancyModel.organization_id).where(VacancyModel.id == business_id)
+            ),
+        )
+    if business_type == "candidateApplication":
+        return cast(
+            UUID | None,
+            await session.scalar(
+                select(VacancyModel.organization_id)
+                .join(
+                    CandidateApplicationModel,
+                    CandidateApplicationModel.vacancy_id == VacancyModel.id,
+                )
+                .where(CandidateApplicationModel.id == business_id)
+            ),
+        )
+    raise ValidationError("Unsupported checklist business entity type.")
 
 
 async def _required(session: AsyncSession, model: Any, identity: UUID, resource: str) -> Any:

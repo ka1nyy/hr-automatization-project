@@ -26,6 +26,14 @@ class DecisionBody(OrgBody):
     comment: str = ""
 
 
+class ResubmitBody(OrgBody):
+    revision: int = Field(ge=1)
+    employee_id: UUID
+    unit_id: UUID
+    legal_basis: str = Field(min_length=1)
+    requested_date: date
+
+
 class RegisterBody(OrgBody):
     revision: int = Field(ge=1)
     document_id: UUID

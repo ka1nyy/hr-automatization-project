@@ -28,6 +28,15 @@ class RequestCreate(OrganizationBody):
     proposed_compensation: dict[str, Any] | None = None
 
 
+class RequestCorrection(OrganizationBody):
+    revision: int = Field(ge=1)
+    requesting_unit_id: UUID
+    desired_start_date: date
+    reason: str = Field(min_length=1)
+    responsibilities: str
+    requirements: str
+
+
 class ReviewBody(OrganizationBody):
     revision: int = Field(ge=1)
     decision: Literal["approve", "return", "reject"]

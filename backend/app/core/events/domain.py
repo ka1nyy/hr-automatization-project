@@ -48,6 +48,7 @@ class EventName(StrEnum):
     JOB_OFFER_ACCEPTED = "jobOfferAccepted"
     JOB_OFFER_DECLINED = "jobOfferDeclined"
     HIRING_CASE_STARTED = "hiringCaseStarted"
+    HIRING_CASE_CANCELLED = "hiringCaseCancelled"
     TERMINATION_CASE_STARTED = "terminationCaseStarted"
     TERMINATION_CASE_APPROVED = "terminationCaseApproved"
     TERMINATION_SCHEDULED = "terminationScheduled"

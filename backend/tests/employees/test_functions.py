@@ -123,7 +123,7 @@ async def test_available_functions_follow_permissions_and_state(
     keys = {
         item.key for item in await functions.list_employee_functions(actor, details.employee.id)
     }
-    assert keys == {"employee.terminate", "employee.transfer"}
+    assert keys == {"employee.transfer"}
 
     reader = Actor(
         user_id=uuid4(),

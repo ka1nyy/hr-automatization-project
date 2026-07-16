@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.core.config import Settings, get_settings
 from app.core.database.session import async_session_factory
+from app.core.errors import ResourceNotFoundError
 from app.core.security.authorization import get_authorization_port
 from app.core.security.dependencies import get_current_principal
 from app.core.security.identity import Principal
@@ -33,6 +34,7 @@ from .schemas import (
     OnboardingTaskComplete,
     OnboardingTaskCreate,
     PublishBody,
+    RequestCorrection,
     RequestCreate,
     ReviewBody,
     ScreeningBody,
@@ -58,6 +60,24 @@ def get_service(
 
 Service = Annotated[RecruitmentService, Depends(get_service)]
 PrincipalDep = Annotated[Principal, Depends(get_current_principal)]
+
+
+@router.get("/interviews/my", response_model=ListResponse[dict[str, Any]])
+async def my_interviews(
+    organization_id: Annotated[UUID, Query(alias="organizationId")],
+    service: Service,
+    principal: PrincipalDep,
+    offset: int = 0,
+    limit: int = Query(default=50, ge=1, le=200),
+) -> ListResponse[dict[str, Any]]:
+    await service.require(principal, "recruitment.interview.evaluate", organization_id)
+    rows, total = await service.operations.list_my_interviews(
+        organization_id, principal.user_id, offset, limit
+    )
+    return ListResponse(
+        data=[dict(item) for item in rows],
+        meta=PageMeta(page=offset // limit + 1, page_size=limit, total=total),
+    )
 
 
 @router.post("/publication-channels", response_model=DataResponse[dict[str, Any]], status_code=201)
@@ -100,9 +120,22 @@ async def list_resource(
     principal: PrincipalDep,
     offset: int = 0,
     limit: int = Query(default=50, ge=1, le=200),
+    unit_id: Annotated[UUID | None, Query(alias="unitId")] = None,
 ) -> ListResponse[dict[str, Any]]:
-    await service.require(principal, "recruitment.request.read", organization_id)
-    rows, total = await service.operations.list_resources(resource, organization_id, offset, limit)
+    permission = {
+        "requests": "recruitment.request.read",
+        "vacancies": "recruitment.request.read",
+        "candidates": "recruitment.candidate.read",
+        "applications": "recruitment.candidate.read",
+        "offers": "recruitment.offer.manage",
+        "hiring-cases": "recruitment.hiring.manage",
+    }.get(resource)
+    if permission is None:
+        raise ResourceNotFoundError("recruitment resource")
+    await service.require(principal, permission, organization_id, unit_id)
+    rows, total = await service.operations.list_resources(
+        resource, organization_id, offset, limit, unit_id
+    )
     return ListResponse(
         data=[dict(x) for x in rows],
         meta=PageMeta(page=offset // limit + 1, page_size=limit, total=total),
@@ -120,6 +153,26 @@ async def create_request(
                 body.organization_id,
                 body.requesting_unit_id,
                 body.model_dump(by_alias=True, exclude={"organization_id"}),
+            )
+        )
+    )
+
+
+@router.patch("/requests/{item_id}", response_model=DataResponse[dict[str, Any]])
+async def correct_request(
+    item_id: UUID, body: RequestCorrection, service: Service, principal: PrincipalDep
+) -> DataResponse[dict[str, Any]]:
+    await service.require(
+        principal, "recruitment.request.create", body.organization_id, body.requesting_unit_id
+    )
+    await service.operations.require_organization("request", item_id, body.organization_id)
+    return DataResponse(
+        data=dict(
+            await service.operations.correct_request(
+                item_id,
+                principal.user_id,
+                body.revision,
+                body.model_dump(by_alias=True, exclude={"organization_id", "revision"}),
             )
         )
     )

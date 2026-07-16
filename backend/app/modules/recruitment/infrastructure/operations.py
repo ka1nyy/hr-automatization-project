@@ -15,7 +15,10 @@ from app.core.errors import ConcurrencyConflictError, ResourceNotFoundError, Val
 from app.core.errors.codes import ErrorCode
 from app.core.events.domain import ApplicationEvent, EventName
 from app.core.events.repository import SqlAlchemyTransactionalOutbox
-from app.modules.documents.infrastructure.models import DocumentChecklistItemModel
+from app.modules.documents.infrastructure.models import (
+    DocumentChecklistItemModel,
+    DocumentRecordModel,
+)
 from app.modules.employees.infrastructure.crypto import FernetSensitiveDataProtector
 from app.modules.employees.infrastructure.models import (
     EmployeeAssignmentModel,
@@ -27,6 +30,7 @@ from app.modules.organization.infrastructure.models import (
     OrganizationStructureVersionModel,
     StaffingSlotModel,
 )
+from app.modules.workflow.infrastructure.operations import SqlAlchemyWorkflowOperations
 from app.shared.time import utc_now
 
 from ..application.ports import RecruitmentView
@@ -125,8 +129,51 @@ class SqlAlchemyRecruitmentOperations:
             if actual != organization_id:
                 raise ResourceNotFoundError(resource, resource_id)
 
+    async def list_my_interviews(
+        self, organization_id: UUID, user_id: UUID, offset: int, limit: int
+    ) -> tuple[Sequence[RecruitmentView], int]:
+        async with self._sessions() as session:
+            employee_id = await session.scalar(
+                select(UserAccountModel.employee_id).where(
+                    UserAccountModel.id == user_id,
+                    UserAccountModel.active.is_(True),
+                )
+            )
+            if employee_id is None:
+                return (), 0
+            stmt = (
+                select(InterviewModel)
+                .join(
+                    InterviewParticipantModel,
+                    InterviewParticipantModel.interview_id == InterviewModel.id,
+                )
+                .join(
+                    CandidateApplicationModel,
+                    CandidateApplicationModel.id == InterviewModel.application_id,
+                )
+                .join(VacancyModel, VacancyModel.id == CandidateApplicationModel.vacancy_id)
+                .where(
+                    InterviewParticipantModel.employee_id == employee_id,
+                    VacancyModel.organization_id == organization_id,
+                )
+            )
+            rows = (
+                await session.scalars(
+                    stmt.order_by(InterviewModel.scheduled_at.desc()).offset(offset).limit(limit)
+                )
+            ).all()
+            total = int(
+                await session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+            )
+            return [_view(row) for row in rows], total
+
     async def list_resources(
-        self, resource: str, organization_id: UUID, offset: int, limit: int
+        self,
+        resource: str,
+        organization_id: UUID,
+        offset: int,
+        limit: int,
+        unit_id: UUID | None = None,
     ) -> tuple[Sequence[RecruitmentView], int]:
         model = {
             "requests": RecruitmentRequestModel,
@@ -160,6 +207,38 @@ class SqlAlchemyRecruitmentOperations:
                     .join(VacancyModel, VacancyModel.id == CandidateApplicationModel.vacancy_id)
                     .where(VacancyModel.organization_id == organization_id)
                 )
+            if unit_id is not None:
+                if model is RecruitmentRequestModel:
+                    stmt = stmt.where(RecruitmentRequestModel.requesting_unit_id == unit_id)
+                elif model is VacancyModel:
+                    stmt = stmt.join(
+                        RecruitmentRequestModel,
+                        RecruitmentRequestModel.id == VacancyModel.recruitment_request_id,
+                    ).where(RecruitmentRequestModel.requesting_unit_id == unit_id)
+                elif model is CandidateModel:
+                    stmt = (
+                        stmt.join(
+                            CandidateApplicationModel,
+                            CandidateApplicationModel.candidate_id == CandidateModel.id,
+                        )
+                        .join(VacancyModel, VacancyModel.id == CandidateApplicationModel.vacancy_id)
+                        .join(
+                            RecruitmentRequestModel,
+                            RecruitmentRequestModel.id == VacancyModel.recruitment_request_id,
+                        )
+                        .where(RecruitmentRequestModel.requesting_unit_id == unit_id)
+                        .distinct()
+                    )
+                elif model in {CandidateApplicationModel, JobOfferModel}:
+                    stmt = stmt.join(
+                        RecruitmentRequestModel,
+                        RecruitmentRequestModel.id == VacancyModel.recruitment_request_id,
+                    ).where(RecruitmentRequestModel.requesting_unit_id == unit_id)
+                elif model is HiringCaseModel:
+                    stmt = stmt.join(
+                        RecruitmentRequestModel,
+                        RecruitmentRequestModel.id == HiringCaseModel.recruitment_request_id,
+                    ).where(RecruitmentRequestModel.requesting_unit_id == unit_id)
             rows = (
                 await session.scalars(
                     stmt.order_by(model.__table__.c.id).offset(offset).limit(limit)
@@ -204,6 +283,22 @@ class SqlAlchemyRecruitmentOperations:
             )
             session.add(row)
             await session.flush()
+            process = await SqlAlchemyWorkflowOperations(self._sessions).start_linked_instance(
+                session,
+                organization_id,
+                actor_id,
+                {
+                    "definitionCode": "recruitment",
+                    "businessType": "recruitmentRequest",
+                    "businessEntityId": row.id,
+                    "context": {
+                        "subjectEmployeeId": str(requested_by),
+                        "unitId": str(unit_id),
+                        "requestingUnitId": str(unit_id),
+                    },
+                },
+            )
+            row.process_instance_id = UUID(str(process["id"]))
             await self._change(
                 session,
                 actor_id,
@@ -211,6 +306,41 @@ class SqlAlchemyRecruitmentOperations:
                 "recruitment.request.submitted",
                 row,
                 EventName.RECRUITMENT_REQUEST_SUBMITTED,
+            )
+            await session.flush()
+            return _view(row)
+
+    async def correct_request(
+        self, request_id: UUID, actor_id: UUID, revision: int, data: Mapping[str, object]
+    ) -> RecruitmentView:
+        async with self._sessions.begin() as session:
+            row = await _locked(session, RecruitmentRequestModel, request_id)
+            _revision(row, revision)
+            account = await session.get(UserAccountModel, actor_id)
+            if (
+                row.status != "returned"
+                or account is None
+                or account.employee_id != row.requested_by_employee_id
+                or _uuid(data, "requestingUnitId") != row.requesting_unit_id
+            ):
+                raise ValidationError(
+                    "Only the requester may correct a returned request in its original unit.",
+                    code=ErrorCode.AUTH_SCOPE_VIOLATION,
+                )
+            before = _view(row)
+            row.desired_start_date = _date(data["desiredStartDate"])
+            row.reason = str(data["reason"])
+            row.responsibilities = str(data["responsibilities"])
+            row.requirements = str(data["requirements"])
+            row.status = "hr_review"
+            row.revision += 1
+            await self._audit(
+                session,
+                actor_id,
+                row.organization_id,
+                "recruitment.request.corrected",
+                row,
+                before,
             )
             return _view(row)
 
@@ -347,6 +477,10 @@ class SqlAlchemyRecruitmentOperations:
                 or not channel.active
             ):
                 raise ResourceNotFoundError("publication channel")
+            responsible_employee_id = _uuid(data, "responsibleEmployeeId")
+            responsible = await session.get(EmployeeModel, responsible_employee_id)
+            if responsible is None or responsible.organization_id != row.organization_id:
+                raise ResourceNotFoundError("responsible employee")
             now = utc_now()
             external = channel.channel_type != "internal"
             session.add(
@@ -356,7 +490,7 @@ class SqlAlchemyRecruitmentOperations:
                     status="published",
                     external_reference=cast(str | None, data.get("externalReference")),
                     published_at=now,
-                    responsible_employee_id=_uuid(data, "responsibleEmployeeId"),
+                    responsible_employee_id=responsible_employee_id,
                     manual=True,
                 )
             )
@@ -482,12 +616,35 @@ class SqlAlchemyRecruitmentOperations:
             quorum = int(str(data["quorumRequired"]))
             if quorum < 1 or quorum > len(members):
                 raise ValidationError("Commission quorum is invalid.")
+            employee_ids = [_uuid(member, "employeeId") for member in members]
+            valid_members = int(
+                await session.scalar(
+                    select(func.count())
+                    .select_from(EmployeeModel)
+                    .where(
+                        EmployeeModel.id.in_(employee_ids),
+                        EmployeeModel.organization_id == organization_id,
+                        EmployeeModel.active.is_(True),
+                    )
+                )
+                or 0
+            )
+            if valid_members != len(employee_ids) or len(employee_ids) != len(set(employee_ids)):
+                raise ValidationError(
+                    "Commission members must be unique active employees of the organization.",
+                    code=ErrorCode.AUTH_SCOPE_VIOLATION,
+                )
+            protocol_document_id = _optional_uuid(data.get("protocolDocumentId"))
+            if protocol_document_id:
+                protocol = await session.get(DocumentRecordModel, protocol_document_id)
+                if protocol is None or protocol.organization_id != organization_id:
+                    raise ResourceNotFoundError("commission protocol document")
             row = CommissionModel(
                 organization_id=organization_id,
                 code=str(data["code"]),
                 meeting_at=cast(Any, data["meetingAt"]),
                 quorum_required=quorum,
-                protocol_document_id=_optional_uuid(data.get("protocolDocumentId")),
+                protocol_document_id=protocol_document_id,
                 status="scheduled",
             )
             session.add(row)
@@ -514,11 +671,16 @@ class SqlAlchemyRecruitmentOperations:
             case = await _locked(session, HiringCaseModel, case_id)
             if case.status in {"completed", "cancelled"}:
                 raise ValidationError("Hiring case no longer accepts onboarding tasks.")
+            assigned_employee_id = _optional_uuid(data.get("assignedEmployeeId"))
+            if assigned_employee_id:
+                employee = await session.get(EmployeeModel, assigned_employee_id)
+                if employee is None or employee.organization_id != case.organization_id:
+                    raise ResourceNotFoundError("assigned employee")
             row = OnboardingTaskModel(
                 hiring_case_id=case.id,
                 task_type=str(data["taskType"]),
                 assigned_unit_id=_optional_uuid(data.get("assignedUnitId")),
-                assigned_employee_id=_optional_uuid(data.get("assignedEmployeeId")),
+                assigned_employee_id=assigned_employee_id,
                 status="pending",
                 due_at=cast(Any, data.get("dueAt")),
                 completion_evidence={},
@@ -644,7 +806,29 @@ class SqlAlchemyRecruitmentOperations:
             )
             session.add(row)
             await session.flush()
-            for item in cast(list[Mapping[str, object]], data.get("participants", [])):
+            participants = cast(list[Mapping[str, object]], data.get("participants", []))
+            participant_ids = [_uuid(item, "employeeId") for item in participants]
+            organization_id = await self._application_org(session, app)
+            valid_participants = int(
+                await session.scalar(
+                    select(func.count())
+                    .select_from(EmployeeModel)
+                    .where(
+                        EmployeeModel.id.in_(participant_ids),
+                        EmployeeModel.organization_id == organization_id,
+                        EmployeeModel.active.is_(True),
+                    )
+                )
+                or 0
+            )
+            if valid_participants != len(participant_ids) or len(participant_ids) != len(
+                set(participant_ids)
+            ):
+                raise ValidationError(
+                    "Interview participants must be unique active employees of the organization.",
+                    code=ErrorCode.AUTH_SCOPE_VIOLATION,
+                )
+            for item in participants:
                 session.add(
                     InterviewParticipantModel(
                         interview_id=row.id,
@@ -671,6 +855,12 @@ class SqlAlchemyRecruitmentOperations:
     ) -> RecruitmentView:
         async with self._sessions.begin() as session:
             employee_id = _uuid(data, "interviewerEmployeeId")
+            account = await session.get(UserAccountModel, actor_id)
+            if account is None or account.employee_id != employee_id:
+                raise ValidationError(
+                    "The authenticated user is not this interviewer.",
+                    code=ErrorCode.AUTH_SCOPE_VIOLATION,
+                )
             participant = await session.scalar(
                 select(InterviewParticipantModel).where(
                     InterviewParticipantModel.interview_id == interview_id,
@@ -726,6 +916,9 @@ class SqlAlchemyRecruitmentOperations:
             commission = await session.get(CommissionModel, _uuid(data, "commissionId"))
             app = await _locked(session, CandidateApplicationModel, application_id)
             if commission is None:
+                raise ResourceNotFoundError("commission")
+            application_org = await self._application_org(session, app)
+            if commission.organization_id != application_org:
                 raise ResourceNotFoundError("commission")
             eligible = int(
                 await session.scalar(
@@ -863,6 +1056,21 @@ class SqlAlchemyRecruitmentOperations:
             )
             session.add(row)
             await session.flush()
+            request = await session.get(RecruitmentRequestModel, row.recruitment_request_id)
+            if request is None:
+                raise ResourceNotFoundError("recruitment request")
+            process = await SqlAlchemyWorkflowOperations(self._sessions).start_linked_instance(
+                session,
+                row.organization_id,
+                actor_id,
+                {
+                    "definitionCode": "hiring",
+                    "businessType": "hiringCase",
+                    "businessEntityId": row.id,
+                    "context": {"unitId": str(request.requesting_unit_id)},
+                },
+            )
+            row.process_instance_id = UUID(str(process["id"]))
             await self._change(
                 session,
                 actor_id,
@@ -871,6 +1079,7 @@ class SqlAlchemyRecruitmentOperations:
                 row,
                 EventName.HIRING_CASE_STARTED,
             )
+            await session.flush()
             return _view(row)
 
     async def complete_hiring(
@@ -886,6 +1095,7 @@ class SqlAlchemyRecruitmentOperations:
                     .where(
                         DocumentChecklistItemModel.business_entity_type == "hiringCase",
                         DocumentChecklistItemModel.business_entity_id == case.id,
+                        DocumentChecklistItemModel.organization_id == case.organization_id,
                         DocumentChecklistItemModel.mandatory.is_(True),
                     )
                 )
@@ -898,6 +1108,7 @@ class SqlAlchemyRecruitmentOperations:
                     .where(
                         DocumentChecklistItemModel.business_entity_type == "hiringCase",
                         DocumentChecklistItemModel.business_entity_id == case.id,
+                        DocumentChecklistItemModel.organization_id == case.organization_id,
                         DocumentChecklistItemModel.mandatory.is_(True),
                         DocumentChecklistItemModel.status != "validated",
                     )
@@ -1058,11 +1269,34 @@ class SqlAlchemyRecruitmentOperations:
             ).all():
                 task.status = "cancelled"
                 task.revision += 1
-            await self._audit(
+            app = await _locked(session, CandidateApplicationModel, row.candidate_application_id)
+            app.status = "hiring_cancelled"
+            app.current_stage = "closed"
+            app.revision += 1
+            vacancy = await _locked(session, VacancyModel, app.vacancy_id)
+            vacancy.publication_status = (
+                "open_external" if vacancy.external_published_at else "open_internal"
+            )
+            vacancy.closed_at = None
+            vacancy.revision += 1
+            request = await _locked(
+                session, RecruitmentRequestModel, vacancy.recruitment_request_id
+            )
+            request.status = "vacancy_created"
+            request.revision += 1
+            await self._change(
                 session,
                 actor_id,
                 row.organization_id,
                 "recruitment.hiring.cancelled",
+                row,
+                EventName.HIRING_CASE_CANCELLED,
+            )
+            await self._audit(
+                session,
+                actor_id,
+                row.organization_id,
+                "recruitment.hiring.cancellation.reason",
                 row,
                 reason=reason,
             )
@@ -1149,7 +1383,7 @@ class SqlAlchemyRecruitmentOperations:
             entity_type=row.__tablename__,
             entity_id=row.id,
             before_state=before,
-            after_state=_view(row),
+            after_state=_audit_view(row),
             reason=reason,
         )
 
@@ -1184,6 +1418,14 @@ def _view(row: Any) -> dict[str, Any]:
         for column in row.__table__.columns
         if column.key not in blocked
     }
+
+
+def _audit_view(row: Any) -> dict[str, Any]:
+    result = _view(row)
+    for field in ("completion_evidence", "criteria_results"):
+        if field in result:
+            result[field] = "[redacted]"
+    return result
 
 
 def _uuid(data: Mapping[str, object], key: str) -> UUID:

@@ -118,7 +118,7 @@ class HireEmployeeFunction(EmployeeFunction):
         title="Нанять сотрудника",
         description="Создать сотрудника и назначить его на штатную единицу.",
         scope=FunctionScope.COLLECTION,
-        permission="employees.hire",
+        permission="employees.lifecycle.override",
     )
 
     async def invoke(
@@ -146,7 +146,7 @@ class TerminateEmployeeFunction(EmployeeFunction):
         title="Уволить сотрудника",
         description="Завершить трудовые отношения и закрыть активные назначения.",
         scope=FunctionScope.EMPLOYEE,
-        permission="employees.terminate",
+        permission="employees.lifecycle.override",
     )
 
     def is_available(self, details: EmployeeDetails) -> bool:

@@ -18,6 +18,7 @@ from app.core.events.domain import ApplicationEvent, EventName
 from app.core.events.repository import SqlAlchemyTransactionalOutbox
 from app.modules.access_control.infrastructure.models import (
     AccessScopeModel,
+    AccessScopeUnitModel,
     PermissionModel,
     RolePermissionModel,
     UserRoleAssignmentModel,
@@ -53,6 +54,93 @@ from .models import (
 class SqlAlchemyWorkflowOperations:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
         self._sessions = sessions
+
+    async def start_linked_instance(
+        self,
+        session: AsyncSession,
+        organization_id: UUID,
+        actor_id: UUID,
+        data: Mapping[str, Any],
+    ) -> WorkflowView:
+        definition = await session.scalar(
+            select(ProcessDefinitionModel).where(
+                ProcessDefinitionModel.organization_id == organization_id,
+                ProcessDefinitionModel.code == str(data["definitionCode"]),
+                ProcessDefinitionModel.active.is_(True),
+            )
+        )
+        if definition is None:
+            raise ResourceNotFoundError("process definition")
+        version = await session.scalar(
+            select(ProcessDefinitionVersionModel)
+            .where(
+                ProcessDefinitionVersionModel.process_definition_id == definition.id,
+                ProcessDefinitionVersionModel.status == "published",
+            )
+            .order_by(ProcessDefinitionVersionModel.version_number.desc())
+        )
+        if version is None:
+            raise ValidationError(
+                "A published process definition is required.",
+                code=ErrorCode.PROCESS_DEFINITION_NOT_PUBLISHED,
+            )
+        steps = (
+            await session.scalars(
+                select(ProcessStepDefinitionModel)
+                .where(
+                    ProcessStepDefinitionModel.definition_version_id == version.id,
+                    ProcessStepDefinitionModel.active.is_(True),
+                )
+                .order_by(ProcessStepDefinitionModel.sequence)
+            )
+        ).all()
+        if not steps:
+            raise ValidationError(
+                "The process has no active steps.", code=ErrorCode.PROCESS_CONFIGURATION_INVALID
+            )
+        detail = await self._version_detail(session, version)
+        context = dict(cast(Mapping[str, Any], data.get("context", {})))
+        row = ProcessInstanceModel(
+            organization_id=organization_id,
+            process_definition_id=definition.id,
+            definition_version_id=version.id,
+            business_type=str(data["businessType"]),
+            business_entity_id=UUID(str(data["businessEntityId"])),
+            initiator_user_id=actor_id,
+            status="active",
+            current_phase=steps[0].code,
+            started_at=utc_now(),
+            snapshot={
+                "definition": _json_safe(dict(detail)),
+                "context": _json_safe(context),
+                "formVersionIds": sorted(
+                    {
+                        str(item.configuration["formVersionId"])
+                        for item in steps
+                        if item.configuration.get("formVersionId")
+                    }
+                ),
+            },
+        )
+        session.add(row)
+        await session.flush()
+        if not await self._create_tasks(session, row, steps[0]):
+            raise ValidationError(
+                "Workflow actor could not be resolved.", code=ErrorCode.PROCESS_ACTOR_UNRESOLVED
+            )
+        await self._history(session, row.id, actor_id, "processStarted", "Process started.")
+        await self._event(
+            session,
+            EventName.PROCESS_INSTANCE_STARTED,
+            "processInstance",
+            row.id,
+            {
+                "processInstanceId": str(row.id),
+                "businessType": row.business_type,
+                "businessEntityId": str(row.business_entity_id),
+            },
+        )
+        return _instance_view(row)
 
     async def require_organization(
         self, resource: str, resource_id: UUID, organization_id: UUID
@@ -1137,6 +1225,13 @@ class SqlAlchemyWorkflowOperations:
             and permission
         ):
             now = utc_now()
+            target_unit = context.get("unitId") or context.get("requestingUnitId")
+            scope_conditions = [
+                AccessScopeModel.scope_type == "organization",
+                AccessScopeModel.scope_type == "global",
+            ]
+            if target_unit:
+                scope_conditions.append(AccessScopeUnitModel.unit_id == UUID(str(target_unit)))
             statement = (
                 select(UserRoleAssignmentModel.user_id)
                 .join(
@@ -1145,10 +1240,15 @@ class SqlAlchemyWorkflowOperations:
                 )
                 .join(PermissionModel, PermissionModel.id == RolePermissionModel.permission_id)
                 .join(AccessScopeModel, AccessScopeModel.id == UserRoleAssignmentModel.scope_id)
+                .outerjoin(
+                    AccessScopeUnitModel,
+                    AccessScopeUnitModel.scope_id == AccessScopeModel.id,
+                )
                 .where(
                     PermissionModel.code == str(permission),
                     PermissionModel.active.is_(True),
                     AccessScopeModel.organization_id == instance.organization_id,
+                    or_(*scope_conditions),
                     UserRoleAssignmentModel.revoked_at.is_(None),
                     UserRoleAssignmentModel.effective_from <= now,
                     or_(
@@ -1156,6 +1256,7 @@ class SqlAlchemyWorkflowOperations:
                         UserRoleAssignmentModel.effective_to > now,
                     ),
                 )
+                .distinct()
                 .order_by(UserRoleAssignmentModel.user_id)
             )
             return list((await session.scalars(statement)).all())

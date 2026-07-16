@@ -12,10 +12,21 @@ class RecruitmentOperationsPort(Protocol):
         self, resource: str, resource_id: UUID, organization_id: UUID
     ) -> None: ...
     async def list_resources(
-        self, resource: str, organization_id: UUID, offset: int, limit: int
+        self,
+        resource: str,
+        organization_id: UUID,
+        offset: int,
+        limit: int,
+        unit_id: UUID | None = None,
+    ) -> tuple[Sequence[RecruitmentView], int]: ...
+    async def list_my_interviews(
+        self, organization_id: UUID, user_id: UUID, offset: int, limit: int
     ) -> tuple[Sequence[RecruitmentView], int]: ...
     async def create_request(
         self, organization_id: UUID, actor_id: UUID, data: Mapping[str, object]
+    ) -> RecruitmentView: ...
+    async def correct_request(
+        self, request_id: UUID, actor_id: UUID, revision: int, data: Mapping[str, object]
     ) -> RecruitmentView: ...
     async def review_request(
         self,

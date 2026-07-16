@@ -29,3 +29,8 @@ effective termination is immutable and needs a future corrective process.
 
 Exit-interview restricted notes are never included in generic responses or audit. IAM, asset and
 payroll confirmations remain explicit externally verifiable tasks.
+
+Initiation starts the published termination workflow atomically and snapshots the subject employee,
+unit and legal-review condition. Returned cases may be corrected and resubmitted only by the
+original initiator. Read APIs expose explicit `self`, `unit`, and `all` scopes; unit filtering is
+resolved through the stored authoritative primary assignment rather than a caller-supplied owner.

@@ -72,6 +72,11 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Run the terminate business function: end employment and active assignments.",
     ),
     PermissionDefinition(
+        "employees.lifecycle.override",
+        "Override formal employee lifecycle",
+        "Emergency system-administrator-only bypass of formal hiring or termination workflows.",
+    ),
+    PermissionDefinition(
         "employees.transfer",
         "Transfer employees",
         "Run the transfer business function: move an employee to another staffing slot.",
