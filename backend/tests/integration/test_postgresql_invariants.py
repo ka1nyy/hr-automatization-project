@@ -74,7 +74,7 @@ async def test_alembic_upgrade_from_empty_creates_complete_schema(
 
     assert tables == EXPECTED_TABLES
     assert set(Base.metadata.tables) == EXPECTED_TABLES - {"alembic_version"}
-    assert revision == "0004_module2"
+    assert revision == "0005_absence"
 
 
 @pytest.mark.asyncio

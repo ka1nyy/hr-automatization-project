@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from ..domain.enums import AssignmentType, DelegationScopeType, EmploymentStatus
+from ..domain.enums import AbsenceType, AssignmentType, DelegationScopeType, EmploymentStatus
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,6 +74,24 @@ class TransferEmployeeCommand:
     reason: str
     assignment_type: AssignmentType = AssignmentType.PERMANENT
     full_time_equivalent: Decimal = Decimal("1.00")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CreateAbsenceCommand:
+    employee_id: UUID
+    absence_type: AbsenceType
+    date_from: date
+    date_to: date
+    reason: str
+    details: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CancelAbsenceCommand:
+    employee_id: UUID
+    absence_id: UUID
+    reason: str
+    revision: int
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

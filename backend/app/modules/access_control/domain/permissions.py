@@ -82,6 +82,31 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Run the transfer business function: move an employee to another staffing slot.",
     ),
     PermissionDefinition(
+        "employees.absence.vacation",
+        "Register vacations",
+        "Run the vacation business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.sick_leave",
+        "Register sick leaves",
+        "Run the sick-leave business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.business_trip",
+        "Register business trips",
+        "Run the business-trip business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.day_off",
+        "Register days off",
+        "Run the day-off business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.cancel",
+        "Cancel absences",
+        "Cancel a scheduled or active employee absence.",
+    ),
+    PermissionDefinition(
         "delegations.manage", "Manage delegations", "Create and revoke temporary delegations."
     ),
     PermissionDefinition(
@@ -344,6 +369,23 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "termination.complete",
         "Complete termination",
         "Finalize an effective and fully offboarded termination case.",
+    ),
+    PermissionDefinition("absence.read_self", "Read own absences", "Read own leave and trips."),
+    PermissionDefinition("absence.read_unit", "Read unit absences", "Read unit leave and trips."),
+    PermissionDefinition("absence.read_all", "Read all absences", "Read organization absences."),
+    PermissionDefinition("leave.request", "Request leave", "Submit and correct own leave."),
+    PermissionDefinition("leave.review_manager", "Review unit leave", "Review leave as manager."),
+    PermissionDefinition("leave.review_hr", "Review leave as HR", "Finalize leave decisions."),
+    PermissionDefinition("leave.balance.manage", "Manage leave balances", "Adjust entitlements."),
+    PermissionDefinition("business_trip.request", "Request trip", "Submit and correct own trips."),
+    PermissionDefinition(
+        "business_trip.review_manager", "Review unit trips", "Review trips as manager."
+    ),
+    PermissionDefinition(
+        "business_trip.review_finance", "Review trip finance", "Approve trip funding."
+    ),
+    PermissionDefinition(
+        "business_trip.register", "Register business trips", "Complete HR trip registration."
     ),
 )
 

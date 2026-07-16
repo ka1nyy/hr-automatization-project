@@ -24,6 +24,8 @@ class EventName(StrEnum):
     EMPLOYEE_TERMINATED = "employeeTerminated"
     EMPLOYEE_TERMINATION_SCHEDULED = "employeeTerminationScheduled"
     EMPLOYEE_TRANSFERRED = "employeeTransferred"
+    EMPLOYEE_ABSENCE_REGISTERED = "employeeAbsenceRegistered"
+    EMPLOYEE_ABSENCE_CANCELLED = "employeeAbsenceCancelled"
     EMPLOYEE_ASSIGNMENT_STARTED = "employeeAssignmentStarted"
     EMPLOYEE_ASSIGNMENT_ENDED = "employeeAssignmentEnded"
     EMPLOYEE_ASSIGNMENT_END_SCHEDULED = "employeeAssignmentEndScheduled"
@@ -61,6 +63,15 @@ class EventName(StrEnum):
     EMPLOYEE_TERMINATION_EFFECTIVE = "employeeTerminationEffective"
     TERMINATION_CASE_COMPLETED = "terminationCaseCompleted"
     TERMINATION_CASE_CANCELLED = "terminationCaseCancelled"
+    LEAVE_REQUEST_SUBMITTED = "leaveRequestSubmitted"
+    LEAVE_REQUEST_APPROVED = "leaveRequestApproved"
+    LEAVE_REQUEST_REJECTED = "leaveRequestRejected"
+    LEAVE_REQUEST_CANCELLED = "leaveRequestCancelled"
+    BUSINESS_TRIP_SUBMITTED = "businessTripSubmitted"
+    BUSINESS_TRIP_APPROVED = "businessTripApproved"
+    BUSINESS_TRIP_REGISTERED = "businessTripRegistered"
+    BUSINESS_TRIP_REJECTED = "businessTripRejected"
+    BUSINESS_TRIP_CANCELLED = "businessTripCancelled"
 
 
 @dataclass(frozen=True, slots=True)

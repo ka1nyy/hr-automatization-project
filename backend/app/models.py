@@ -7,6 +7,7 @@ tables owned by a module.
 
 from app.core.audit.models import AuditEventModel
 from app.core.events.models import OutboxEventModel
+from app.modules.absence.infrastructure import models as absence_models
 from app.modules.access_control.infrastructure.models import (
     AccessScopeModel,
     AccessScopeUnitModel,
@@ -18,6 +19,7 @@ from app.modules.access_control.infrastructure.models import (
 from app.modules.documents.infrastructure import models as document_models
 from app.modules.employees.infrastructure.models import (
     DelegationModel,
+    EmployeeAbsenceModel,
     EmployeeAssignmentModel,
     EmployeeModel,
     PersonModel,
@@ -46,6 +48,7 @@ __all__ = [
     "AccessScopeUnitModel",
     "AuditEventModel",
     "DelegationModel",
+    "EmployeeAbsenceModel",
     "EmployeeAssignmentModel",
     "EmployeeModel",
     "OrganizationModel",
@@ -69,7 +72,8 @@ __all__ = [
 ]
 
 # Keep module namespaces referenced: importing them registers every owned table in Base.metadata.
-_MODULE2_MODELS = (
+_MODULE_MODELS = (
+    absence_models,
     document_models,
     hiring_request_models,
     recruitment_models,

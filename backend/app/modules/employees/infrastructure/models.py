@@ -94,6 +94,36 @@ class EmployeeModel(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class EmployeeAbsenceModel(Base):
+    __tablename__ = "employee_absences"
+    __table_args__ = (
+        CheckConstraint("date_to >= date_from", name="ck_absences_valid_dates"),
+        Index("ix_absences_employee_dates", "employee_id", "date_from", "date_to"),
+        Index("ix_absences_status_dates", "status", "date_from", "date_to"),
+        UniqueConstraint("source_type", "source_id", name="uq_employee_absences_source"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    employee_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("employees.id", ondelete="RESTRICT"), nullable=False
+    )
+    absence_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    date_from: Mapped[date] = mapped_column(Date, nullable=False)
+    date_to: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str] = mapped_column(String(1000), nullable=False)
+    details: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_by: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    source_document_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    source_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    source_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+
+
 class EmployeeAssignmentModel(Base):
     __tablename__ = "employee_assignments"
     __table_args__ = (

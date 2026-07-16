@@ -20,12 +20,21 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic.alias_generators import to_camel
 
-from ..domain.enums import AssignmentStatus, AssignmentType, EmploymentStatus
+from ..domain.entities import EmployeeAbsence
+from ..domain.enums import AbsenceType, AssignmentStatus, AssignmentType, EmploymentStatus
 from ..domain.errors import EmployeeDomainError
-from .commands import HireEmployeeCommand, TerminateEmployeeCommand, TransferEmployeeCommand
+from .commands import (
+    CancelAbsenceCommand,
+    CreateAbsenceCommand,
+    HireEmployeeCommand,
+    TerminateEmployeeCommand,
+    TransferEmployeeCommand,
+)
 from .ports import Actor
 from .service import EmployeeService
 from .views import EmployeeDetails
+
+type FunctionResult = EmployeeDetails | EmployeeAbsence
 
 
 class FunctionScope(StrEnum):
@@ -90,7 +99,7 @@ class EmployeeFunction(ABC):
         service: EmployeeService,
         payload: Mapping[str, Any],
         employee_id: UUID | None,
-    ) -> EmployeeDetails: ...
+    ) -> FunctionResult: ...
 
 
 class _HirePayload(_PayloadModel):
@@ -215,6 +224,118 @@ class TransferEmployeeFunction(EmployeeFunction):
         return await service.transfer_employee(actor, command)
 
 
+class _AbsencePayload(_PayloadModel):
+    date_from: date
+    date_to: date
+    reason: str = Field(min_length=1, max_length=1000)
+    details: str | None = Field(default=None, max_length=300)
+
+
+class AbsenceFunction(EmployeeFunction):
+    """Registers one absence type; subclasses only bind the descriptor."""
+
+    absence_type: ClassVar[AbsenceType]
+
+    def is_available(self, details: EmployeeDetails) -> bool:
+        employee = details.employee
+        return employee.active and employee.employment_status is not EmploymentStatus.ENDED
+
+    async def invoke(
+        self,
+        actor: Actor,
+        service: EmployeeService,
+        payload: Mapping[str, Any],
+        employee_id: UUID | None,
+    ) -> EmployeeAbsence:
+        if employee_id is None:
+            raise _employee_required(self.descriptor.key)
+        parsed = _parse_payload(_AbsencePayload, payload)
+        command = _to_command(
+            CreateAbsenceCommand,
+            parsed,
+            employee_id=employee_id,
+            absence_type=self.absence_type,
+        )
+        return await service.create_absence(actor, command)
+
+
+class VacationFunction(AbsenceFunction):
+    absence_type = AbsenceType.VACATION
+    descriptor = FunctionDescriptor(
+        key="employee.vacation",
+        title="Оформить отпуск",
+        description="Зарегистрировать ежегодный оплачиваемый отпуск с проверкой баланса дней.",
+        scope=FunctionScope.EMPLOYEE,
+        permission="employees.absence.vacation",
+    )
+
+
+class SickLeaveFunction(AbsenceFunction):
+    absence_type = AbsenceType.SICK_LEAVE
+    descriptor = FunctionDescriptor(
+        key="employee.sick_leave",
+        title="Оформить больничный",
+        description="Зарегистрировать период временной нетрудоспособности.",
+        scope=FunctionScope.EMPLOYEE,
+        permission="employees.absence.sick_leave",
+    )
+
+
+class BusinessTripFunction(AbsenceFunction):
+    absence_type = AbsenceType.BUSINESS_TRIP
+    descriptor = FunctionDescriptor(
+        key="employee.business_trip",
+        title="Оформить командировку",
+        description="Зарегистрировать служебную командировку.",
+        scope=FunctionScope.EMPLOYEE,
+        permission="employees.absence.business_trip",
+    )
+
+
+class DayOffFunction(AbsenceFunction):
+    absence_type = AbsenceType.DAY_OFF
+    descriptor = FunctionDescriptor(
+        key="employee.day_off",
+        title="Оформить отгул",
+        description="Зарегистрировать отгул.",
+        scope=FunctionScope.EMPLOYEE,
+        permission="employees.absence.day_off",
+    )
+
+
+class _CancelAbsencePayload(_PayloadModel):
+    absence_id: UUID
+    reason: str = Field(min_length=1, max_length=1000)
+    revision: int = Field(ge=1)
+
+
+class CancelAbsenceFunction(EmployeeFunction):
+    descriptor = FunctionDescriptor(
+        key="employee.absence_cancel",
+        title="Отменить отсутствие",
+        description="Отменить запланированное или текущее отсутствие сотрудника.",
+        scope=FunctionScope.EMPLOYEE,
+        permission="employees.absence.cancel",
+    )
+
+    def is_available(self, details: EmployeeDetails) -> bool:
+        employee = details.employee
+        return employee.active and employee.employment_status is not EmploymentStatus.ENDED
+
+    async def invoke(
+        self,
+        actor: Actor,
+        service: EmployeeService,
+        payload: Mapping[str, Any],
+        employee_id: UUID | None,
+    ) -> EmployeeAbsence:
+        if employee_id is None:
+            raise _employee_required(self.descriptor.key)
+        parsed = _parse_payload(_CancelAbsencePayload, payload)
+        command = _to_command(CancelAbsenceCommand, parsed, employee_id=employee_id)
+        return await service.cancel_absence(actor, command)
+
+
 def _employee_required(function_key: str) -> EmployeeDomainError:
     return EmployeeDomainError(
         "VALIDATION_FAILED",
@@ -276,6 +397,11 @@ def default_employee_function_registry() -> FunctionRegistry:
             HireEmployeeFunction(),
             TerminateEmployeeFunction(),
             TransferEmployeeFunction(),
+            VacationFunction(),
+            SickLeaveFunction(),
+            BusinessTripFunction(),
+            DayOffFunction(),
+            CancelAbsenceFunction(),
         )
     )
 
@@ -311,7 +437,7 @@ class EmployeeFunctionService:
 
     async def invoke_collection_function(
         self, actor: Actor, key: str, payload: Mapping[str, Any]
-    ) -> EmployeeDetails:
+    ) -> FunctionResult:
         function = self._registry.get(key)
         if function.descriptor.scope is not FunctionScope.COLLECTION:
             raise EmployeeDomainError(
@@ -324,7 +450,7 @@ class EmployeeFunctionService:
 
     async def invoke_employee_function(
         self, actor: Actor, employee_id: UUID, key: str, payload: Mapping[str, Any]
-    ) -> EmployeeDetails:
+    ) -> FunctionResult:
         function = self._registry.get(key)
         if function.descriptor.scope is not FunctionScope.EMPLOYEE:
             raise EmployeeDomainError(

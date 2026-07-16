@@ -1,0 +1,1 @@
+"""Absence persistence adapters."""

@@ -15,6 +15,7 @@ from ..domain.entities import (
     AssignmentReviewRequest,
     Delegation,
     Employee,
+    EmployeeAbsence,
     EmployeeAssignment,
     Person,
 )
@@ -165,6 +166,16 @@ class AssignmentReviewRepository(Protocol):
     async def update(self, review: AssignmentReviewRequest, expected_revision: int) -> None: ...
 
 
+class AbsenceRepository(Protocol):
+    async def get(self, absence_id: UUID) -> EmployeeAbsence | None: ...
+    async def list_for_employee(self, employee_id: UUID) -> list[EmployeeAbsence]: ...
+    async def list_covering(
+        self, organization_id: UUID, on_date: date
+    ) -> list[EmployeeAbsence]: ...
+    async def add(self, absence: EmployeeAbsence) -> None: ...
+    async def update(self, absence: EmployeeAbsence, expected_revision: int) -> None: ...
+
+
 class DelegationRepository(Protocol):
     async def get(self, delegation_id: UUID) -> Delegation | None: ...
     async def list(
@@ -215,6 +226,7 @@ class EmployeeUnitOfWork(Protocol):
     employees: EmployeeRepository
     assignments: AssignmentRepository
     assignment_reviews: AssignmentReviewRepository
+    absences: AbsenceRepository
     delegations: DelegationRepository
     staffing_slots: StaffingSlotReader
     policies: EmployeePolicyReader

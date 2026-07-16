@@ -1323,3 +1323,11 @@ body { font-size: 14px; line-height: 1.5; }
   .planned-list time { grid-column: 2; grid-row: 2; text-align: left; }
   .planned-list article > button { grid-column: 3; grid-row: 1 / span 2; }
 }
+
+/* Employee absences (профиль сотрудника) */
+.hr-absence-status { border: 1px solid var(--border); border-radius: 999px; font-size: 7.5px; font-weight: 600; padding: 3px 9px; text-transform: uppercase; white-space: nowrap; }
+.hr-absence-scheduled { color: var(--violet); }
+.hr-absence-active { color: var(--teal); }
+.hr-absence-completed { color: var(--muted); }
+.hr-absence-cancelled { color: var(--coral); text-decoration: line-through; }
+.hr-empty-note { color: var(--muted); font-size: 9px; margin: 0; padding: 14px 17px; }

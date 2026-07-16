@@ -2,8 +2,9 @@
 
 ERTIS OPERATIONS combines this repository's React HR frontend with a modular FastAPI backend for
 identity, access control, organization structures, staffing, employees, configurable employee
-functions, workflow, documents, recruitment, hiring, termination/offboarding, immutable audit and
-transactional integration events. The frontend from `spk-corporate-system` is not included.
+functions, workflow, documents, recruitment, hiring, termination/offboarding, leave, business
+trips, immutable audit and transactional integration events. The frontend from
+`spk-corporate-system` is not included.
 
 ## Start locally
 
@@ -44,7 +45,7 @@ and test details. Architecture and API documents are in [backend/docs](backend/d
 
 ## Scope boundary
 
-Module 2 implements its workflow runtime locally; it does not pretend that Camunda, electronic
+The backend implements its workflow runtime locally; it does not pretend that Camunda, electronic
 signature, job boards, IAM, payroll, or asset systems are connected. Those actions are explicit,
 auditable manual/external-verification tasks behind adapter boundaries. Leave, time accounting,
 payroll calculation, transfers, and a universal low-code engine remain outside this module.

@@ -9,6 +9,8 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from .enums import (
+    AbsenceStatus,
+    AbsenceType,
     AssignmentReviewStatus,
     AssignmentStatus,
     AssignmentType,
@@ -255,6 +257,73 @@ class AssignmentReviewRequest:
         self.resolved_at = utc_now()
         self.resolution_reason = normalized_reason
         self.revision += 1
+
+
+@dataclass(slots=True, kw_only=True)
+class EmployeeAbsence:
+    """A registered vacation, sick leave, business trip, or day off."""
+
+    employee_id: UUID
+    absence_type: AbsenceType
+    date_from: date
+    date_to: date
+    reason: str
+    created_by: UUID
+    id: UUID = field(default_factory=uuid4)
+    details: str | None = None
+    status: AbsenceStatus = AbsenceStatus.SCHEDULED
+    source_document_id: UUID | None = None
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
+    revision: int = 1
+
+    def __post_init__(self) -> None:
+        if self.date_to < self.date_from:
+            raise EmployeeDomainError(
+                "ABSENCE_DATE_CONFLICT",
+                "Absence end date cannot precede its start date.",
+                {},
+            )
+        self.reason = self.reason.strip()
+        if not self.reason:
+            raise validation_error("An absence reason is required.")
+        if self.details is not None:
+            self.details = self.details.strip() or None
+
+    @property
+    def days(self) -> int:
+        return (self.date_to - self.date_from).days + 1
+
+    def overlaps(self, other: EmployeeAbsence) -> bool:
+        return ranges_overlap(self.date_from, self.date_to, other.date_from, other.date_to)
+
+    def effective_status(self, at: date | None = None) -> AbsenceStatus:
+        on_date = at or date.today()
+        if self.status is AbsenceStatus.CANCELLED:
+            return AbsenceStatus.CANCELLED
+        if on_date < self.date_from:
+            return AbsenceStatus.SCHEDULED
+        if on_date > self.date_to:
+            return AbsenceStatus.COMPLETED
+        return AbsenceStatus.ACTIVE
+
+    def cancel(self, *, expected_revision: int) -> None:
+        if expected_revision != self.revision:
+            raise EmployeeDomainError(
+                "CONCURRENCY_CONFLICT",
+                "The absence was changed by another user.",
+                {"expectedRevision": expected_revision, "actualRevision": self.revision},
+            )
+        current = self.effective_status()
+        if current in {AbsenceStatus.CANCELLED, AbsenceStatus.COMPLETED}:
+            raise EmployeeDomainError(
+                "VERSION_CONFLICT",
+                "A completed or cancelled absence cannot be cancelled.",
+                {"status": current.value},
+            )
+        self.status = AbsenceStatus.CANCELLED
+        self.revision += 1
+        self.updated_at = utc_now()
 
 
 @dataclass(slots=True, kw_only=True)

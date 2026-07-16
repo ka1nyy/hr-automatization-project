@@ -1060,6 +1060,353 @@ class SqlAlchemyWorkflowOperations:
             raise RuntimeError("Workflow task transaction produced no result.")
         return result
 
+    async def act_linked_task(
+        self,
+        session: AsyncSession,
+        process_instance_id: UUID,
+        actor_id: UUID,
+        action: str,
+        comment: str | None,
+        idempotency_key: str,
+        *,
+        expected_phase: str | None = None,
+    ) -> WorkflowView:
+        """Advance a linked process inside the caller's business transaction."""
+        existing = await session.scalar(
+            select(WorkflowTaskModel).where(WorkflowTaskModel.idempotency_key == idempotency_key)
+        )
+        if existing is not None:
+            return _task_view(existing)
+        instance = await session.get(
+            ProcessInstanceModel, process_instance_id, with_for_update=True
+        )
+        if instance is None:
+            raise ResourceNotFoundError("process instance", process_instance_id)
+        if expected_phase is not None and instance.current_phase != expected_phase:
+            raise ValidationError(
+                "The linked workflow is not at the expected business stage.",
+                code=ErrorCode.PROCESS_ACTION_NOT_ALLOWED,
+            )
+        task = await session.scalar(
+            select(WorkflowTaskModel)
+            .where(
+                WorkflowTaskModel.process_instance_id == instance.id,
+                WorkflowTaskModel.status.in_(("active", "pending")),
+                WorkflowTaskModel.assigned_user_id == actor_id,
+            )
+            .order_by(WorkflowTaskModel.created_at)
+            .with_for_update()
+        )
+        if task is None:
+            candidate = await session.scalar(
+                select(WorkflowTaskModel)
+                .where(
+                    WorkflowTaskModel.process_instance_id == instance.id,
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+                .order_by(WorkflowTaskModel.created_at)
+                .with_for_update()
+            )
+            candidate_step = (
+                await session.get(ProcessStepDefinitionModel, candidate.step_definition_id)
+                if candidate is not None
+                else None
+            )
+            eligible = (
+                await self._resolve_users(session, instance, candidate_step)
+                if candidate_step is not None
+                else []
+            )
+            if candidate is None or actor_id not in eligible:
+                raise ValidationError(
+                    "No active linked workflow task is assigned to the actor.",
+                    code=ErrorCode.PROCESS_ACTION_NOT_ALLOWED,
+                )
+            account = await session.get(UserAccountModel, actor_id)
+            candidate.assigned_user_id = actor_id
+            candidate.assigned_employee_id = account.employee_id if account else None
+            candidate.revision += 1
+            task = candidate
+        step = await session.get(ProcessStepDefinitionModel, task.step_definition_id)
+        if step is None:
+            raise ResourceNotFoundError("process step", task.step_definition_id)
+        if action not in step.allowed_actions:
+            raise ValidationError(
+                "The action is not allowed for the linked workflow task.",
+                code=ErrorCode.PROCESS_ACTION_NOT_ALLOWED,
+            )
+        if action in {"return", "reject", "cancel"} and not (comment or "").strip():
+            raise ValidationError(
+                "A decision reason is required.", code=ErrorCode.PROCESS_RETURN_REASON_REQUIRED
+            )
+        task.status = {"return": "returned", "reject": "rejected", "cancel": "cancelled"}.get(
+            action, "completed"
+        )
+        task.decision = action
+        task.decision_comment = comment
+        task.completed_at = utc_now()
+        task.idempotency_key = idempotency_key
+        task.revision += 1
+        await self._history(session, instance.id, actor_id, action, f"Task {action} recorded.")
+        await self._event(
+            session,
+            EventName.WORKFLOW_TASK_COMPLETED,
+            "workflowTask",
+            task.id,
+            {"taskId": str(task.id), "processInstanceId": str(instance.id), "action": action},
+        )
+        siblings = list(
+            (
+                await session.scalars(
+                    select(WorkflowTaskModel).where(
+                        WorkflowTaskModel.process_instance_id == instance.id,
+                        WorkflowTaskModel.step_definition_id == step.id,
+                        WorkflowTaskModel.id != task.id,
+                    )
+                )
+            ).all()
+        )
+        if action not in {"return", "reject", "cancel"}:
+            approvals = 1 + sum(item.status == "completed" for item in siblings)
+            ready = approvals >= step.required_approvers
+            if step.completion_mode == "all":
+                ready = ready and not any(item.status in {"active", "pending"} for item in siblings)
+            if not ready:
+                return _task_view(task)
+            if step.completion_mode == "any":
+                for sibling in siblings:
+                    if sibling.status in {"active", "pending"}:
+                        sibling.status = "cancelled"
+                        sibling.completed_at = utc_now()
+                        sibling.revision += 1
+        transitions = list(
+            (
+                await session.scalars(
+                    select(ProcessTransitionDefinitionModel)
+                    .where(
+                        ProcessTransitionDefinitionModel.definition_version_id
+                        == instance.definition_version_id,
+                        ProcessTransitionDefinitionModel.source_step_id == step.id,
+                        ProcessTransitionDefinitionModel.action == action,
+                        ProcessTransitionDefinitionModel.active.is_(True),
+                    )
+                    .order_by(ProcessTransitionDefinitionModel.priority.desc())
+                )
+            ).all()
+        )
+        context = cast(Mapping[str, Any], instance.snapshot.get("context", {}))
+        transition = next(
+            (item for item in transitions if _condition_matches(item.condition, context)), None
+        )
+        if transition is not None:
+            target = await session.get(ProcessStepDefinitionModel, transition.target_step_id)
+            if target is None:
+                raise ResourceNotFoundError("process step", transition.target_step_id)
+            tasks = await self._create_tasks(session, instance, target)
+            if not tasks:
+                raise ValidationError(
+                    "Workflow actor could not be resolved.",
+                    code=ErrorCode.PROCESS_ACTOR_UNRESOLVED,
+                )
+            instance.current_phase = target.code
+            instance.revision += 1
+        elif action == "return":
+            instance.status = "active"
+            instance.revision += 1
+        else:
+            final_status = (
+                "cancelled"
+                if action == "cancel"
+                else ("rejected" if action == "reject" else "completed")
+            )
+            instance.status = final_status
+            now = utc_now()
+            instance.completed_at = now if final_status in {"completed", "rejected"} else None
+            instance.cancelled_at = now if final_status == "cancelled" else None
+            instance.revision += 1
+            for pending in await session.scalars(
+                select(WorkflowTaskModel).where(
+                    WorkflowTaskModel.process_instance_id == instance.id,
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+            ):
+                pending.status = "cancelled"
+                pending.completed_at = now
+                pending.revision += 1
+            await self._event(
+                session,
+                EventName.PROCESS_INSTANCE_CANCELLED
+                if final_status == "cancelled"
+                else EventName.PROCESS_INSTANCE_COMPLETED,
+                "processInstance",
+                instance.id,
+                {"processInstanceId": str(instance.id), "status": final_status},
+            )
+        return _task_view(task)
+
+    async def linked_action_exists(self, session: AsyncSession, idempotency_key: str) -> bool:
+        return bool(
+            await session.scalar(
+                select(WorkflowTaskModel.id).where(
+                    WorkflowTaskModel.idempotency_key == idempotency_key
+                )
+            )
+        )
+
+    async def resume_linked_task(
+        self,
+        session: AsyncSession,
+        process_instance_id: UUID,
+        actor_id: UUID,
+        idempotency_key: str,
+    ) -> WorkflowView:
+        """Re-open the returned workflow step when its business record is resubmitted."""
+        instance = await session.get(
+            ProcessInstanceModel, process_instance_id, with_for_update=True
+        )
+        if instance is None:
+            raise ResourceNotFoundError("process instance", process_instance_id)
+        task = await session.scalar(
+            select(WorkflowTaskModel)
+            .where(
+                WorkflowTaskModel.process_instance_id == instance.id,
+                WorkflowTaskModel.status == "returned",
+            )
+            .order_by(WorkflowTaskModel.completed_at.desc())
+            .with_for_update()
+        )
+        if task is None:
+            active = await session.scalar(
+                select(WorkflowTaskModel).where(
+                    WorkflowTaskModel.process_instance_id == instance.id,
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+            )
+            if active is not None:
+                return _task_view(active)
+            raise ValidationError(
+                "The linked workflow has no returned task to resume.",
+                code=ErrorCode.PROCESS_ACTION_NOT_ALLOWED,
+            )
+        task.status = "active"
+        task.decision = None
+        task.decision_comment = None
+        task.completed_at = None
+        task.idempotency_key = None
+        task.revision += 1
+        instance.status = "active"
+        instance.revision += 1
+        await self._history(
+            session, instance.id, actor_id, "resubmit", "Business case resubmitted."
+        )
+        await self._event(
+            session,
+            EventName.WORKFLOW_TASK_ASSIGNED,
+            "workflowTask",
+            task.id,
+            {
+                "taskId": str(task.id),
+                "processInstanceId": str(instance.id),
+                "idempotencyKey": idempotency_key,
+            },
+        )
+        return _task_view(task)
+
+    async def cancel_linked_instance(
+        self,
+        session: AsyncSession,
+        process_instance_id: UUID,
+        actor_id: UUID,
+        reason: str,
+    ) -> None:
+        """Cancel a business-owned process and every unfinished generic task atomically."""
+        instance = await session.get(
+            ProcessInstanceModel, process_instance_id, with_for_update=True
+        )
+        if instance is None:
+            raise ResourceNotFoundError("process instance", process_instance_id)
+        if instance.status == "cancelled":
+            return
+        now = utc_now()
+        tasks = (
+            await session.scalars(
+                select(WorkflowTaskModel)
+                .where(
+                    WorkflowTaskModel.process_instance_id == instance.id,
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+                .with_for_update()
+            )
+        ).all()
+        for task in tasks:
+            task.status = "cancelled"
+            task.decision = "cancel"
+            task.decision_comment = reason
+            task.completed_at = now
+            task.revision += 1
+        instance.status = "cancelled"
+        instance.cancelled_at = now
+        instance.revision += 1
+        await self._history(session, instance.id, actor_id, "cancel", reason)
+        await self._event(
+            session,
+            EventName.PROCESS_INSTANCE_CANCELLED,
+            "processInstance",
+            instance.id,
+            {"processInstanceId": str(instance.id), "reason": reason},
+        )
+
+    async def complete_linked_instance(
+        self,
+        session: AsyncSession,
+        process_instance_id: UUID,
+        actor_id: UUID,
+        summary: str,
+    ) -> None:
+        """Finish a linked process when the terminal business invariant is satisfied."""
+        instance = await session.get(
+            ProcessInstanceModel, process_instance_id, with_for_update=True
+        )
+        if instance is None:
+            raise ResourceNotFoundError("process instance", process_instance_id)
+        if instance.status == "completed":
+            return
+        now = utc_now()
+        tasks = (
+            await session.scalars(
+                select(WorkflowTaskModel)
+                .where(
+                    WorkflowTaskModel.process_instance_id == instance.id,
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+                .with_for_update()
+            )
+        ).all()
+        for task in tasks:
+            task.status = "completed"
+            task.decision = "complete"
+            task.decision_comment = summary
+            task.completed_at = now
+            task.revision += 1
+            await self._event(
+                session,
+                EventName.WORKFLOW_TASK_COMPLETED,
+                "workflowTask",
+                task.id,
+                {"taskId": str(task.id), "processInstanceId": str(instance.id)},
+            )
+        instance.status = "completed"
+        instance.completed_at = now
+        instance.revision += 1
+        await self._history(session, instance.id, actor_id, "complete", summary)
+        await self._event(
+            session,
+            EventName.PROCESS_INSTANCE_COMPLETED,
+            "processInstance",
+            instance.id,
+            {"processInstanceId": str(instance.id)},
+        )
+
     async def reassign_task(
         self, task_id: UUID, actor_id: UUID, revision: int, assigned_user_id: UUID, reason: str
     ) -> WorkflowView:

@@ -9,6 +9,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.absence.infrastructure.models import LeaveBalanceModel, LeaveTypeModel
 from app.modules.documents.infrastructure.models import DocumentTypeModel
 from app.modules.recruitment.infrastructure.models import PublicationChannelModel
 from app.modules.termination.infrastructure.models import TerminationReasonModel
@@ -97,6 +98,40 @@ ROUTES: Mapping[str, tuple[tuple[str, str, str, tuple[str, ...]], ...]] = {
         ),
         ("offboarding", "Offboarding execution", "termination.complete", ("complete", "cancel")),
     ),
+    "leave": (
+        (
+            "manager_review",
+            "Manager leave review",
+            "leave.review_manager",
+            ("approve", "return", "reject"),
+        ),
+        (
+            "hr_review",
+            "HR leave review",
+            "leave.review_hr",
+            ("approve", "return", "reject"),
+        ),
+    ),
+    "business_trip": (
+        (
+            "manager_review",
+            "Manager business-trip review",
+            "business_trip.review_manager",
+            ("approve", "return", "reject"),
+        ),
+        (
+            "finance_review",
+            "Business-trip finance review",
+            "business_trip.review_finance",
+            ("approve", "return", "reject"),
+        ),
+        (
+            "hr_registration",
+            "Business-trip HR registration",
+            "business_trip.register",
+            ("complete", "return", "reject"),
+        ),
+    ),
 }
 
 STEP_DOCUMENTS: Mapping[tuple[str, str], tuple[str, ...]] = {
@@ -150,6 +185,60 @@ async def seed_module2(
     seed_id: Any,
     insert_rows: Any,
 ) -> None:
+    annual_type_id = seed_id("leave-type", "annual_paid")
+    unpaid_type_id = seed_id("leave-type", "unpaid")
+    await insert_rows(
+        session,
+        LeaveTypeModel.__table__,
+        [
+            {
+                "id": annual_type_id,
+                "organization_id": organization_id,
+                "code": "annual_paid",
+                "name": "Annual paid leave",
+                "paid": True,
+                "requires_balance": True,
+                "active": True,
+                "revision": 1,
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            },
+            {
+                "id": unpaid_type_id,
+                "organization_id": organization_id,
+                "code": "unpaid",
+                "name": "Unpaid leave",
+                "paid": False,
+                "requires_balance": False,
+                "active": True,
+                "revision": 1,
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            },
+        ],
+    )
+    await insert_rows(
+        session,
+        LeaveBalanceModel.__table__,
+        [
+            {
+                "id": seed_id("leave-balance", f"{employee}:{year}"),
+                "organization_id": organization_id,
+                "employee_id": seed_id("employee", employee),
+                "leave_type_id": annual_type_id,
+                "year": year,
+                "entitled_days": 24,
+                "carried_days": 0,
+                "reserved_days": 0,
+                "used_days": 0,
+                "revision": 1,
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            }
+            for employee in ("development-employee", "development-director")
+            for year in range(timestamp.year, timestamp.year + 3)
+        ],
+    )
     await insert_rows(
         session,
         DocumentTypeModel.__table__,

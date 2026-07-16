@@ -245,6 +245,10 @@ class SqlAlchemyTerminationOperations:
     ) -> Mapping[str, object]:
         async with self._sessions.begin() as s:
             row = await _locked(s, TerminationCaseModel, case_id)
+            workflow_key = f"termination:{row.id}:{stage}:{revision}:{decision}"
+            workflow = SqlAlchemyWorkflowOperations(self._sessions)
+            if await workflow.linked_action_exists(s, workflow_key):
+                return _view(row)
             _rev(row, revision)
             before = _view(row)
             reason = await s.get(TerminationReasonModel, row.reason_id)
@@ -267,6 +271,26 @@ class SqlAlchemyTerminationOperations:
             else:
                 raise ValidationError("Unsupported review stage.")
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Termination case has no linked workflow.")
+            workflow_action: str | None = decision
+            expected_phase = "hr_review"
+            if stage == "legal_review" and decision == "approve":
+                workflow_action = None
+            elif stage in {"legal_review", "signature"}:
+                expected_phase = "signature_registration"
+                if stage == "signature" and decision == "approve":
+                    workflow_action = "complete"
+            if workflow_action is not None:
+                await workflow.act_linked_task(
+                    s,
+                    row.process_instance_id,
+                    actor_id,
+                    workflow_action,
+                    comment,
+                    workflow_key,
+                    expected_phase=expected_phase,
+                )
             await self._audit(
                 s, actor_id, row.organization_id, "termination.case.reviewed", row, before, comment
             )
@@ -315,6 +339,14 @@ class SqlAlchemyTerminationOperations:
             row.requested_date = requested
             row.status = "hr_review"
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Termination case has no linked workflow.")
+            await SqlAlchemyWorkflowOperations(self._sessions).resume_linked_task(
+                s,
+                row.process_instance_id,
+                actor_id,
+                f"termination:{row.id}:resubmit:{revision}",
+            )
             await self._audit(
                 s,
                 actor_id,
@@ -487,6 +519,17 @@ class SqlAlchemyTerminationOperations:
             row.scheduled_at = utc_now()
             row.status = "scheduled"
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Termination case has no linked workflow.")
+            await SqlAlchemyWorkflowOperations(self._sessions).act_linked_task(
+                s,
+                row.process_instance_id,
+                actor_id,
+                "complete",
+                "Termination completed.",
+                f"termination:{row.id}:complete:{revision}",
+                expected_phase="offboarding",
+            )
             await self._change(
                 s,
                 actor_id,
@@ -641,6 +684,11 @@ class SqlAlchemyTerminationOperations:
             row.cancelled_at = utc_now()
             row.cancellation_reason = reason
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Termination case has no linked workflow.")
+            await SqlAlchemyWorkflowOperations(self._sessions).cancel_linked_instance(
+                s, row.process_instance_id, actor_id, reason
+            )
             await self._change(
                 s,
                 actor_id,

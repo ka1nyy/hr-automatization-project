@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from ..domain.entities import Delegation, Employee, EmployeeAssignment, Person
+from ..domain.entities import Delegation, Employee, EmployeeAbsence, EmployeeAssignment, Person
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,3 +23,17 @@ class EmployeePage:
 class DelegationPage:
     items: tuple[Delegation, ...]
     total: int
+
+
+@dataclass(frozen=True, slots=True)
+class VacationBalance:
+    year: int
+    entitlement: int
+    used: int
+    remaining: int
+
+
+@dataclass(frozen=True, slots=True)
+class EmployeeAbsenceList:
+    items: tuple[EmployeeAbsence, ...]
+    vacation_balance: VacationBalance

@@ -39,6 +39,20 @@ class AssignmentReviewStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class AbsenceType(StrEnum):
+    VACATION = "vacation"
+    SICK_LEAVE = "sick_leave"
+    BUSINESS_TRIP = "business_trip"
+    DAY_OFF = "day_off"
+
+
+class AbsenceStatus(StrEnum):
+    SCHEDULED = "scheduled"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 class DelegationScopeType(StrEnum):
     PERMISSIONS = "permissions"
     ORGANIZATION = "organization"
