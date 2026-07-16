@@ -10,11 +10,11 @@ from app.modules.documents.infrastructure.operations import SqlAlchemyDocumentOp
 from app.modules.employees.infrastructure.crypto import FernetSensitiveDataProtector
 from app.modules.recruitment.infrastructure.operations import SqlAlchemyRecruitmentOperations
 from app.modules.termination.infrastructure.operations import SqlAlchemyTerminationOperations
-from app.modules.workflow.infrastructure.models import WorkflowTaskModel
+from app.modules.workflow.infrastructure.models import ProcessInstanceModel, WorkflowTaskModel
 from app.modules.workflow.infrastructure.operations import SqlAlchemyWorkflowOperations
 from app.seed import ORGANIZATION_ID, _development_user_id, _seed_id
 from cryptography.fernet import Fernet
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 pytestmark = pytest.mark.integration
@@ -336,13 +336,33 @@ async def test_recruitment_to_hiring_completion_is_transactional(
             "requirements": "Integration requirements",
         },
     )
+    hr_revision = int(request["revision"])
     request = await operations.review_request(
         UUID(str(request["id"])),
         _development_user_id("hr"),
-        int(request["revision"]),
+        hr_revision,
         "approve",
         "complete",
     )
+    duplicate = await operations.review_request(
+        UUID(str(request["id"])),
+        _development_user_id("hr"),
+        hr_revision,
+        "approve",
+        "complete",
+    )
+    assert duplicate["revision"] == request["revision"]
+    async with factory() as session:
+        process = await session.get(ProcessInstanceModel, request["process_instance_id"])
+        tasks = (
+            await session.scalars(
+                select(WorkflowTaskModel)
+                .where(WorkflowTaskModel.process_instance_id == request["process_instance_id"])
+                .order_by(WorkflowTaskModel.created_at)
+            )
+        ).all()
+    assert process is not None and process.current_phase == "staffing_review"
+    assert [task.status for task in tasks] == ["completed", "active"]
     request = await operations.review_request(
         UUID(str(request["id"])),
         _development_user_id("admin"),
@@ -499,6 +519,18 @@ async def test_recruitment_to_hiring_completion_is_transactional(
     )
     assert completed["status"] == "completed"
     async with factory() as session:
+        hiring_process = await session.get(ProcessInstanceModel, completed["process_instance_id"])
+        pending_workflow_tasks = int(
+            await session.scalar(
+                select(func.count())
+                .select_from(WorkflowTaskModel)
+                .where(
+                    WorkflowTaskModel.process_instance_id == completed["process_instance_id"],
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+            )
+            or 0
+        )
         result = (
             await session.execute(
                 text(
@@ -521,6 +553,8 @@ async def test_recruitment_to_hiring_completion_is_transactional(
             .all()
         )
     assert tuple(result) == ("filled", "hired", True)
+    assert hiring_process is not None and hiring_process.status == "completed"
+    assert pending_workflow_tasks == 0
     assert all("candidate@example.invalid" not in payload for payload in safe_events)
 
 
@@ -748,6 +782,16 @@ async def test_conditional_legal_return_and_cancellation_before_effective_date(
         "basis requires correction",
     )
     assert case["status"] == "returned"
+    async with factory() as session:
+        returned_process = await session.get(ProcessInstanceModel, case["process_instance_id"])
+        returned_task = await session.scalar(
+            select(WorkflowTaskModel).where(
+                WorkflowTaskModel.process_instance_id == case["process_instance_id"],
+                WorkflowTaskModel.status == "returned",
+            )
+        )
+    assert returned_process is not None and returned_process.status == "active"
+    assert returned_task is not None
     cancelled = await operations.cancel(
         UUID(str(case["id"])),
         _development_user_id("hr"),
@@ -755,6 +799,23 @@ async def test_conditional_legal_return_and_cancellation_before_effective_date(
         "employee withdrew request",
     )
     assert cancelled["status"] == "cancelled"
+    async with factory() as session:
+        cancelled_process = await session.get(
+            ProcessInstanceModel, cancelled["process_instance_id"]
+        )
+        unfinished = int(
+            await session.scalar(
+                select(func.count())
+                .select_from(WorkflowTaskModel)
+                .where(
+                    WorkflowTaskModel.process_instance_id == cancelled["process_instance_id"],
+                    WorkflowTaskModel.status.in_(("active", "pending")),
+                )
+            )
+            or 0
+        )
+    assert cancelled_process is not None and cancelled_process.status == "cancelled"
+    assert unfinished == 0
     with pytest.raises(ResourceNotFoundError):
         await operations.require_case_organization(UUID(str(case["id"])), uuid4())
 
