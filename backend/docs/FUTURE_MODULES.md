@@ -42,10 +42,11 @@ Module 1 does not implement candidate or employment-document states.
 
 ## Module 4 — HR administration
 
-Timesheets, working time, leave, sick leave, time off, business trips, transfers, salary changes,
-additional agreements, termination, settlement, handover, and exit interview will add their own
-temporal aggregates. Transfers should end one assignment and begin another under a workflow; they
-must not overwrite Module 1 assignment history.
+Leave and business trips now have module-owned temporal aggregates, scoped APIs, workflow-backed
+reviews, audit and outbox events. Remaining additions are timesheets, working time, sick leave,
+time off, transfers, salary changes, additional agreements and settlement. Transfers should end
+one assignment and begin another under a workflow; they must not overwrite Module 1 assignment
+history.
 
 ## Evolution rules
 

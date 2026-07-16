@@ -83,6 +83,11 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "termination.read_all",
                 "termination.review_hr",
                 "termination.complete",
+                "absence.read_all",
+                "absence.read_self",
+                "leave.review_hr",
+                "leave.balance.manage",
+                "business_trip.register",
             }
         ),
     ),
@@ -104,6 +109,10 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "termination.initiate_unit",
                 "termination.read_unit",
                 "termination.handover",
+                "absence.read_unit",
+                "absence.read_self",
+                "leave.review_manager",
+                "business_trip.review_manager",
             }
         ),
     ),
@@ -121,6 +130,9 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "documents.acknowledge",
                 "termination.initiate_self",
                 "termination.read_self",
+                "absence.read_self",
+                "leave.request",
+                "business_trip.request",
             }
         ),
     ),

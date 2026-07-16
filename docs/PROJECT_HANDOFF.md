@@ -31,13 +31,27 @@ instances started under older published definitions are not moved to a newer def
 
 Verified on a dedicated PostgreSQL 17 database (`spk_hr_test`):
 
-- complete backend suite: `124 passed`, `0 failed`, `0 skipped`, `1` non-blocking Starlette
+- complete backend suite: `127 passed`, `0 failed`, `0 skipped`, `1` non-blocking Starlette
   deprecation warning;
-- PostgreSQL integration suite: `14 passed`;
+- PostgreSQL integration suite: `17 passed`;
 - Ruff lint: passed;
-- Ruff formatting for configured source/test scope: passed (`216 files already formatted`);
-- mypy: passed (`181 source files`);
-- clean Alembic migration and double idempotent seed: exercised by the PostgreSQL session fixture;
-- OpenAPI contract: exercised by the complete suite, with no contract failures.
+- Ruff formatting for configured source/test scope: passed (`226 files already formatted`);
+- mypy: passed (`190 source files`);
+- clean Alembic upgrade to `0005_absence`: passed;
+- Alembic metadata drift check: `No new upgrade operations detected`;
+- idempotent seed: passed twice;
+- OpenAPI contract: `134 paths`, with no contract failures.
 
 The frontend was not changed.
+
+## Module 4 increment: leave and business trips
+
+The `absence` bounded context adds annual/unpaid leave types, per-year balances, leave requests,
+and business-trip requests. Leave reserves entitlement on submission and moves the reservation to
+used days only after final HR approval. Invalid dates, insufficient balances and overlapping active
+leave/trip periods fail before any process, audit or outbox state is committed.
+
+Leave uses manager and HR workflow stages. Business trips use manager, finance and HR-registration
+stages. Both support return to the exact prior stage, resubmission, rejection, cancellation,
+idempotent decisions, optimistic concurrency and actor/scope resolution through existing RBAC.
+Alembic head is `0005_absence`.

@@ -297,6 +297,23 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Complete termination",
         "Finalize an effective and fully offboarded termination case.",
     ),
+    PermissionDefinition("absence.read_self", "Read own absences", "Read own leave and trips."),
+    PermissionDefinition("absence.read_unit", "Read unit absences", "Read unit leave and trips."),
+    PermissionDefinition("absence.read_all", "Read all absences", "Read organization absences."),
+    PermissionDefinition("leave.request", "Request leave", "Submit and correct own leave."),
+    PermissionDefinition("leave.review_manager", "Review unit leave", "Review leave as manager."),
+    PermissionDefinition("leave.review_hr", "Review leave as HR", "Finalize leave decisions."),
+    PermissionDefinition("leave.balance.manage", "Manage leave balances", "Adjust entitlements."),
+    PermissionDefinition("business_trip.request", "Request trip", "Submit and correct own trips."),
+    PermissionDefinition(
+        "business_trip.review_manager", "Review unit trips", "Review trips as manager."
+    ),
+    PermissionDefinition(
+        "business_trip.review_finance", "Review trip finance", "Approve trip funding."
+    ),
+    PermissionDefinition(
+        "business_trip.register", "Register business trips", "Complete HR trip registration."
+    ),
 )
 
 REQUIRED_PERMISSION_CODES: frozenset[str] = frozenset(item.code for item in PERMISSION_CATALOG)

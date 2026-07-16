@@ -7,6 +7,7 @@ tables owned by a module.
 
 from app.core.audit.models import AuditEventModel
 from app.core.events.models import OutboxEventModel
+from app.modules.absence.infrastructure import models as absence_models
 from app.modules.access_control.infrastructure.models import (
     AccessScopeModel,
     AccessScopeUnitModel,
@@ -68,4 +69,10 @@ __all__ = [
 ]
 
 # Keep module namespaces referenced: importing them registers every owned table in Base.metadata.
-_MODULE2_MODELS = (document_models, recruitment_models, termination_models, workflow_models)
+_MODULE_MODELS = (
+    absence_models,
+    document_models,
+    recruitment_models,
+    termination_models,
+    workflow_models,
+)
