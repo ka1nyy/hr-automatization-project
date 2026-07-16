@@ -506,34 +506,302 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hr-form-notice > span { align-items: center; display: flex; gap: 7px; }
 .hr-form-notice button { background: transparent; border: 0; color: var(--muted); }
 .hr-generation-error { background: color-mix(in srgb, var(--coral) 8%, var(--paper)); border: 1px solid color-mix(in srgb, var(--coral) 35%, var(--border)); color: var(--coral); font-size: 8px; margin-bottom: 10px; padding: 10px 12px; }
-.hr-registration-hero { align-items: center; background: linear-gradient(135deg, color-mix(in srgb, var(--teal) 14%, var(--paper)), color-mix(in srgb, var(--violet) 8%, var(--paper)) 55%, var(--paper)); border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--border)); border-radius: 16px; display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); margin-bottom: 14px; overflow: hidden; padding: 22px 24px; position: relative; }
-.hr-registration-hero::after { background: radial-gradient(circle, color-mix(in srgb, var(--violet) 22%, transparent), transparent 68%); content: ''; height: 220px; pointer-events: none; position: absolute; right: -70px; top: -110px; width: 220px; }
-.hr-registration-hero-copy { min-width: 0; position: relative; z-index: 1; }
-.hr-registration-kicker { color: var(--teal); font-family: var(--font-mono); font-size: 7px; font-weight: 500; letter-spacing: .12em; }
-.hr-registration-hero h2 { font-family: var(--font-condensed); font-size: clamp(22px, 2.4vw, 34px); line-height: 1.05; margin: 9px 0 8px; overflow-wrap: anywhere; }
-.hr-registration-hero p { color: var(--muted); font-size: 9px; line-height: 1.55; margin: 0; max-width: 650px; }
-.hr-registration-progress { background: color-mix(in srgb, var(--paper) 82%, transparent); border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--border)); border-radius: 12px; display: grid; gap: 12px; padding: 15px; position: relative; z-index: 1; }
-.hr-registration-progress > div { align-items: flex-end; display: flex; justify-content: space-between; }
-.hr-registration-progress strong { font-family: var(--font-condensed); font-size: 24px; font-weight: 600; line-height: 1; }
-.hr-registration-progress small { color: var(--muted); font-size: 8px; }
-.hr-registration-progress > span { background: color-mix(in srgb, var(--teal) 12%, var(--soft)); border-radius: 20px; display: block; height: 7px; overflow: hidden; }
-.hr-registration-progress > span i { background: linear-gradient(90deg, var(--teal), var(--violet)); border-radius: inherit; display: block; height: 100%; transition: width .3s ease; }
 .hr-registration-wizard { display: grid; gap: 14px; min-width: 0; scroll-margin-top: 90px; }
-.hr-registration-timeline { background: var(--paper); border: 1px solid var(--border); border-radius: 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 0; overflow: hidden; padding: 16px; }
-.hr-registration-timeline li { min-width: 0; position: relative; }
-.hr-registration-timeline li::after { background: var(--border); content: ''; height: 2px; left: calc(50% + 20px); position: absolute; right: calc(-50% + 20px); top: 19px; z-index: 0; }
-.hr-registration-timeline li.done::after { background: linear-gradient(90deg, var(--emerald), var(--teal)); }
-.hr-registration-timeline li:last-child::after { display: none; }
-.hr-registration-timeline button { align-items: center; background: transparent; border: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 0 8px; position: relative; text-align: center; width: 100%; z-index: 1; }
-.hr-registration-timeline button:disabled { cursor: default; opacity: 1; }
-.hr-registration-timeline button > span { align-items: center; background: var(--paper); border: 2px solid var(--border); border-radius: 50%; color: var(--muted); display: flex; flex: 0 0 auto; font-family: var(--font-mono); font-size: 9px; height: 40px; justify-content: center; transition: .2s ease; width: 40px; }
-.hr-registration-timeline .active button > span { background: linear-gradient(135deg, var(--teal), var(--violet)); border-color: transparent; box-shadow: 0 7px 18px color-mix(in srgb, var(--teal) 28%, transparent); color: white; transform: scale(1.05); }
-.hr-registration-timeline .done button > span { background: var(--emerald); border-color: var(--emerald); color: white; }
-.hr-registration-timeline button > div { display: flex; flex-direction: column; min-width: 0; }
-.hr-registration-timeline strong { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hr-registration-timeline small { color: var(--muted); font-size: 7px; margin-top: 3px; }
-.hr-registration-timeline .active small { color: var(--teal); font-weight: 500; }
-.hr-registration-timeline .done small { color: var(--emerald); }
+
+/* --- New Timeline Container & Header Styles --- */
+.hr-timeline-container {
+  background: linear-gradient(145deg, var(--paper), color-mix(in srgb, var(--canvas) 30%, var(--paper)));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  padding: 24px;
+  margin-bottom: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .hr-timeline-container {
+  background: linear-gradient(145deg, var(--paper), color-mix(in srgb, var(--canvas) 60%, var(--paper)));
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.hr-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.hr-timeline-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hr-timeline-progress-label {
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hr-timeline-candidate {
+  font-family: var(--font-condensed);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  transition: color 0.3s ease;
+}
+
+.hr-timeline-percentage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 2px;
+}
+
+.hr-timeline-percentage strong {
+  font-family: var(--font-condensed);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.hr-timeline-percentage small {
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* --- Timeline Progress Track & Line --- */
+.hr-timeline-wrapper {
+  position: relative;
+  padding: 10px 0;
+}
+
+.hr-timeline-line-background {
+  position: absolute;
+  top: 35px; /* Aligned with the center of the icon-wrapper (50px / 2 = 25px + padding) */
+  left: calc((100% / 8)); /* Centers between items */
+  right: calc((100% / 8));
+  height: 4px;
+  background: var(--soft);
+  border-radius: 4px;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.hr-timeline-line-filled {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--violet));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--teal) 50%, transparent);
+  width: 0;
+  border-radius: inherit;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Timeline Grid List --- */
+.hr-registration-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.hr-timeline-item {
+  position: relative;
+  text-align: center;
+}
+
+.hr-timeline-item button {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 4px;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.2s ease;
+}
+
+.hr-timeline-item button:disabled {
+  cursor: default;
+}
+
+/* Icon Wrapper */
+.hr-timeline-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--border);
+  color: var(--muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  z-index: 3;
+}
+
+.hr-timeline-icon-wrapper svg {
+  transition: transform 0.3s ease;
+}
+
+/* Step States */
+/* 1. Done/Completed */
+.hr-timeline-item.done .hr-timeline-icon-wrapper {
+  background: linear-gradient(135deg, var(--emerald), #2ed573);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--emerald) 40%, transparent);
+}
+
+.hr-timeline-item.done .hr-icon-check {
+  animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 2. Active Step */
+.hr-timeline-item.active .hr-timeline-icon-wrapper {
+  background: linear-gradient(135deg, var(--teal), var(--violet));
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--teal) 45%, transparent);
+  transform: scale(1.1);
+}
+
+.hr-timeline-item.active .hr-timeline-icon-wrapper svg {
+  transform: scale(1.05);
+}
+
+/* Pulsating Ring for Active Step */
+.hr-timeline-item.active .hr-timeline-icon-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--teal);
+  opacity: 0;
+  animation: step-pulse 2s infinite;
+  pointer-events: none;
+}
+
+/* 3. Available Step (can be clicked) */
+.hr-timeline-item.available button:hover .hr-timeline-icon-wrapper {
+  border-color: var(--teal);
+  color: var(--teal);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--teal) 15%, transparent);
+}
+
+/* 4. Upcoming / Locked */
+.hr-timeline-item.upcoming {
+  opacity: 0.65;
+}
+
+.hr-timeline-item.upcoming .hr-timeline-icon-wrapper {
+  background: var(--canvas);
+}
+
+/* Text Container */
+.hr-timeline-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 140px;
+}
+
+.hr-timeline-text strong {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  transition: color 0.3s ease;
+}
+
+.hr-timeline-text small {
+  font-size: 8px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--soft);
+  color: var(--muted);
+  transition: all 0.3s ease;
+}
+
+.hr-timeline-item.active .hr-timeline-text strong {
+  color: var(--teal);
+}
+
+.hr-timeline-item.active .hr-timeline-text small {
+  background: color-mix(in srgb, var(--teal) 10%, var(--paper));
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.hr-timeline-item.done .hr-timeline-text small {
+  background: color-mix(in srgb, var(--emerald) 10%, var(--paper));
+  color: var(--emerald);
+  font-weight: 600;
+}
+
+/* --- CSS Keyframe Animations --- */
+@keyframes step-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Slide up animation for stage section */
+.hr-registration-stage {
+  animation: stageEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes stageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .hr-registration-stage { background: var(--paper); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 38px color-mix(in srgb, var(--void) 7%, transparent); min-width: 0; overflow: hidden; }
 .hr-registration-stage > header { align-items: center; background: linear-gradient(90deg, color-mix(in srgb, var(--teal) 8%, var(--paper)), var(--paper)); border-bottom: 1px solid var(--border); display: grid; gap: 13px; grid-template-columns: 44px minmax(0, 1fr) auto; padding: 18px 20px; }
 .hr-registration-stage-icon { align-items: center; background: linear-gradient(135deg, color-mix(in srgb, var(--teal) 18%, var(--paper)), color-mix(in srgb, var(--violet) 14%, var(--paper))); border: 1px solid color-mix(in srgb, var(--teal) 24%, var(--border)); border-radius: 11px; color: var(--teal); display: flex; height: 44px; justify-content: center; width: 44px; }
@@ -544,6 +812,9 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hr-registration-stage > header > b { color: color-mix(in srgb, var(--teal) 15%, var(--paper)); font-family: var(--font-condensed); font-size: 46px; line-height: 1; }
 .hr-registration-stage-body { min-width: 0; padding: 20px; }
 .hr-add-employee-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.hr-name-row { display: grid; gap: 14px; grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.hr-name-row > label { min-width: 0; position: relative; }
+.hr-name-row > label > em { margin-left: 4px; position: absolute; top: 0; }
 .hr-add-employee-fields .span-two { grid-column: 1 / -1; }
 .hr-education-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .hr-field-error { color: var(--coral)!important; font-size: 7px!important; margin: 0!important; }
@@ -629,6 +900,77 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* New employee hiring workflow */
+.hiring-list-toolbar { align-items: center; background: var(--paper); border: 1px solid var(--border); border-radius: 14px; display: flex; justify-content: space-between; margin-bottom: 14px; padding: 12px 14px; }
+.hiring-list-toolbar > span { align-items: center; display: flex; gap: 8px; font-weight: 700; }
+.hiring-request-list { display: grid; gap: 10px; }
+.hiring-request-card { align-items: center; background: var(--paper); border: 1px solid var(--border); border-radius: 16px; color: inherit; display: grid; gap: 14px; grid-template-columns: auto minmax(240px, 1fr) auto minmax(150px, auto) auto; padding: 15px 17px; text-decoration: none; transition: .18s ease; }
+.hiring-request-card:hover { border-color: var(--primary); box-shadow: 0 10px 30px color-mix(in srgb, var(--primary) 10%, transparent); transform: translateY(-1px); }
+.hiring-request-icon { align-items: center; background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: 12px; color: var(--primary); display: flex; height: 42px; justify-content: center; width: 42px; }
+.hiring-request-card div > small, .hiring-request-stage small { color: var(--muted); display: block; font-size: 11px; }
+.hiring-request-card div > strong { display: block; margin: 3px 0; }
+.hiring-request-card p { color: var(--muted); font-size: 12px; margin: 0; }
+.hiring-request-stage { text-align: right; }
+.hiring-request-stage time { display: block; font-size: 12px; margin-top: 5px; }
+.hiring-status { border-radius: 999px; font-size: 11px; font-weight: 800; padding: 6px 9px; white-space: nowrap; }
+.hiring-status.draft, .hiring-status.pdf_generated { background: var(--soft); color: var(--muted); }
+.hiring-status.under_review { background: #fff4d6; color: #9a6700; }
+.hiring-status.returned, .hiring-status.rejected { background: #fee4e2; color: #b42318; }
+.hiring-status.final_approved, .hiring-status.completed { background: #dcfae6; color: #067647; }
+.hiring-status.dispatched, .hiring-status.partially_acknowledged { background: #e0e7ff; color: #4338ca; }
+.hiring-empty { align-items: center; background: var(--paper); border: 1px dashed var(--border); border-radius: 18px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; justify-content: center; min-height: 230px; padding: 30px; text-align: center; }
+.hiring-empty strong { color: var(--text); }
+.hiring-empty p { margin: 0; max-width: 460px; }
+.api-error-card { background: #fff1f0; border: 1px solid #fda29b; border-radius: 14px; color: #b42318; margin-bottom: 14px; padding: 14px; }
+.api-error-card p { margin: 5px 0 0; }
+.hiring-detail-grid { align-items: start; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
+.hiring-detail-main, .hiring-document-panel { background: var(--paper); border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
+.hiring-detail-main > header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 12px; padding-bottom: 15px; }
+.hiring-detail-main > header > span { align-items: center; background: #dcfae6; border-radius: 10px; color: #067647; display: flex; height: 38px; justify-content: center; width: 38px; }
+.hiring-detail-main > header small, .hiring-detail-main > header strong { display: block; }
+.hiring-detail-main h3, .hiring-document-panel h3 { align-items: center; display: flex; font-size: 14px; gap: 8px; margin: 18px 0 12px; }
+.hiring-summary-grid { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin-top: 15px; overflow: hidden; }
+.hiring-summary-grid dl { background: var(--soft); margin: 0; padding: 12px; }
+.hiring-summary-grid dt { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+.hiring-summary-grid dd { font-size: 12px; font-weight: 700; margin: 5px 0 0; }
+.hiring-approval-timeline { list-style: none; margin: 0; padding: 0; }
+.hiring-approval-timeline li { display: grid; gap: 12px; grid-template-columns: 32px 1fr; min-height: 86px; position: relative; }
+.hiring-approval-timeline li:not(:last-child)::after { background: var(--border); content: ''; height: calc(100% - 34px); left: 15px; position: absolute; top: 34px; width: 2px; }
+.hiring-approval-timeline li > span { align-items: center; background: var(--soft); border: 2px solid var(--border); border-radius: 50%; display: flex; height: 32px; justify-content: center; width: 32px; z-index: 1; }
+.hiring-approval-timeline li.approve > span { background: #dcfae6; border-color: #12b76a; color: #067647; }
+.hiring-approval-timeline li.current > span { background: color-mix(in srgb, var(--primary) 15%, var(--paper)); border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 8%, transparent); }
+.hiring-approval-timeline li.reject > span, .hiring-approval-timeline li.return > span { background: #fee4e2; border-color: #f04438; color: #b42318; }
+.hiring-approval-timeline small, .hiring-approval-timeline strong { display: block; }
+.hiring-approval-timeline small, .hiring-approval-timeline p { color: var(--muted); font-size: 11px; }
+.hiring-approval-timeline p { margin: 4px 0; }
+.hiring-approval-timeline blockquote { background: var(--soft); border-left: 3px solid var(--border); font-size: 12px; margin: 6px 0 12px; padding: 7px 9px; }
+.hiring-document-panel { position: sticky; top: 82px; }
+.hiring-files { display: grid; gap: 8px; margin: 12px 0; }
+.hiring-files a { align-items: center; border: 1px solid var(--border); border-radius: 12px; color: inherit; display: flex; justify-content: space-between; padding: 10px; text-decoration: none; }
+.hiring-files strong, .hiring-files small { display: block; }
+.hiring-files small { color: var(--muted); font-size: 10px; margin-top: 3px; }
+.hiring-action-box { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
+.hiring-action-box label { color: var(--muted); font-size: 11px; }
+.hiring-action-box textarea { min-height: 82px; resize: vertical; width: 100%; }
+.hiring-action-box > div { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; margin-top: 10px; }
+.hiring-action-box > div .success-button { grid-column: 1 / -1; }
+.success-button, .danger-button { align-items: center; border: 0; border-radius: 9px; cursor: pointer; display: inline-flex; font-weight: 800; gap: 7px; justify-content: center; min-height: 38px; padding: 0 12px; }
+.success-button { background: #12b76a; color: white; }
+.danger-button { background: #f04438; color: white; }
+
+@media (max-width: 900px) {
+  .hiring-detail-grid { grid-template-columns: 1fr; }
+  .hiring-document-panel { position: static; }
+  .hiring-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .hiring-request-card { grid-template-columns: auto 1fr auto; }
+  .hiring-request-card .hiring-request-stage, .hiring-request-card > .hiring-status { grid-column: 2; text-align: left; width: max-content; }
+}
+@media (max-width: 620px) {
+  .hiring-request-card { grid-template-columns: auto 1fr; padding: 13px; }
+  .hiring-request-card > svg { display: none; }
+  .hiring-summary-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1180px) {
   .hr-metric-grid { grid-template-columns: repeat(3, 1fr); }
   .hr-profile-grid { grid-template-columns: minmax(0, 1fr) 260px; }
@@ -640,7 +982,6 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
   .hr-profile-header { grid-template-columns: 56px 1fr 1fr; }
   .hr-profile-score { grid-column: 1 / -1; }
   .hr-employee-hero { grid-template-columns: 1fr 1fr; }
-  .hr-registration-hero { grid-template-columns: minmax(0, 1fr) 220px; }
   .hr-add-employee-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hr-document-grid { grid-template-columns: 1fr; }
   .hr-registration-review dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -655,6 +996,7 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 }
 
 @media (max-width: 620px) {
+  .hr-name-row { grid-template-columns: 1fr; }
   .hr-subnav { margin-top: -6px; }
   .hr-metric-grid { grid-template-columns: repeat(2, 1fr); }
   .hr-employee-hero { grid-template-columns: 1fr; }
@@ -671,13 +1013,14 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
   .hr-route-preview i { flex: 0 0 12px; margin: 0 0 0 7px; min-height: 12px; width: 1px; }
   .hr-form-footer { align-items: stretch; flex-direction: column; gap: 10px; }
   .hr-form-footer .primary-button { width: 100%; }
-  .hr-registration-hero { gap: 18px; grid-template-columns: 1fr; padding: 18px; }
-  .hr-registration-progress { padding: 12px; }
-  .hr-registration-timeline { padding: 13px 4px 11px; }
-  .hr-registration-timeline button { padding: 0 2px; }
-  .hr-registration-timeline button > span { height: 34px; width: 34px; }
-  .hr-registration-timeline li::after { left: calc(50% + 17px); right: calc(-50% + 17px); top: 16px; }
-  .hr-registration-timeline button > div { display: none; }
+  .hr-timeline-container { padding: 16px; }
+  .hr-timeline-header { margin-bottom: 16px; padding-bottom: 12px; }
+  .hr-timeline-candidate { font-size: 15px; }
+  .hr-timeline-percentage strong { font-size: 18px; }
+  .hr-timeline-icon-wrapper { width: 36px; height: 36px; }
+  .hr-timeline-icon-wrapper svg { width: 16px; height: 16px; }
+  .hr-timeline-line-background { top: 26px; left: calc(100% / 8); right: calc(100% / 8); height: 3px; }
+  .hr-timeline-text { display: none; }
   .hr-registration-stage > header { grid-template-columns: 40px minmax(0, 1fr); padding: 14px; }
   .hr-registration-stage-icon { height: 40px; width: 40px; }
   .hr-registration-stage > header > b { display: none; }

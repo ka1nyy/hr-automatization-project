@@ -16,6 +16,8 @@ const HrEmployeesPage = lazy(() => import('../features/hr/pages/HrEmployeesPage'
 const HrEmployeeProfilePage = lazy(() => import('../features/hr/pages/HrEmployeeProfilePage'));
 const HrLeavePage = lazy(() => import('../features/hr/pages/HrLeavePage'));
 const HrPlannedPage = lazy(() => import('../features/hr/pages/HrPlannedPage'));
+const HiringRequestsPage = lazy(() => import('../features/hr/pages/HiringRequestsPage'));
+const HiringRequestDetailsPage = lazy(() => import('../features/hr/pages/HiringRequestDetailsPage'));
 
 function LoadingState() {
   return <div className="page-loading" aria-label="Загрузка"><span /><span /><span /></div>;
@@ -53,6 +55,10 @@ export function App() {
         <Route path="hr/documents" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="documents" /></Suspense>} />
         <Route path="hr/approvals" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="approvals" /></Suspense>} />
         <Route path="hr/hiring/add-employee" element={<Navigate to="/hr/employees?add=true" replace />} />
+        <Route path="hiring/requests" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
+        <Route path="hiring/inbox" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
+        <Route path="hiring/received" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
+        <Route path="hiring/requests/:id" element={<Suspense fallback={<LoadingState />}><HiringRequestDetailsPage /></Suspense>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes></DepartmentProvider>

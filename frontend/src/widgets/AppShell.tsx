@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, X } from 'lucide-react';
+import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileCheck2, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, X } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
@@ -9,10 +9,12 @@ import { getPersonaProfile, personaProfiles } from '../shared/personas';
 import { t } from '../shared/i18n';
 import { useDeveloperStore } from '../shared/store';
 import type { PersonaId } from '../shared/types';
+import type { LucideIcon } from 'lucide-react';
 import { useDepartmentContext } from '../features/hr/context/DepartmentContext';
 import { plannedHrService } from '../features/hr/mocks/plannedHrService';
 
 type SearchResult = { id: string; title: string; detail: string; to: string; type: 'section' | 'document' | 'task' | 'employee' };
+type NavigationItem = { section: string; to: string; icon: LucideIcon; label: string; badge?: number; end?: boolean };
 
 const personas = Object.values(personaProfiles);
 
@@ -30,6 +32,7 @@ export function AppShell() {
   const currentPersona = getPersonaProfile(store.persona);
   const department = useDepartmentContext();
   const canOpenHr = getPermissions(store.persona).includes('hr.read');
+  const hiringPermissions = getPermissions(store.persona);
   const navCounts = useQuery({
     queryKey: ['navigation-counts', store.persona],
     queryFn: async () => {
@@ -48,7 +51,14 @@ export function AppShell() {
     }
   });
   const counts = navCounts.data;
-  const nav = useMemo(() => department.isHrWorkspace ? [
+  const hiringNav = useMemo<NavigationItem[]>(() => hiringPermissions.includes('hiring.initiate') || hiringPermissions.includes('hiring.monitor')
+    ? [{ section: 'Найм', to: '/hiring/requests', icon: UserPlus, label: 'Заявки на найм' }]
+    : hiringPermissions.includes('hiring.approve')
+      ? [{ section: 'Найм', to: '/hiring/inbox', icon: ClipboardCheck, label: 'Входящие согласования' }]
+      : hiringPermissions.includes('hiring.receive')
+        ? [{ section: 'Найм', to: '/hiring/received', icon: FileCheck2, label: 'Документы новых сотрудников' }]
+        : [], [hiringPermissions]);
+  const nav = useMemo<NavigationItem[]>(() => department.isHrWorkspace ? [
     { section: 'Обзор', to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
     { section: 'Обзор', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: counts?.correspondence },
     { section: 'Обзор', to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
@@ -61,15 +71,17 @@ export function AppShell() {
     { section: 'Управление', to: '/hr/documents', icon: FileText, label: 'Документы' },
     { section: 'Управление', to: '/hr/approvals', icon: ClipboardCheck, label: 'Согласования' },
     { section: 'Управление', to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
-    { section: 'Управление', to: '/organization', icon: Building2, label: t(store.locale, 'organization') }
+    { section: 'Управление', to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
+    ...hiringNav
   ] : [
     { section: 'Меню', to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
     { section: 'Меню', to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
     { section: 'Меню', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'incoming'), badge: counts?.correspondence },
     { section: 'Управление', to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
     { section: 'Управление', to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
-    ...(canOpenHr ? [{ section: 'HR', to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : [])
-  ], [canOpenHr, counts, department.isHrWorkspace, store.locale]);
+    ...(canOpenHr ? [{ section: 'HR', to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : []),
+    ...hiringNav
+  ], [canOpenHr, counts, department.isHrWorkspace, hiringNav, store.locale]);
   const notificationQuery = useQuery({ queryKey: ['hr', 'planned-notifications'], queryFn: () => plannedHrService.listNotifications(), enabled: notificationsOpen });
   const searchData = useQuery({
     queryKey: ['global-search', canOpenHr],

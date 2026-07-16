@@ -9,6 +9,9 @@ const personaToDevUser: Record<string, string> = {
   employee: 'employee',
   'hr-specialist': 'hr',
   'process-designer': 'admin'
+  , 'hr-initiator': 'hr.initiator', 'hr-director': 'hr.director', 'economic-director': 'economic.director'
+  , 'commission-reviewer': 'commission', 'legal-reviewer': 'legal', 'board-chairman': 'chairman'
+  , accountant: 'accountant', 'it-specialist': 'it.specialist'
 };
 
 function currentDevUser() {
@@ -43,5 +46,7 @@ export class ApiClient {
 
   get<T>(path: string) { return this.request<T>(path); }
   post<T>(path: string, body?: unknown) { return this.request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }); }
+  patch<T>(path: string, body: unknown) { return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }); }
+  upload<T>(path: string, body: FormData) { return this.request<T>(path, { method: 'POST', body }); }
 }
 

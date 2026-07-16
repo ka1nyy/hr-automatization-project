@@ -30,6 +30,9 @@ export function DepartmentProvider({ children }: PropsWithChildren) {
       ? 'Регистрация сотрудника'
       : isHrRoute
       ? hrPages.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'Главная'
+      : pathname.includes('/hiring/inbox') ? 'Входящие согласования'
+      : pathname.includes('/hiring/received') ? 'Документы новых сотрудников'
+      : pathname.includes('/hiring/') ? 'Заявка на найм'
       : pathname.includes('incoming') ? (isHrWorkspace ? 'Входящие сообщения' : 'Входящая корреспонденция')
       : pathname.includes('tasks') ? 'Задачи'
       : pathname.includes('processes') ? 'Процессы'

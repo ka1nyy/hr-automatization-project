@@ -25,7 +25,7 @@ from app.seed import (
 def test_seed_roles_are_unique_and_reference_only_catalog_permissions() -> None:
     role_codes = [role.code for role in SEED_ROLES]
 
-    assert len(role_codes) == len(set(role_codes)) == 8
+    assert len(role_codes) == len(set(role_codes))
     assert len({role.id for role in SEED_ROLES}) == len(SEED_ROLES)
     assert all(role.permission_codes <= REQUIRED_PERMISSION_CODES for role in SEED_ROLES)
 

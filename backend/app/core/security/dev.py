@@ -31,6 +31,16 @@ DEFAULT_DEVELOPMENT_USERS: Mapping[str, DevelopmentUser] = {
     "reviewer": DevelopmentUser("reviewer", frozenset({"organization-reviewer"})),
     "publisher": DevelopmentUser("publisher", frozenset({"organization-publisher"})),
     "auditor": DevelopmentUser("auditor", frozenset({"auditor"})),
+    "hr.initiator": DevelopmentUser("hr.initiator", frozenset({"hr-request-initiator"})),
+    "hr.director": DevelopmentUser("hr.director", frozenset({"hr-document-management-director"})),
+    "economic.director": DevelopmentUser(
+        "economic.director", frozenset({"economic-planning-director"})
+    ),
+    "commission": DevelopmentUser("commission", frozenset({"competition-commission-reviewer"})),
+    "legal": DevelopmentUser("legal", frozenset({"legal-department-reviewer"})),
+    "chairman": DevelopmentUser("chairman", frozenset({"management-board-chairman"})),
+    "accountant": DevelopmentUser("accountant", frozenset({"accountant"})),
+    "it.specialist": DevelopmentUser("it.specialist", frozenset({"it-department-specialist"})),
 }
 
 

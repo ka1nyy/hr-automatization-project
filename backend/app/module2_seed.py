@@ -24,6 +24,9 @@ from app.modules.workflow.infrastructure.models import (
 )
 
 DOCUMENT_TYPES: tuple[tuple[str, str], ...] = (
+    ("hiring_application_pdf", "New employee hiring application"),
+    ("identity_document", "Candidate identity document"),
+    ("education_diploma", "Candidate education diploma"),
     ("recruitment_request", "Recruitment request"),
     ("staffing_conclusion", "Staffing and budget conclusion"),
     ("vacancy_profile", "Vacancy profile"),

@@ -54,6 +54,7 @@ from app.modules.employees.infrastructure.organization_adapter import (
 from app.modules.employees.infrastructure.repositories import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
+from app.modules.hiring_requests.api import router as hiring_requests_router
 from app.modules.identity.api import get_database_principal
 from app.modules.organization.api.routes import (
     organization_exception_handler,
@@ -316,6 +317,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(workflow_router, prefix=runtime.api_prefix)
     application.include_router(documents_router, prefix=runtime.api_prefix)
     application.include_router(recruitment_router, prefix=runtime.api_prefix)
+    application.include_router(hiring_requests_router, prefix=runtime.api_prefix)
     application.include_router(termination_router, prefix=runtime.api_prefix)
     application.include_router(
         create_employee_router(

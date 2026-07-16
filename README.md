@@ -48,3 +48,54 @@ Module 2 implements its workflow runtime locally; it does not pretend that Camun
 signature, job boards, IAM, payroll, or asset systems are connected. Those actions are explicit,
 auditable manual/external-verification tasks behind adapter boundaries. Leave, time accounting,
 payroll calculation, transfers, and a universal low-code engine remain outside this module.
+
+## Hiring Workflow Demo
+
+The development environment includes an end-to-end new employee hiring request. Start it with
+`docker compose up -d --build`, then run `npm run dev` in `frontend` and open
+`http://localhost:5173`. The backend container automatically applies Alembic migrations and runs
+the idempotent development seed. Generated files are stored below the configured
+`DOCUMENT_STORAGE_ROOT` (the default Docker volume is not publicly exposed).
+
+Use **Developer tools** in the sidebar to switch between the real seeded database identities:
+
+| Account | Role | Workflow action |
+| --- | --- | --- |
+| `hr.initiator@demo.local` | Сотрудник HR | Draft, PDF, submit, dispatch |
+| `hr.director@demo.local` | Директор HR-департамента | Approval 1 |
+| `economic.director@demo.local` | Директор экономического планирования | Approval 2 |
+| `commission@demo.local` | Конкурсная комиссия | Approval 3 |
+| `legal@demo.local` | Юридический департамент | Approval 4 |
+| `chairman@demo.local` | Председатель правления | Approval 5 |
+| `accountant@demo.local` | Бухгалтер | Independent receipt acknowledgment |
+| `it.specialist@demo.local` | Специалист IT-отдела | Independent receipt acknowledgment |
+| `admin@demo.local` (`admin` handle) | Системный администратор | Monitoring and diagnostics |
+
+Local authentication uses the repository's existing development-only `X-Dev-User` adapter, not
+frontend mock authentication. It is impossible to enable with production settings, so these
+accounts intentionally have no production password. A future OIDC/password provider can map the
+same seeded users without changing workflow authorization.
+
+Test the happy path by creating a four-stage form as `hr.initiator`, uploading the identity file
+and diploma (the diploma is optional only for “Среднее общее”), generating the server PDF, and
+submitting. Switch through the five approvers in order using **Входящие согласования**. After the
+Chairman approves, switch back to HR and send the package to Accounting and IT. Each recipient
+opens **Документы новых сотрудников** and acknowledges independently; the second acknowledgment
+changes the request to `completed`.
+
+To test correction, choose **Вернуть** with a mandatory comment, edit the HR draft, regenerate the
+PDF (a new immutable document version is created), and resubmit. To test rejection, choose
+**Отклонить** with a reason. Reset all demo data with `docker compose down -v` followed by
+`docker compose up -d --build`.
+
+Backend verification commands:
+
+```powershell
+cd backend
+uv sync --extra dev
+uv run alembic upgrade head
+uv run spk-seed
+uv run ruff check app tests
+uv run mypy app
+uv run pytest
+```
