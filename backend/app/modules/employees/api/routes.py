@@ -125,7 +125,27 @@ def create_employee_router(
             meta=Meta(request_id=_request_id(request)),
         )
 
-    # Static /employees/functions routes must precede the /employees/{employee_id} match.
+    # Static /employees/me and /employees/functions routes must precede the
+    # /employees/{employee_id} match.
+    @router.get("/employees/me", response_model=Envelope[EmployeeResponse])
+    async def get_current_employee(
+        request: Request,
+        service: Service,
+        actor: CurrentActor,
+    ) -> Envelope[EmployeeResponse]:
+        if actor.employee_id is None:
+            raise EmployeeDomainError(
+                "RESOURCE_NOT_FOUND",
+                "The current user has no employee record.",
+                {},
+                404,
+            )
+        result = await service.get_employee(actor, actor.employee_id)
+        return Envelope(
+            data=EmployeeResponse.from_details(result),
+            meta=Meta(request_id=_request_id(request)),
+        )
+
     @router.get(
         "/employees/functions",
         response_model=Envelope[list[FunctionDescriptorResponse]],
