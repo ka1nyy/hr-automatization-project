@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { ArrowRight, CalendarCheck2, FileWarning, GraduationCap, UserCheck, UserPlus, UsersRound } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, ListTodo, ShieldCheck, UserCheck, UserPlus, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { repositories } from '../../../repositories';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
-import { ActivityChart, BarChart, DonutChart } from '../../../shared/charts';
+import { BarChart, DonutChart } from '../../../shared/charts';
 import { formatDate, statusLabels } from '../../../shared/format';
 import { usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
@@ -16,7 +15,6 @@ export default function HrOverviewPage() {
   const locale = useDeveloperStore((state) => state.locale);
   const canOpen = usePermission('hr.read');
   const isHr = persona === 'hr-specialist';
-  const [activityDays, setActivityDays] = useState<7 | 14>(7);
   const overview = useQuery({ queryKey: ['hr', 'overview'], queryFn: () => hrRepository.getOverview(), enabled: canOpen && isHr });
   const employee = useQuery({ queryKey: ['hr', 'employee', 'me'], queryFn: () => hrRepository.getCurrentEmployee(), enabled: canOpen && !isHr });
   const leaveRequests = useQuery({ queryKey: ['hr', 'leave'], queryFn: () => hrRepository.listLeaveRequests(), enabled: canOpen });
@@ -62,16 +60,8 @@ export default function HrOverviewPage() {
     { label: 'Договоры', value: stats.expiringContracts, color: 'var(--violet)', to: '/hr/employees?query=2026' },
     { label: 'Просрочено', value: stats.overdueTasks, color: 'var(--coral)', to: '/tasks?filter=overdue' },
   ];
-  const activityChart = Array.from({ length: activityDays }, (_, index) => {
-    const day = new Date();
-    day.setHours(0, 0, 0, 0);
-    day.setDate(day.getDate() + index);
-    const key = day.toISOString().slice(0, 10);
-    const messageCount = messages.data!.filter((item) => item.dueDate.slice(0, 10) === key).length;
-    const taskCount = activeTasks.filter((item) => item.dueDate.slice(0, 10) === key).length;
-    const leaveCount = leaveRequests.data!.filter((item) => item.startDate.slice(0, 10) === key).length;
-    return { label: day.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }), value: messageCount + taskCount + leaveCount, detail: `${messageCount} сообщ. · ${taskCount} задач · ${leaveCount} отсутствий` };
-  });
+  const urgentMessages = messages.data!.filter((item) => item.priority === 'urgent').length;
+  const overdueTasks = activeTasks.filter((task) => task.state === 'overdue').length;
 
   return <>
     <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/employees?add=true"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
@@ -81,18 +71,22 @@ export default function HrOverviewPage() {
       <Section title="HR-контроль" meta="Актуальные риски"><BarChart data={controlChart} ariaLabel="HR-показатели, требующие контроля" /></Section>
     </div>
 
-    <Section title="Активность" meta={`${activityDays} дней`} className="dashboard-activity-panel">
-      <div className="dashboard-chart-toolbar"><span>Сроки сообщений, задач и начало отсутствий</span><div><button type="button" className={activityDays === 7 ? 'active' : ''} onClick={() => setActivityDays(7)}>7 дней</button><button type="button" className={activityDays === 14 ? 'active' : ''} onClick={() => setActivityDays(14)}>14 дней</button></div></div>
-      <ActivityChart data={activityChart} ariaLabel={`Активность HR на ${activityDays} дней`} />
-    </Section>
+    <section className="admin-command-center" aria-labelledby="admin-command-title">
+      <header><div><span>ADMIN COMMAND CENTER</span><h2 id="admin-command-title">Что требует вашего внимания</h2><p>Двигайтесь слева направо: прочитайте новое, выполните задачи, примите решения.</p></div><span className="admin-live"><i /> Данные актуальны</span></header>
 
-    <div className="hr-overview-row-split">
-      <Section title="Входящие сообщения" meta={`${messages.data!.length} в очереди`}><div className="queue-table"><div className="table-head"><span>Сообщение</span><span>Отправитель</span><span>Этап</span><span>Срок</span><span /></div>{messages.data!.slice(0, 5).map((item) => <Link to={`/correspondence/incoming/${item.id}`} className="table-row" key={item.id}><span><strong>{item.number}</strong><small>{item.subject}</small></span><span>{item.sender}</span><span><i className={`status-dot status-${item.status}`} />{statusLabels[item.status]}</span><span className={item.priority === 'urgent' ? 'text-coral' : ''}>{formatDate(item.dueDate, locale, 'dd MMM')}</span><ArrowRight size={15} /></Link>)}</div><Link className="panel-link" to="/correspondence/incoming">Все сообщения <ArrowRight size={15} /></Link></Section>
-      <Section title="Активные согласования" meta={`${pending.length} ожидают HR`}><div className="hr-request-list">{pending.length ? pending.map((request) => <Link to="/processes?id=p-hr-leave" key={request.id}><article><span className="hr-list-icon"><CalendarCheck2 size={17} /></span><div><strong>{request.employeeName}</strong><small>{request.leaveType} · {request.days} дней · {request.documentNumber}</small></div><LeaveStatus status={request.status} /></article></Link>) : <div className="hr-inline-empty">Очередь согласований пуста</div>}</div><Link className="panel-link" to="/processes">Открыть процессы <ArrowRight size={15} /></Link></Section>
-    </div>
+      <div className="admin-command-summary">
+        <Link to="/correspondence/incoming" className="summary-blue"><span><Inbox size={21} /></span><div><small>1. Разобрать входящие</small><strong>{messages.data!.length}<em>сообщений</em></strong><p>{urgentMessages ? `${urgentMessages} срочных — начните с них` : 'Срочных сообщений нет'}</p></div><ArrowUpRight size={18} /></Link>
+        <Link to="/tasks" className="summary-violet"><span><ListTodo size={21} /></span><div><small>2. Выполнить задачи</small><strong>{activeTasks.length}<em>в работе</em></strong><p>{overdueTasks ? `${overdueTasks} просрочено — требуют действия` : 'Все задачи в плановом сроке'}</p></div><ArrowUpRight size={18} /></Link>
+        <Link to="/hr/approvals" className="summary-amber"><span><ShieldCheck size={21} /></span><div><small>3. Принять решения</small><strong>{pending.length}<em>ожидают HR</em></strong><p>{pending.length ? 'Проверьте даты и замещение' : 'Все решения приняты'}</p></div><ArrowUpRight size={18} /></Link>
+      </div>
 
-    <div className="hr-overview-row-single">
-      <Section title="Задачи" meta={`${activeTasks.length} активных`}><div className="task-compact-list">{activeTasks.slice(0, 4).map((task) => <Link to="/tasks" key={task.id}><span className={`priority-line priority-${task.priority}`} /><span><strong>{task.title}</strong><small>{task.process} · до {formatDate(task.dueDate, locale, 'dd MMM')}</small></span><ArrowRight size={15} /></Link>)}</div><Link className="panel-link" to="/tasks">Все задачи <ArrowRight size={15} /></Link></Section>
-    </div>
+      <div className="admin-queue-board">
+        <section className="admin-queue queue-inbox"><header><span><Inbox size={18} /></span><div><h3>Входящие</h3><small>Новая информация и запросы</small></div><b>{messages.data!.length}</b></header><div className="admin-queue-list">{messages.data!.slice(0, 3).map((item) => <Link to={`/correspondence/incoming/${item.id}`} className="admin-queue-card" key={item.id}><div className="admin-card-top"><span className={`admin-priority priority-${item.priority}`}>{item.priority === 'urgent' ? 'Срочно' : item.priority === 'high' ? 'Важно' : 'Обычно'}</span><time><Clock3 size={12} />до {formatDate(item.dueDate, locale, 'dd MMM')}</time></div><strong>{item.subject}</strong><p>{item.sender}</p><footer><span><i className={`status-dot status-${item.status}`} />{statusLabels[item.status]}</span><b>Открыть <ArrowRight size={14} /></b></footer></Link>)}</div><Link className="admin-queue-footer" to="/correspondence/incoming">Все входящие <ArrowRight size={15} /></Link></section>
+
+        <section className="admin-queue queue-tasks"><header><span><ListTodo size={18} /></span><div><h3>Задачи</h3><small>То, что нужно сделать</small></div><b>{activeTasks.length}</b></header><div className="admin-queue-list">{activeTasks.slice(0, 3).map((task) => <Link to="/tasks" className="admin-queue-card" key={task.id}><div className="admin-card-top"><span className={`admin-priority priority-${task.priority}`}>{task.state === 'overdue' ? 'Просрочено' : task.priority === 'urgent' ? 'Срочно' : 'В работе'}</span><time><Clock3 size={12} />до {formatDate(task.dueDate, locale, 'dd MMM')}</time></div><strong>{task.title}</strong><p>{task.process} · {task.documentNumber}</p><footer><span>{task.assignee ? `Исполнитель: ${task.assignee}` : 'Не назначено'}</span><b>К задаче <ArrowRight size={14} /></b></footer></Link>)}</div><Link className="admin-queue-footer" to="/tasks">Все задачи <ArrowRight size={15} /></Link></section>
+
+        <section className="admin-queue queue-approvals"><header><span><ShieldCheck size={18} /></span><div><h3>Согласования</h3><small>Там, где нужно решение HR</small></div><b>{pending.length}</b></header><div className="admin-queue-list">{pending.length ? pending.slice(0, 3).map((request) => <Link to="/hr/approvals" className="admin-queue-card approval-card" key={request.id}><div className="admin-card-top"><LeaveStatus status={request.status} /><time>{request.days} дней</time></div><strong>{request.employeeName}</strong><p>{request.leaveType} · {formatDate(request.startDate, locale, 'dd MMM')} — {formatDate(request.endDate, locale, 'dd MMM')}</p><div className="approval-route" aria-label="Этапы согласования"><span className="done"><CheckCircle2 size={13} />Руководитель</span><i /><span className="active">2. HR</span><i /><span>3. Приказ</span></div><footer><span>{request.documentNumber}</span><b>Рассмотреть <ArrowRight size={14} /></b></footer></Link>) : <div className="admin-queue-empty"><span><CheckCircle2 size={24} /></span><strong>Всё согласовано</strong><p>Новых решений для HR нет.</p></div>}</div><Link className="admin-queue-footer" to="/hr/approvals">Все согласования <ArrowRight size={15} /></Link></section>
+      </div>
+    </section>
   </>;
 }
