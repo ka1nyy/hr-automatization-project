@@ -1,6 +1,8 @@
 import type {
   CoreEmployeeRecord,
   CreateLeaveRequestInput,
+  EmployeeAbsence,
+  EmployeeAbsences,
   EmployeeFunctionDescriptor,
   HrEmployee,
   HrOverview,
@@ -18,6 +20,8 @@ export interface HrRepository {
   invokeEmployeeFunction(employeeId: string, key: string, payload: Record<string, unknown>): Promise<unknown>;
   getCoreEmployee(employeeId: string): Promise<CoreEmployeeRecord>;
   listVacantSlots(): Promise<StaffingSlotOption[]>;
+  listAbsences(employeeId: string): Promise<EmployeeAbsences>;
+  listActiveAbsences(): Promise<EmployeeAbsence[]>;
   listLeaveRequests(): Promise<LeaveRequest[]>;
   createLeaveRequest(input: CreateLeaveRequestInput): Promise<LeaveRequest>;
   reviewLeaveRequest(id: string, decision: 'approve' | 'reject'): Promise<LeaveRequest>;
