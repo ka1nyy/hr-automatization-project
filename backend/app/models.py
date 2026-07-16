@@ -17,6 +17,7 @@ from app.modules.access_control.infrastructure.models import (
 )
 from app.modules.employees.infrastructure.models import (
     DelegationModel,
+    EmployeeAbsenceModel,
     EmployeeAssignmentModel,
     EmployeeModel,
     PersonModel,
@@ -41,6 +42,7 @@ __all__ = [
     "AccessScopeUnitModel",
     "AuditEventModel",
     "DelegationModel",
+    "EmployeeAbsenceModel",
     "EmployeeAssignmentModel",
     "EmployeeModel",
     "OrganizationModel",

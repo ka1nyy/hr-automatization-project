@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import aliased
 
 from ..application.ports import (
+    AbsenceRepository,
     AssignmentRepository,
     AssignmentReviewRepository,
     AuditSink,
@@ -32,10 +33,13 @@ from ..domain.entities import (
     AssignmentReviewRequest,
     Delegation,
     Employee,
+    EmployeeAbsence,
     EmployeeAssignment,
     Person,
 )
 from ..domain.enums import (
+    AbsenceStatus,
+    AbsenceType,
     AssignmentReviewStatus,
     AssignmentStatus,
     AssignmentType,
@@ -48,10 +52,29 @@ from ..domain.errors import EmployeeDomainError
 from .models import (
     AssignmentReviewRequestModel,
     DelegationModel,
+    EmployeeAbsenceModel,
     EmployeeAssignmentModel,
     EmployeeModel,
     PersonModel,
 )
+
+
+def _absence(model: EmployeeAbsenceModel) -> EmployeeAbsence:
+    return EmployeeAbsence(
+        id=model.id,
+        employee_id=model.employee_id,
+        absence_type=AbsenceType(model.absence_type),
+        date_from=model.date_from,
+        date_to=model.date_to,
+        reason=model.reason,
+        details=model.details,
+        status=AbsenceStatus(model.status),
+        created_by=model.created_by,
+        source_document_id=model.source_document_id,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        revision=model.revision,
+    )
 
 
 def _person(model: PersonModel) -> Person:
@@ -392,6 +415,75 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
         _ensure_updated(result)
 
 
+class SqlAlchemyAbsenceRepository(AbsenceRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, absence_id: UUID) -> EmployeeAbsence | None:
+        model = await self._session.get(EmployeeAbsenceModel, absence_id)
+        return _absence(model) if model is not None else None
+
+    async def list_for_employee(self, employee_id: UUID) -> list[EmployeeAbsence]:
+        models = (
+            await self._session.scalars(
+                select(EmployeeAbsenceModel)
+                .where(EmployeeAbsenceModel.employee_id == employee_id)
+                .order_by(EmployeeAbsenceModel.date_from.desc())
+            )
+        ).all()
+        return [_absence(model) for model in models]
+
+    async def list_covering(self, organization_id: UUID, on_date: date) -> list[EmployeeAbsence]:
+        models = (
+            await self._session.scalars(
+                select(EmployeeAbsenceModel)
+                .join(EmployeeModel, EmployeeModel.id == EmployeeAbsenceModel.employee_id)
+                .where(
+                    EmployeeModel.organization_id == organization_id,
+                    EmployeeAbsenceModel.status != AbsenceStatus.CANCELLED.value,
+                    EmployeeAbsenceModel.date_from <= on_date,
+                    EmployeeAbsenceModel.date_to >= on_date,
+                )
+                .order_by(EmployeeAbsenceModel.date_from)
+            )
+        ).all()
+        return [_absence(model) for model in models]
+
+    async def add(self, absence: EmployeeAbsence) -> None:
+        self._session.add(
+            EmployeeAbsenceModel(
+                id=absence.id,
+                employee_id=absence.employee_id,
+                absence_type=absence.absence_type.value,
+                date_from=absence.date_from,
+                date_to=absence.date_to,
+                reason=absence.reason,
+                details=absence.details,
+                status=absence.status.value,
+                created_by=absence.created_by,
+                source_document_id=absence.source_document_id,
+                created_at=absence.created_at,
+                updated_at=absence.updated_at,
+                revision=absence.revision,
+            )
+        )
+
+    async def update(self, absence: EmployeeAbsence, expected_revision: int) -> None:
+        result = await self._session.execute(
+            update(EmployeeAbsenceModel)
+            .where(
+                EmployeeAbsenceModel.id == absence.id,
+                EmployeeAbsenceModel.revision == expected_revision,
+            )
+            .values(
+                status=absence.status.value,
+                updated_at=absence.updated_at,
+                revision=absence.revision,
+            )
+        )
+        _ensure_updated(result)
+
+
 class SqlAlchemyAssignmentRepository(AssignmentRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -641,6 +733,7 @@ class SqlAlchemyEmployeeUnitOfWork(EmployeeUnitOfWork):
         self.employees = SqlAlchemyEmployeeRepository(session)
         self.assignments = SqlAlchemyAssignmentRepository(session)
         self.assignment_reviews = SqlAlchemyAssignmentReviewRepository(session)
+        self.absences = SqlAlchemyAbsenceRepository(session)
         self.delegations = SqlAlchemyDelegationRepository(session)
         self.staffing_slots = staffing_slots
         self.policies = policies

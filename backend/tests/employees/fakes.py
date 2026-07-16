@@ -14,10 +14,15 @@ from app.modules.employees.domain.entities import (
     AssignmentReviewRequest,
     Delegation,
     Employee,
+    EmployeeAbsence,
     EmployeeAssignment,
     Person,
 )
-from app.modules.employees.domain.enums import AssignmentReviewStatus, AssignmentStatus
+from app.modules.employees.domain.enums import (
+    AbsenceStatus,
+    AssignmentReviewStatus,
+    AssignmentStatus,
+)
 
 
 class People:
@@ -197,6 +202,33 @@ class AssignmentReviews:
         self.items[review.id] = review
 
 
+class Absences:
+    def __init__(self, employees: Employees) -> None:
+        self.items: dict[UUID, EmployeeAbsence] = {}
+        self._employees = employees
+
+    async def get(self, absence_id: UUID) -> EmployeeAbsence | None:
+        return self.items.get(absence_id)
+
+    async def list_for_employee(self, employee_id: UUID) -> list[EmployeeAbsence]:
+        return [item for item in self.items.values() if item.employee_id == employee_id]
+
+    async def list_covering(self, organization_id: UUID, on_date: date) -> list[EmployeeAbsence]:
+        return [
+            item
+            for item in self.items.values()
+            if item.status is not AbsenceStatus.CANCELLED
+            and item.date_from <= on_date <= item.date_to
+            and self._employees.items[item.employee_id].organization_id == organization_id
+        ]
+
+    async def add(self, absence: EmployeeAbsence) -> None:
+        self.items[absence.id] = absence
+
+    async def update(self, absence: EmployeeAbsence, expected_revision: int) -> None:
+        self.items[absence.id] = absence
+
+
 class Delegations:
     def __init__(self, employees: Employees) -> None:
         self.items: dict[UUID, Delegation] = {}
@@ -314,6 +346,7 @@ class FakeUnitOfWork:
         self.staffing_slots = Slots()
         self.employees.assignments = self.assignments
         self.employees.slots = self.staffing_slots
+        self.absences = Absences(self.employees)
         self.delegations = Delegations(self.employees)
         self.policies = Policies()
         self.audit = Sink()

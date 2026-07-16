@@ -11,12 +11,15 @@ from ..domain.entities import (
     AssignmentReviewRequest,
     Delegation,
     Employee,
+    EmployeeAbsence,
     EmployeeAssignment,
     Person,
     ranges_overlap,
     utc_now,
 )
 from ..domain.enums import (
+    AbsenceStatus,
+    AbsenceType,
     AssignmentStatus,
     DelegationScopeType,
     DelegationStatus,
@@ -24,6 +27,8 @@ from ..domain.enums import (
 )
 from ..domain.errors import EmployeeDomainError
 from .commands import (
+    CancelAbsenceCommand,
+    CreateAbsenceCommand,
     CreateAssignmentCommand,
     CreateDelegationCommand,
     CreateEmployeeCommand,
@@ -44,7 +49,18 @@ from .ports import (
     SensitiveDataProtector,
     StaffingSlotSnapshot,
 )
-from .views import DelegationPage, EmployeeDetails, EmployeePage
+from .views import (
+    DelegationPage,
+    EmployeeAbsenceList,
+    EmployeeDetails,
+    EmployeePage,
+    VacationBalance,
+)
+
+# Annual paid-vacation entitlement in calendar days. The customer regulations
+# do not define leave rules yet; this mirrors the Kazakhstan labor-code minimum
+# and becomes configurable once real policy documents arrive.
+VACATION_DAYS_PER_YEAR = 24
 
 
 class EmployeeService:
@@ -752,6 +768,15 @@ class EmployeeService:
                     expected_revision=expected_assignment_revision,
                 )
                 await uow.assignments.update(assignment, expected_assignment_revision)
+            for absence in await uow.absences.list_for_employee(employee.id):
+                if (
+                    absence.effective_status() is AbsenceStatus.CANCELLED
+                    or absence.date_from <= command.termination_date
+                ):
+                    continue
+                expected_absence_revision = absence.revision
+                absence.cancel(expected_revision=expected_absence_revision)
+                await uow.absences.update(absence, expected_absence_revision)
             await uow.audit.append(
                 AuditEntry(
                     actor.user_id,
@@ -911,6 +936,209 @@ class EmployeeService:
                 return False
             assignments = await uow.assignments.list_for_employee(employee.id)
             return await self._has_employee_scope(actor, uow, employee, assignments, permission)
+
+    async def create_absence(self, actor: Actor, command: CreateAbsenceCommand) -> EmployeeAbsence:
+        """Register a vacation, sick leave, business trip, or day off."""
+
+        permission = f"employees.absence.{command.absence_type.value}"
+        self._require(actor, permission)
+        async with self._uow_factory() as uow:
+            employee = await self._get_employee(uow, command.employee_id)
+            assignments = await uow.assignments.list_for_employee(employee.id)
+            await self._require_employee_scope(actor, uow, employee, assignments, permission)
+            if employee.employment_status is EmploymentStatus.ENDED or not employee.active:
+                raise EmployeeDomainError(
+                    "VERSION_CONFLICT",
+                    "An absence cannot be registered for a terminated employee.",
+                    {"employmentStatus": employee.employment_status.value},
+                )
+            if command.date_from < employee.hire_date:
+                raise EmployeeDomainError(
+                    "ABSENCE_DATE_CONFLICT",
+                    "An absence cannot start before the hire date.",
+                    {"hireDate": employee.hire_date.isoformat()},
+                )
+            if (
+                employee.termination_date is not None
+                and command.date_to > employee.termination_date
+            ):
+                raise EmployeeDomainError(
+                    "ABSENCE_DATE_CONFLICT",
+                    "An absence cannot extend past the scheduled termination date.",
+                    {"terminationDate": employee.termination_date.isoformat()},
+                )
+            absence = EmployeeAbsence(
+                employee_id=employee.id,
+                absence_type=command.absence_type,
+                date_from=command.date_from,
+                date_to=command.date_to,
+                reason=command.reason,
+                details=command.details,
+                created_by=actor.user_id,
+            )
+            existing = await uow.absences.list_for_employee(employee.id)
+            for item in existing:
+                if item.effective_status() is not AbsenceStatus.CANCELLED and absence.overlaps(
+                    item
+                ):
+                    raise EmployeeDomainError(
+                        "ABSENCE_DATE_CONFLICT",
+                        "The absence overlaps another registered absence.",
+                        {"existingAbsenceId": str(item.id)},
+                    )
+            if command.absence_type is AbsenceType.VACATION:
+                balance = self._vacation_balance(existing, year=command.date_from.year)
+                if absence.days > balance.remaining:
+                    raise EmployeeDomainError(
+                        "ABSENCE_BALANCE_EXCEEDED",
+                        "The requested vacation exceeds the remaining annual balance.",
+                        {
+                            "requestedDays": absence.days,
+                            "remainingDays": balance.remaining,
+                            "year": balance.year,
+                        },
+                    )
+            await uow.absences.add(absence)
+            await uow.audit.append(
+                AuditEntry(
+                    actor.user_id,
+                    "employee.absence.registered",
+                    "employee_absence",
+                    absence.id,
+                    None,
+                    self._safe_absence(absence),
+                    command.reason,
+                    organization_id=actor.organization_id,
+                )
+            )
+            await uow.outbox.add(
+                PendingEvent(
+                    "employeeAbsenceRegistered",
+                    "employee_absence",
+                    absence.id,
+                    {
+                        "absenceId": str(absence.id),
+                        "employeeId": str(employee.id),
+                        "absenceType": absence.absence_type.value,
+                        "dateFrom": absence.date_from.isoformat(),
+                        "dateTo": absence.date_to.isoformat(),
+                    },
+                )
+            )
+            await uow.commit()
+            return absence
+
+    async def cancel_absence(self, actor: Actor, command: CancelAbsenceCommand) -> EmployeeAbsence:
+        self._require(actor, "employees.absence.cancel")
+        if not command.reason.strip():
+            raise EmployeeDomainError("VALIDATION_FAILED", "A reason is required.", {}, 422)
+        async with self._uow_factory() as uow:
+            absence = await uow.absences.get(command.absence_id)
+            if absence is None or absence.employee_id != command.employee_id:
+                raise EmployeeDomainError("RESOURCE_NOT_FOUND", "Absence was not found.", {}, 404)
+            employee = await self._get_employee(uow, absence.employee_id)
+            assignments = await uow.assignments.list_for_employee(employee.id)
+            await self._require_employee_scope(
+                actor, uow, employee, assignments, "employees.absence.cancel"
+            )
+            before = self._safe_absence(absence)
+            expected = absence.revision
+            absence.cancel(expected_revision=command.revision)
+            await uow.absences.update(absence, expected)
+            await uow.audit.append(
+                AuditEntry(
+                    actor.user_id,
+                    "employee.absence.cancelled",
+                    "employee_absence",
+                    absence.id,
+                    before,
+                    self._safe_absence(absence),
+                    command.reason,
+                    organization_id=actor.organization_id,
+                )
+            )
+            await uow.outbox.add(
+                PendingEvent(
+                    "employeeAbsenceCancelled",
+                    "employee_absence",
+                    absence.id,
+                    {"absenceId": str(absence.id), "employeeId": str(absence.employee_id)},
+                )
+            )
+            await uow.commit()
+            return absence
+
+    async def list_absences(self, actor: Actor, employee_id: UUID) -> EmployeeAbsenceList:
+        self._require(actor, "employees.read")
+        async with self._uow_factory() as uow:
+            employee = await self._get_employee(uow, employee_id)
+            assignments = await uow.assignments.list_for_employee(employee.id)
+            await self._require_employee_scope(actor, uow, employee, assignments, "employees.read")
+            items = sorted(
+                await uow.absences.list_for_employee(employee.id),
+                key=lambda item: item.date_from,
+                reverse=True,
+            )
+            return EmployeeAbsenceList(
+                items=tuple(items),
+                vacation_balance=self._vacation_balance(items, year=date.today().year),
+            )
+
+    async def list_active_absences(
+        self, actor: Actor, *, on_date: date | None = None
+    ) -> tuple[EmployeeAbsence, ...]:
+        """Absences in effect on the date, for organization-wide dashboards."""
+
+        self._require(actor, "employees.read")
+        if not actor.allows("employees.read"):
+            raise EmployeeDomainError(
+                "AUTH_SCOPE_VIOLATION",
+                "Organization-wide absence listings require organization-wide read authority.",
+                {},
+                403,
+            )
+        effective_on = on_date or date.today()
+        async with self._uow_factory() as uow:
+            items = await uow.absences.list_covering(actor.organization_id, effective_on)
+            return tuple(
+                item
+                for item in items
+                if item.effective_status(effective_on) is AbsenceStatus.ACTIVE
+            )
+
+    @staticmethod
+    def _vacation_balance(absences: list[EmployeeAbsence], *, year: int) -> VacationBalance:
+        year_start = date(year, 1, 1)
+        year_end = date(year, 12, 31)
+        used = 0
+        for item in absences:
+            if item.absence_type is not AbsenceType.VACATION:
+                continue
+            if item.effective_status() is AbsenceStatus.CANCELLED:
+                continue
+            overlap_from = max(item.date_from, year_start)
+            overlap_to = min(item.date_to, year_end)
+            if overlap_to >= overlap_from:
+                used += (overlap_to - overlap_from).days + 1
+        return VacationBalance(
+            year=year,
+            entitlement=VACATION_DAYS_PER_YEAR,
+            used=used,
+            remaining=max(0, VACATION_DAYS_PER_YEAR - used),
+        )
+
+    @staticmethod
+    def _safe_absence(absence: EmployeeAbsence) -> dict[str, Any]:
+        return {
+            "id": str(absence.id),
+            "employeeId": str(absence.employee_id),
+            "absenceType": absence.absence_type.value,
+            "dateFrom": absence.date_from.isoformat(),
+            "dateTo": absence.date_to.isoformat(),
+            "days": absence.days,
+            "status": absence.effective_status().value,
+            "revision": absence.revision,
+        }
 
     async def create_delegation(self, actor: Actor, command: CreateDelegationCommand) -> Delegation:
         self._require(actor, "delegations.manage")

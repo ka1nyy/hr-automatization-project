@@ -20,9 +20,9 @@ from ..application.commands import (
     UpdateEmployeeCommand,
 )
 from ..application.functions import FunctionDescriptor
-from ..application.views import EmployeeDetails
-from ..domain.entities import Delegation, EmployeeAssignment
-from ..domain.enums import AssignmentType, DelegationScopeType, EmploymentStatus
+from ..application.views import EmployeeAbsenceList, EmployeeDetails, VacationBalance
+from ..domain.entities import Delegation, EmployeeAbsence, EmployeeAssignment
+from ..domain.enums import AbsenceType, AssignmentType, DelegationScopeType, EmploymentStatus
 
 
 class ApiModel(BaseModel):
@@ -256,6 +256,64 @@ class DelegationResponse(ApiModel):
             created_at=delegation.created_at,
             revoked_at=delegation.revoked_at,
             revision=delegation.revision,
+        )
+
+
+class AbsenceResponse(ApiModel):
+    id: UUID
+    employee_id: UUID
+    absence_type: AbsenceType
+    date_from: date
+    date_to: date
+    days: int
+    reason: str
+    details: str | None
+    status: str
+    created_at: datetime
+    revision: int
+
+    @classmethod
+    def from_domain(cls, absence: EmployeeAbsence) -> AbsenceResponse:
+        return cls(
+            id=absence.id,
+            employee_id=absence.employee_id,
+            absence_type=absence.absence_type,
+            date_from=absence.date_from,
+            date_to=absence.date_to,
+            days=absence.days,
+            reason=absence.reason,
+            details=absence.details,
+            status=absence.effective_status().value,
+            created_at=absence.created_at,
+            revision=absence.revision,
+        )
+
+
+class VacationBalanceResponse(ApiModel):
+    year: int
+    entitlement: int
+    used: int
+    remaining: int
+
+    @classmethod
+    def from_view(cls, balance: VacationBalance) -> VacationBalanceResponse:
+        return cls(
+            year=balance.year,
+            entitlement=balance.entitlement,
+            used=balance.used,
+            remaining=balance.remaining,
+        )
+
+
+class EmployeeAbsencesResponse(ApiModel):
+    items: list[AbsenceResponse]
+    vacation_balance: VacationBalanceResponse
+
+    @classmethod
+    def from_view(cls, view: EmployeeAbsenceList) -> EmployeeAbsencesResponse:
+        return cls(
+            items=[AbsenceResponse.from_domain(item) for item in view.items],
+            vacation_balance=VacationBalanceResponse.from_view(view.vacation_balance),
         )
 
 

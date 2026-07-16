@@ -57,6 +57,11 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "employees.hire",
                 "employees.terminate",
                 "employees.transfer",
+                "employees.absence.vacation",
+                "employees.absence.sick_leave",
+                "employees.absence.business_trip",
+                "employees.absence.day_off",
+                "employees.absence.cancel",
                 "delegations.manage",
                 "audit.read",
             }

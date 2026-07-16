@@ -24,6 +24,8 @@ class EventName(StrEnum):
     EMPLOYEE_TERMINATED = "employeeTerminated"
     EMPLOYEE_TERMINATION_SCHEDULED = "employeeTerminationScheduled"
     EMPLOYEE_TRANSFERRED = "employeeTransferred"
+    EMPLOYEE_ABSENCE_REGISTERED = "employeeAbsenceRegistered"
+    EMPLOYEE_ABSENCE_CANCELLED = "employeeAbsenceCancelled"
     EMPLOYEE_ASSIGNMENT_STARTED = "employeeAssignmentStarted"
     EMPLOYEE_ASSIGNMENT_ENDED = "employeeAssignmentEnded"
     EMPLOYEE_ASSIGNMENT_END_SCHEDULED = "employeeAssignmentEndScheduled"

@@ -77,6 +77,31 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Run the transfer business function: move an employee to another staffing slot.",
     ),
     PermissionDefinition(
+        "employees.absence.vacation",
+        "Register vacations",
+        "Run the vacation business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.sick_leave",
+        "Register sick leaves",
+        "Run the sick-leave business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.business_trip",
+        "Register business trips",
+        "Run the business-trip business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.day_off",
+        "Register days off",
+        "Run the day-off business function for an employee.",
+    ),
+    PermissionDefinition(
+        "employees.absence.cancel",
+        "Cancel absences",
+        "Cancel a scheduled or active employee absence.",
+    ),
+    PermissionDefinition(
         "delegations.manage", "Manage delegations", "Create and revoke temporary delegations."
     ),
     PermissionDefinition(
