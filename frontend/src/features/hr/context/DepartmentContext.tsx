@@ -19,13 +19,16 @@ const hrPages: Array<[RegExp, string]> = [
 ];
 
 export function DepartmentProvider({ children }: PropsWithChildren) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const persona = useDeveloperStore((state) => state.persona);
   const value = useMemo<DepartmentContextValue>(() => {
     const profile = getPersonaProfile(persona);
     const isHrRoute = pathname === '/hr' || pathname.startsWith('/hr/') || pathname === '/departments/hr' || pathname.startsWith('/departments/hr/');
     const isHrWorkspace = profile.departmentCode === 'HR';
-    const pageTitle = isHrRoute
+    const isAddEmployee = pathname.endsWith('/employees') && new URLSearchParams(search).get('add') === 'true';
+    const pageTitle = isAddEmployee
+      ? 'Добавить сотрудника'
+      : isHrRoute
       ? hrPages.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'Главная'
       : pathname.includes('incoming') ? (isHrWorkspace ? 'Входящие сообщения' : 'Входящая корреспонденция')
       : pathname.includes('tasks') ? 'Задачи'
@@ -41,7 +44,7 @@ export function DepartmentProvider({ children }: PropsWithChildren) {
       pageTitle,
       isHrWorkspace
     };
-  }, [pathname, persona]);
+  }, [pathname, persona, search]);
   return <DepartmentContext.Provider value={value}>{children}</DepartmentContext.Provider>;
 }
 

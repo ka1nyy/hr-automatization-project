@@ -6,6 +6,7 @@ import { EmptyState, PageHeader, QueryState } from '../../../shared/components';
 import { usePermission } from '../../../shared/permissions';
 import { hrRepository } from '../api';
 import { EmployeeStatus } from '../components/HrStatus';
+import HrAddEmployeePage from './HrAddEmployeePage';
 
 const departmentsList = [
   { name: 'Руководство', label: 'Председатель Правления' },
@@ -23,6 +24,7 @@ const departmentsList = [
 export default function HrEmployeesPage() {
   const canRead = usePermission('hr.employees.read');
   const [searchParams, setSearchParams] = useSearchParams();
+  const isAdding = searchParams.get('add') === 'true';
   const queryParam = searchParams.get('query') || '';
   const [query, setQuery] = useState(queryParam);
   const [department, setDepartment] = useState('all');
@@ -38,8 +40,12 @@ export default function HrEmployeesPage() {
 
   if (!canRead) return <div className="hr-access-denied"><span>HR</span><h1>Доступ ограничен</h1><p>Каталог сотрудников доступен только HR-ролям. Переключите developer persona на HR Specialist для проверки этой стороны.</p><Link className="secondary-button" to="/departments/hr">Вернуться в HR</Link></div>;
 
+  if (isAdding) {
+    return <HrAddEmployeePage onBack={() => setSearchParams((prev) => { prev.delete('add'); return prev; })} />;
+  }
+
   return <>
-    <PageHeader eyebrow="HR · Сотрудники" title="Сотрудники" actions={<Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link>} />
+    <PageHeader eyebrow="HR · Сотрудники" title="Сотрудники" actions={<button type="button" className="primary-button" onClick={() => setSearchParams((prev) => { prev.set('add', 'true'); return prev; })}><UserPlus size={16} /> Добавить сотрудника</button>} />
     <div className="message-tabs" role="tablist" aria-label="Фильтр по департаментам">
       <button
         className={department === 'all' ? 'active' : ''}

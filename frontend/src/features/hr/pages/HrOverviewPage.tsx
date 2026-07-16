@@ -47,7 +47,7 @@ export default function HrOverviewPage() {
   const activeTasks = tasks.data!.filter((task) => task.state !== 'completed');
 
   return <>
-    <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/hiring/add-employee"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
+    <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/employees?add=true"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
     
     <div style={{ marginBottom: '14px' }}>
       <Section title="СОТРУДНИКИ И ОТСУТСТВИЯ" meta={`${stats.activeEmployees} активных, ${stats.onLeave + stats.onBusinessTrip + stats.onSickLeave} отсутствуют`}>

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BriefcaseBusiness, CheckCircle2, FileText, GraduationCap, Info, Paperclip, RotateCcw, Save, Trash2, UserRound, X } from 'lucide-react';
+import { ArrowLeft, BriefcaseBusiness, CheckCircle2, FileText, GraduationCap, Info, Paperclip, RotateCcw, Save, Trash2, UserRound, X } from 'lucide-react';
 import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useForm, type FieldErrors, type UseFormRegister } from 'react-hook-form';
 import { Link } from 'react-router-dom';
@@ -47,7 +47,7 @@ function FormSection({ step, title, description, icon, children }: { step: strin
   return <Section title={`${step}. ${title}`} meta={description} className="hr-hiring-section"><div className="hr-section-icon" aria-hidden="true">{icon}</div><div className="field-grid hr-add-employee-fields">{children}</div></Section>;
 }
 
-export default function HrAddEmployeePage() {
+export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
   const canOpen = usePermission('hr.employees.read');
   const form = useForm<AddEmployeeFormValues>({ resolver: zodResolver(addEmployeeSchema), mode: 'onBlur', defaultValues: addEmployeeDefaults });
   const [attachments, setAttachments] = useState<EmployeeAttachment[]>([]);
@@ -126,7 +126,7 @@ export default function HrAddEmployeePage() {
   };
 
   return <>
-    <PageHeader eyebrow="HR · Найм" title="Найм сотрудника" description="Заполните данные кандидата и условия предлагаемой занятости." />
+    <PageHeader eyebrow="HR · Найм" title="Найм сотрудника" description="Заполните данные кандидата и условия предлагаемой занятости." actions={onBack ? <button type="button" className="secondary-button" onClick={onBack}><ArrowLeft size={16} /> Назад к списку</button> : undefined} />
     <div className="hr-hiring-intro"><Info size={18} /><span><strong>PDF-заявление</strong><small>После заполнения формы здесь будет автоматически создаваться заявление на рассмотрение. На текущем этапе доступен только фронтенд формы.</small></span></div>
     {notice && <div className="hr-form-notice" role="status"><span><CheckCircle2 size={15} />{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={14} /></button></div>}
     <form className="hr-add-employee-form" onSubmit={complete}>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserPlus, UsersRound, X } from 'lucide-react';
+import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, FileInput, Gauge, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UsersRound, X } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
@@ -50,7 +50,6 @@ export function AppShell() {
     { to: '/', icon: Gauge, label: t(store.locale, 'home'), end: true },
     { to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: counts?.correspondence },
     { to: '/hr/employees', icon: UsersRound, label: t(store.locale, 'employees') },
-    { to: '/hr/hiring/add-employee', icon: UserPlus, label: t(store.locale, 'addEmployee') },
     { to: '/hr/leave', icon: CalendarDays, label: t(store.locale, 'leave'), badge: counts?.leaves },
     { to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
     { to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
@@ -156,7 +155,7 @@ export function AppShell() {
           <div className="topbar-inner">
             <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Открыть меню"><Menu size={20} /></button><div className="breadcrumbs"><span>{department.departmentCode}</span><b>/</b><strong>{department.pageTitle}</strong></div></div>
             <button className="global-search" onClick={openSearch} aria-label="Глобальный поиск"><Search size={17} /><span>{t(store.locale, 'search')}</span></button>
-            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.isHrWorkspace ? '/hr/hiring/add-employee' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap" ref={notificationRef}><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong></div><p className="search-state">Новых уведомлений нет. Актуальные действия находятся в очереди задач.</p></div>}</div></div>
+            <div className="topbar-actions"><button className="create-button" onClick={() => navigate(department.isHrWorkspace ? '/hr/employees?add=true' : '/correspondence/incoming/new')}><Plus size={17} />{t(store.locale, 'create')}</button><button className="icon-button theme-button" onClick={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')} aria-label="Переключить тему">{store.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button><div className="notification-wrap" ref={notificationRef}><button className="icon-button notification-button" onClick={() => setNotificationsOpen(!notificationsOpen)} aria-label="Уведомления"><Bell size={18} /></button>{notificationsOpen && <div className="popover notification-popover"><div className="popover-head"><strong>Уведомления</strong></div><p className="search-state">Новых уведомлений нет. Актуальные действия находятся в очереди задач.</p></div>}</div></div>
           </div>
         </header>
         <main className="content"><Outlet /></main>

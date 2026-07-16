@@ -15,7 +15,6 @@ const HrOverviewPage = lazy(() => import('../features/hr/pages/HrOverviewPage'))
 const HrEmployeesPage = lazy(() => import('../features/hr/pages/HrEmployeesPage'));
 const HrEmployeeProfilePage = lazy(() => import('../features/hr/pages/HrEmployeeProfilePage'));
 const HrLeavePage = lazy(() => import('../features/hr/pages/HrLeavePage'));
-const HrAddEmployeePage = lazy(() => import('../features/hr/pages/HrAddEmployeePage'));
 
 function LoadingState() {
   return <div className="page-loading" aria-label="Загрузка"><span /><span /><span /></div>;
@@ -42,12 +41,12 @@ export function App() {
         <Route path="departments/hr/employees" element={<Suspense fallback={<LoadingState />}><HrEmployeesPage /></Suspense>} />
         <Route path="departments/hr/employees/:employeeId" element={<Suspense fallback={<LoadingState />}><HrEmployeeProfilePage /></Suspense>} />
         <Route path="departments/hr/leave" element={<Suspense fallback={<LoadingState />}><HrLeavePage /></Suspense>} />
-        <Route path="departments/hr/hiring/add-employee" element={<Navigate to="/hr/hiring/add-employee" replace />} />
+        <Route path="departments/hr/hiring/add-employee" element={<Navigate to="/hr/employees?add=true" replace />} />
         <Route path="hr" element={<Suspense fallback={<LoadingState />}><HrOverviewPage /></Suspense>} />
         <Route path="hr/employees" element={<Suspense fallback={<LoadingState />}><HrEmployeesPage /></Suspense>} />
         <Route path="hr/employees/:employeeId" element={<Suspense fallback={<LoadingState />}><HrEmployeeProfilePage /></Suspense>} />
         <Route path="hr/leave" element={<Suspense fallback={<LoadingState />}><HrLeavePage /></Suspense>} />
-        <Route path="hr/hiring/add-employee" element={<Suspense fallback={<LoadingState />}><HrAddEmployeePage /></Suspense>} />
+        <Route path="hr/hiring/add-employee" element={<Navigate to="/hr/employees?add=true" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes></DepartmentProvider>

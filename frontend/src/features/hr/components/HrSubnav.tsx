@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutDashboard, UserPlus, UsersRound } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, UsersRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
@@ -10,7 +10,6 @@ export function HrSubnav() {
   return <nav className="hr-subnav" aria-label="Навигация HR пространства">
     <NavLink to="/hr" end><LayoutDashboard size={16} />{t(locale, 'home')}</NavLink>
     {canReadEmployees && <NavLink to="/hr/employees"><UsersRound size={16} />{t(locale, 'employees')}</NavLink>}
-    <NavLink to="/hr/hiring/add-employee"><UserPlus size={16} />{t(locale, 'addEmployee')}</NavLink>
     <NavLink to="/hr/leave"><CalendarDays size={16} />{t(locale, 'leave')}</NavLink>
   </nav>;
 }
