@@ -19,6 +19,7 @@ export type HiringRequest = {
 const api = new ApiClient();
 
 const personaToHiringDevUser: Record<string, string> = {
+  executive: 'chairman',
   'hr-specialist': 'hr.initiator',
   'hr-initiator': 'hr.initiator',
   'hr-director': 'hr.director',
@@ -39,6 +40,7 @@ export const hiringStatusLabels: Record<string, string> = {
 };
 
 const personaApprovalStage: Partial<Record<PersonaId, string>> = {
+  executive: 'chairman',
   'hr-director': 'hr_director',
   'economic-director': 'economic_director',
   'commission-reviewer': 'competition_commission',

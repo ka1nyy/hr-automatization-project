@@ -37,6 +37,21 @@ describe('hiring request development identity', () => {
     }));
   });
 
+  it('routes the primary executive persona through the chairman identity', async () => {
+    localStorage.setItem('ertis-developer-settings', JSON.stringify({ state: { persona: 'executive' } }));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [], meta: { requestId: 'test-request' } })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await hiringRequestsApi.list('inbox');
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('scope=inbox'), expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Dev-User': 'chairman' })
+    }));
+  });
+
   it('uses the hiring initiator for a generic unified-workspace persona', async () => {
     localStorage.setItem('ertis-developer-settings', JSON.stringify({ state: { persona: 'secretary' } }));
     const fetchMock = vi.fn().mockResolvedValue({
@@ -58,6 +73,10 @@ describe('hiring request development identity', () => {
     expect(canPersonaApproveRequest('economic-director', request)).toBe(true);
     expect(canPersonaApproveRequest('hr-director', request)).toBe(false);
     expect(canPersonaApproveRequest('secretary', request)).toBe(false);
+
+    const chairmanRequest = { status: 'under_review', currentStageCode: 'chairman' } as HiringRequest;
+    expect(canPersonaApproveRequest('executive', chairmanRequest)).toBe(true);
+    expect(canPersonaApproveRequest('board-chairman', chairmanRequest)).toBe(true);
   });
 
   it('only enables receipt confirmation for the pending assigned recipient', () => {

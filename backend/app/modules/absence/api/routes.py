@@ -37,11 +37,13 @@ async def _require(
     organization_id: UUID,
     unit_id: UUID | None = None,
 ) -> None:
+    self_scoped = permission in {"absence.read_self", "leave.request", "business_trip.request"}
     await auth.require(
         principal=principal,
         permission_code=permission,
         organization_id=organization_id,
         unit_id=unit_id,
+        subject_user_id=principal.user_id if self_scoped else None,
     )
 
 

@@ -130,6 +130,24 @@ describe('application runtime', () => {
     expect(await screen.findByRole('heading', { name: 'Увольнения' })).toBeTruthy();
   });
 
+  it('opens backend workforce workflows with role-specific creation actions', async () => {
+    useDeveloperStore.setState({ persona: 'employee' });
+    const leaveView = renderRoute('/hr/leave');
+    expect(await screen.findByRole('heading', { name: 'Отпуска' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Создать заявку' })).toBeTruthy();
+
+    leaveView.unmount();
+    renderRoute('/hr/business-trips');
+    expect(await screen.findByRole('heading', { name: 'Командировки' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Создать заявку' })).toBeTruthy();
+
+    cleanup();
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    renderRoute('/hr/terminations');
+    expect(await screen.findByRole('heading', { name: 'Увольнения' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Начать увольнение' })).toBeTruthy();
+  });
+
   it('opens backend hiring approvals as clickable records', async () => {
     useDeveloperStore.setState({ persona: 'hr-director' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

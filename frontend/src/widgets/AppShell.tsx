@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileCheck2, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, X } from 'lucide-react';
+import { Bell, Blocks, BriefcaseBusiness, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileCheck2, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, X } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
+import { workforceProcessesApi } from '../features/hr/api/workforceProcesses';
 import { getPermissions } from '../shared/permissions';
 import { getPersonaProfile, personaProfiles } from '../shared/personas';
 import { t } from '../shared/i18n';
@@ -40,13 +41,13 @@ export function AppShell() {
         repositories.correspondence.listIncoming(),
         repositories.tasks.list(),
         repositories.workflows.listDefinitions(),
-        canOpenHr ? hrRepository.listLeaveRequests() : Promise.resolve([])
+        canOpenHr ? workforceProcessesApi.listLeaves() : Promise.resolve([])
       ]);
       return {
         correspondence: correspondence.length,
         tasks: tasks.filter((task) => task.state !== 'completed').length,
         processes: processes.filter((process) => process.state === 'incident').length,
-        leaves: leaves.filter((leave) => leave.status !== 'approved' && leave.status !== 'rejected').length
+        leaves: leaves.filter((leave) => !['approved', 'rejected', 'cancelled'].includes(leave.status)).length
       };
     }
   });
@@ -67,6 +68,7 @@ export function AppShell() {
     { section: 'Персонал', to: '/hr/terminations', icon: UserMinus, label: 'Увольнения' },
     { section: 'Время и отсутствия', to: '/hr/calendar', icon: CalendarDays, label: 'Календарь' },
     { section: 'Время и отсутствия', to: '/hr/leave', icon: CalendarDays, label: t(store.locale, 'leave'), badge: counts?.leaves },
+    { section: 'Время и отсутствия', to: '/hr/business-trips', icon: BriefcaseBusiness, label: 'Командировки' },
     { section: 'Время и отсутствия', to: '/hr/sick-leave', icon: HeartPulse, label: 'Больничные' },
     { section: 'Управление', to: '/hr/documents', icon: FileText, label: 'Документы' },
     { section: 'Управление', to: '/hr/approvals', icon: ClipboardCheck, label: 'Согласования' },

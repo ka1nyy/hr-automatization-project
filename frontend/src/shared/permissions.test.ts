@@ -12,6 +12,10 @@ describe('permission matrix', () => {
     expect(getPermissions('executive')).not.toContain('workflow.definition.edit');
   });
 
+  it('allows the primary chairman account to approve the final hiring stage', () => {
+    expect(getPermissions('executive')).toContain('hiring.approve');
+  });
+
   it('temporarily exposes the HR workspace permissions to every persona', () => {
     expect(getPermissions('employee')).toContain('hr.leave.create');
     expect(getPermissions('employee')).toContain('hr.employees.read');
