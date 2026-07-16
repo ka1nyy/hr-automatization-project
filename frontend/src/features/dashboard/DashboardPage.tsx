@@ -3,6 +3,7 @@ import { AlertOctagon, ArrowRight, CheckCircle2, Clock3, FileCheck2, FileInput, 
 import { Link } from 'react-router-dom';
 import { repositories } from '../../repositories';
 import { LinkArrow, PageHeader, QueryState, Section } from '../../shared/components';
+import { BarChart, DonutChart } from '../../shared/charts';
 import { formatDate, statusLabels } from '../../shared/format';
 import { useDeveloperStore } from '../../shared/store';
 import HrOverviewPage from '../hr/pages/HrOverviewPage';
@@ -20,6 +21,20 @@ function OperationsDashboard() {
   if (snapshot.isLoading || correspondence.isLoading || tasks.isLoading) return <QueryState />;
   if (snapshot.error || correspondence.error || tasks.error) return <QueryState error={(snapshot.error || correspondence.error || tasks.error) as Error} retry={() => { snapshot.refetch(); correspondence.refetch(); tasks.refetch(); }} />;
   const stats = snapshot.data!;
+  const incoming = correspondence.data!;
+  const taskItems = tasks.data!;
+  const documentChart = [
+    { label: 'Зарегистрировано', value: incoming.filter((item) => item.status === 'registered' || item.status === 'resolution').length, color: 'var(--teal)', detail: 'В начале маршрута', to: '/correspondence/incoming' },
+    { label: 'В работе', value: incoming.filter((item) => item.status === 'execution' || item.status === 'approval').length, color: 'var(--violet)', detail: 'Исполнение и согласование', to: '/correspondence/incoming' },
+    { label: 'На подписи', value: incoming.filter((item) => item.status === 'signature' || item.status === 'dispatch').length, color: 'var(--gold)', detail: 'Финальный этап', to: '/correspondence/incoming' },
+    { label: 'Завершено', value: incoming.filter((item) => item.status === 'completed').length, color: 'var(--emerald)', detail: 'Архив дня', to: '/correspondence/incoming' },
+  ];
+  const taskChart = [
+    { label: 'Доступны', value: taskItems.filter((item) => item.state === 'available').length, color: 'var(--teal)', to: '/tasks' },
+    { label: 'В работе', value: taskItems.filter((item) => item.state === 'claimed').length, color: 'var(--violet)', to: '/tasks' },
+    { label: 'Просрочены', value: taskItems.filter((item) => item.state === 'overdue').length, color: 'var(--coral)', to: '/tasks?filter=overdue' },
+    { label: 'Готовы', value: taskItems.filter((item) => item.state === 'completed').length, color: 'var(--emerald)', to: '/tasks' },
+  ];
   return <>
     <PageHeader eyebrow="Операционный центр" title="Центр управления" actions={<Link className="primary-button" to="/correspondence/incoming/new"><FileInput size={16} /> Регистрация письма</Link>} />
     <div className="metric-grid">
@@ -29,6 +44,10 @@ function OperationsDashboard() {
       <article><span className="metric-icon tone-coral"><AlertOctagon size={18} /></span><div><small>Просрочено</small><strong>{stats.overdue}</strong><em>Требуют внимания</em></div></article>
       <article><span className="metric-icon tone-gold"><FileCheck2 size={18} /></span><div><small>На подписи</small><strong>{stats.signatureQueue}</strong><em>Очередь подписания</em></div></article>
       <article><span className="metric-icon tone-emerald"><Send size={18} /></span><div><small>К отправке</small><strong>{stats.dispatchQueue}</strong><em>Секретариат</em></div></article>
+    </div>
+    <div className="dashboard-chart-grid">
+      <Section title="Документы по этапам" meta={`${incoming.length} в реестре`}><DonutChart data={documentChart} centerValue={String(incoming.length)} centerLabel="всего" ariaLabel="Распределение документов по этапам" /></Section>
+      <Section title="Загрузка задач" meta="Текущая очередь"><BarChart data={taskChart} ariaLabel="Количество задач по статусам" /></Section>
     </div>
     <div className="dashboard-grid">
       <Section title="Операционная очередь" meta="Обновлено сейчас" className="span-two">

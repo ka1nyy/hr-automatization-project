@@ -53,6 +53,13 @@ describe('application runtime', () => {
     expect(screen.getAllByRole('link', { name: /Входящие сообщения/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /^Сотрудники$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /^Процессы/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('img', { name: 'Распределение сотрудников по типу присутствия' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'HR-показатели, требующие контроля' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Что требует вашего внимания' })).toBeTruthy();
+    expect(screen.getByText('1. Разобрать входящие')).toBeTruthy();
+    expect(screen.getByText('2. Выполнить задачи')).toBeTruthy();
+    expect(screen.getByText('3. Принять решения')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'СОТРУДНИКИ И ОТСУТСТВИЯ' })).toBeNull();
     expect(screen.queryByText(/Операционный день|Сводка дня|HR пространство/i)).toBeNull();
   });
 
@@ -89,5 +96,17 @@ describe('application runtime', () => {
     fireEvent.click(screen.getByRole('button', { name: /Сохранить черновик/i }));
     expect(localStorage.getItem('ertis.hr.add-employee.draft.v1')).toContain('Зарина Ахметова');
     expect(screen.getByText(/Файлы не сохраняются/i)).toBeTruthy();
+  });
+
+  it('opens planned HR modules only for HR roles', async () => {
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    const view = renderRoute('/hr/calendar');
+    expect(await screen.findByRole('heading', { name: 'Календарь' })).toBeTruthy();
+    expect(screen.getByText('Ближайшие события')).toBeTruthy();
+
+    view.unmount();
+    useDeveloperStore.setState({ persona: 'employee' });
+    renderRoute('/hr/terminations');
+    expect(await screen.findByRole('heading', { name: 'Доступ ограничен' })).toBeTruthy();
   });
 });

@@ -1,8 +1,5 @@
 /// <reference types="vite/client" />
 
-import type { Correspondence, DashboardSnapshot, Employee, IncomingLetterInput, ProcessDefinition, WorkTask } from '../shared/types';
-import type { CorrespondenceRepository, OperationsRepository, OrganizationRepository, TaskRepository, WorkflowRepository } from './contracts';
-
 type Envelope<T> = { data: T; meta: { requestId: string } };
 type ErrorEnvelope = { error?: { code?: string; message?: string; requestId?: string } };
 
@@ -48,45 +45,3 @@ export class ApiClient {
   post<T>(path: string, body?: unknown) { return this.request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }); }
 }
 
-export class ApiCorrespondenceRepository implements CorrespondenceRepository {
-  constructor(private readonly api: ApiClient) {}
-  listIncoming() { return this.api.get<Correspondence[]>('/operations/correspondence/incoming'); }
-  getIncoming(id: string) { return this.api.get<Correspondence>(`/operations/correspondence/incoming/${id}`); }
-  checkDuplicate(sender: string, senderNumber: string) { return this.api.get<Correspondence | null>(`/operations/correspondence/incoming/duplicate?sender=${encodeURIComponent(sender)}&senderNumber=${encodeURIComponent(senderNumber)}`); }
-  registerIncoming(input: IncomingLetterInput) { return this.api.post<Correspondence>('/operations/correspondence/incoming', input); }
-  sendForResolution(id: string) { return this.api.post<Correspondence>(`/operations/correspondence/incoming/${id}/resolution`); }
-}
-
-export class ApiTaskRepository implements TaskRepository {
-  constructor(private readonly api: ApiClient) {}
-  list() { return this.api.get<WorkTask[]>('/operations/tasks'); }
-  claim(id: string) { return this.api.post<WorkTask>(`/operations/tasks/${id}/claim`); }
-  complete(id: string) { return this.api.post<WorkTask>(`/operations/tasks/${id}/complete`); }
-}
-
-export class ApiWorkflowRepository implements WorkflowRepository {
-  constructor(private readonly api: ApiClient) {}
-  listDefinitions() { return this.api.get<ProcessDefinition[]>('/operations/processes'); }
-  retryIncident(id: string) { return this.api.post<ProcessDefinition>(`/operations/processes/${id}/retry`); }
-}
-
-export class ApiOrganizationRepository implements OrganizationRepository {
-  constructor(private readonly api: ApiClient) {}
-  listEmployees() { return this.api.get<Employee[]>('/operations/directory/employees'); }
-}
-
-export class ApiOperationsRepository implements OperationsRepository {
-  constructor(private readonly api: ApiClient) {}
-  dashboard() { return this.api.get<DashboardSnapshot>('/operations/dashboard'); }
-  async reset() { /* Production-backed data is never deleted from a developer toolbar. */ }
-}
-
-export function createApiRepositories(api = new ApiClient()) {
-  return {
-    correspondence: new ApiCorrespondenceRepository(api),
-    tasks: new ApiTaskRepository(api),
-    workflows: new ApiWorkflowRepository(api),
-    organization: new ApiOrganizationRepository(api),
-    operations: new ApiOperationsRepository(api)
-  };
-}
