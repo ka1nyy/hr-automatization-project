@@ -26,13 +26,13 @@ function currentDevUser() {
 export class ApiClient {
   constructor(readonly baseUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api/v1') {}
 
-  async request<T>(path: string, init?: RequestInit): Promise<T> {
+  async request<T>(path: string, init?: RequestInit, devUserOverride?: string): Promise<T> {
     const isFormData = init?.body instanceof FormData;
     const response = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, {
       ...init,
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        'X-Dev-User': currentDevUser(),
+        'X-Dev-User': devUserOverride ?? currentDevUser(),
         ...init?.headers
       }
     });
@@ -44,9 +44,9 @@ export class ApiClient {
     return ((await response.json()) as Envelope<T>).data;
   }
 
-  get<T>(path: string) { return this.request<T>(path); }
-  post<T>(path: string, body?: unknown) { return this.request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }); }
-  patch<T>(path: string, body: unknown) { return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }); }
-  upload<T>(path: string, body: FormData) { return this.request<T>(path, { method: 'POST', body }); }
+  get<T>(path: string, devUserOverride?: string) { return this.request<T>(path, undefined, devUserOverride); }
+  post<T>(path: string, body?: unknown, devUserOverride?: string) { return this.request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }, devUserOverride); }
+  patch<T>(path: string, body: unknown, devUserOverride?: string) { return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }, devUserOverride); }
+  upload<T>(path: string, body: FormData, devUserOverride?: string) { return this.request<T>(path, { method: 'POST', body }, devUserOverride); }
 }
 

@@ -113,6 +113,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
   const [attachments, setAttachments] = useState<EmployeeAttachment[]>([]);
   const [notice, setNotice] = useState('');
   const [attachmentError, setAttachmentError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [requestRevision, setRequestRevision] = useState(1);
@@ -166,6 +167,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
     reset(addEmployeeDefaults);
     setAttachments([]);
     setAttachmentError('');
+    setSubmitError('');
     setActiveStep(0);
     setHighestStep(0);
     setConfirmClear(false);
@@ -209,7 +211,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       setHighestStep(3);
       return;
     }
-    setAttachmentError(''); setBusy(true);
+    setAttachmentError(''); setSubmitError(''); setBusy(true);
     try {
       if (requestId && pdfVersionId) {
         const sent = await hiringRequestsApi.submit(requestId, requestRevision);
@@ -236,12 +238,15 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       reset(getValues());
       setNotice(`Заявление ${sent.requestNumber} сформировано в PDF и отправлено. Текущий этап: ${sent.currentStageName}.`);
     } catch (error) {
-      setNotice(`Не удалось отправить заявление: ${error instanceof Error ? error.message : 'ошибка API'}`);
+      const message = `Не удалось отправить заявление: ${error instanceof Error ? error.message : 'ошибка API'}`;
+      setSubmitError(message);
+      setNotice(message);
     } finally { setBusy(false); }
   }, (invalidErrors) => {
     const invalidStep = registrationSteps.findIndex((step) => step.fields.some((field) => invalidErrors[field]));
     setActiveStep(invalidStep >= 0 ? invalidStep : 0);
     setNotice('Проверьте обязательные поля отмеченного этапа.');
+    scrollToWizard();
   });
 
   const documentUpload = (category: AttachmentCategory, title: string, description: string, required: boolean) => {
@@ -350,6 +355,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
               {documentUpload('Диплом', 'Диплом об образовании', diplomaRequired ? 'Обязателен для выбранного уровня образования' : 'Не требуется для среднего общего образования', diplomaRequired)}
             </div>
             {attachmentError && <div className="hr-attachment-error" role="alert">{attachmentError}</div>}
+            {submitError && <div className="hr-attachment-error" role="alert">{submitError}</div>}
           </div>}
         </div>
 

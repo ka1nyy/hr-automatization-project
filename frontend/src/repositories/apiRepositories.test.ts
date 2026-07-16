@@ -19,4 +19,18 @@ describe('ApiClient runtime routing', () => {
       headers: expect.objectContaining({ 'X-Dev-User': 'admin' })
     }));
   });
+
+  it('allows a feature to use its dedicated development identity', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: {}, meta: { requestId: 'test-request' } })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new ApiClient().post('/hiring-requests', {}, 'hr.initiator');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/hiring-requests', expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Dev-User': 'hr.initiator' })
+    }));
+  });
 });

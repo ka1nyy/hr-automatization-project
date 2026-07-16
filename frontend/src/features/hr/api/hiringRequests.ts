@@ -17,6 +17,15 @@ export type HiringRequest = {
 
 const api = new ApiClient();
 
+function hiringDevUser() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('ertis-developer-settings') ?? '{}') as { state?: { persona?: string } };
+    return stored.state?.persona === 'hr-specialist' ? 'hr.initiator' : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function payload(values: AddEmployeeFormValues) {
   return {
     organizationId: DEMO_ORGANIZATION_ID,
@@ -54,18 +63,18 @@ function payload(values: AddEmployeeFormValues) {
 }
 
 export const hiringRequestsApi = {
-  create: (values: AddEmployeeFormValues) => api.post<HiringRequest>('/hiring-requests', payload(values)),
-  update: (id: string, revision: number, values: AddEmployeeFormValues) => api.patch<HiringRequest>(`/hiring-requests/${id}`, { ...payload(values), revision }),
-  list: (scope = 'mine') => api.get<HiringRequest[]>(`/hiring-requests?organizationId=${DEMO_ORGANIZATION_ID}&scope=${scope}`),
-  get: (id: string) => api.get<HiringRequest>(`/hiring-requests/${id}?organizationId=${DEMO_ORGANIZATION_ID}`),
+  create: (values: AddEmployeeFormValues) => api.post<HiringRequest>('/hiring-requests', payload(values), hiringDevUser()),
+  update: (id: string, revision: number, values: AddEmployeeFormValues) => api.patch<HiringRequest>(`/hiring-requests/${id}`, { ...payload(values), revision }, hiringDevUser()),
+  list: (scope = 'mine') => api.get<HiringRequest[]>(`/hiring-requests?organizationId=${DEMO_ORGANIZATION_ID}&scope=${scope}`, hiringDevUser()),
+  get: (id: string) => api.get<HiringRequest>(`/hiring-requests/${id}?organizationId=${DEMO_ORGANIZATION_ID}`, hiringDevUser()),
   upload: (id: string, category: 'identity' | 'diploma', file: File) => {
     const data = new FormData(); data.append('organizationId', DEMO_ORGANIZATION_ID); data.append('category', category); data.append('file', file);
-    return api.upload<Record<string, unknown>>(`/hiring-requests/${id}/attachments`, data);
+    return api.upload<Record<string, unknown>>(`/hiring-requests/${id}/attachments`, data, hiringDevUser());
   },
-  generatePdf: (id: string, revision: number) => api.post<Record<string, unknown>>(`/hiring-requests/${id}/generate-pdf`, { organizationId: DEMO_ORGANIZATION_ID, revision }),
-  submit: (id: string, revision: number) => api.post<HiringRequest>(`/hiring-requests/${id}/submit`, { organizationId: DEMO_ORGANIZATION_ID, revision }),
-  decide: (id: string, revision: number, decision: 'approve' | 'return' | 'reject', comment: string) => api.post<HiringRequest>(`/hiring-requests/${id}/decision`, { organizationId: DEMO_ORGANIZATION_ID, revision, decision, comment }),
-  dispatch: (id: string, revision: number) => api.post<HiringRequest>(`/hiring-requests/${id}/dispatch`, { organizationId: DEMO_ORGANIZATION_ID, revision }),
-  acknowledge: (id: string, revision: number, comment = '') => api.post<HiringRequest>(`/hiring-requests/${id}/acknowledge`, { organizationId: DEMO_ORGANIZATION_ID, revision, comment }),
+  generatePdf: (id: string, revision: number) => api.post<Record<string, unknown>>(`/hiring-requests/${id}/generate-pdf`, { organizationId: DEMO_ORGANIZATION_ID, revision }, hiringDevUser()),
+  submit: (id: string, revision: number) => api.post<HiringRequest>(`/hiring-requests/${id}/submit`, { organizationId: DEMO_ORGANIZATION_ID, revision }, hiringDevUser()),
+  decide: (id: string, revision: number, decision: 'approve' | 'return' | 'reject', comment: string) => api.post<HiringRequest>(`/hiring-requests/${id}/decision`, { organizationId: DEMO_ORGANIZATION_ID, revision, decision, comment }, hiringDevUser()),
+  dispatch: (id: string, revision: number) => api.post<HiringRequest>(`/hiring-requests/${id}/dispatch`, { organizationId: DEMO_ORGANIZATION_ID, revision }, hiringDevUser()),
+  acknowledge: (id: string, revision: number, comment = '') => api.post<HiringRequest>(`/hiring-requests/${id}/acknowledge`, { organizationId: DEMO_ORGANIZATION_ID, revision, comment }, hiringDevUser()),
   downloadUrl: (id: string, versionId: string, inline = false) => `/api/v1/hiring-requests/${id}/documents/${versionId}/download?organizationId=${DEMO_ORGANIZATION_ID}${inline ? '&inline=true' : ''}`
 };
