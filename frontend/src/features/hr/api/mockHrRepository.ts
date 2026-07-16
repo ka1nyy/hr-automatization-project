@@ -156,5 +156,28 @@ export class MockHrRepository implements HrRepository {
     return wait([]);
   }
 
+  async listTerminationReasons() {
+    return wait([
+      { id: 'reason-1', code: 'employee_request', name: 'По инициативе работника', legalReviewRequired: false }
+    ]);
+  }
+
+  async listTerminationCases(employeeId: string) {
+    void employeeId;
+    return wait([]);
+  }
+
+  async initiateTermination(): Promise<never> {
+    throw new Error('MOCK_TERMINATION_NOT_SUPPORTED');
+  }
+
+  async decideTermination(): Promise<never> {
+    throw new Error('MOCK_TERMINATION_NOT_SUPPORTED');
+  }
+
+  async cancelTermination(): Promise<never> {
+    throw new Error('MOCK_TERMINATION_NOT_SUPPORTED');
+  }
+
   async reset() { localStorage.removeItem(STORAGE_KEY); }
 }

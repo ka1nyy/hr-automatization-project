@@ -12,6 +12,7 @@ export interface HrAuditEvent {
 
 export interface HrEmployee {
   id: string;
+  unitId?: string | null;
   employeeNumber: string;
   fullName: string;
   initials: string;
@@ -86,6 +87,32 @@ export interface VacationBalance {
 export interface EmployeeAbsences {
   items: EmployeeAbsence[];
   vacationBalance: VacationBalance;
+}
+
+export interface TerminationReason {
+  id: string;
+  code: string;
+  name: string;
+  legalReviewRequired: boolean;
+}
+
+/** Module-2 termination case; the API returns raw snake_case column names. */
+export interface TerminationCase {
+  id: string;
+  employee_id: string;
+  status: string;
+  requested_date: string;
+  effective_date: string | null;
+  revision: number;
+  created_at: string;
+}
+
+export interface InitiateTerminationInput {
+  employeeId: string;
+  unitId: string;
+  reasonId: string;
+  requestedDate: string;
+  legalBasis: string;
 }
 
 export type EmployeeFunctionScope = 'collection' | 'employee';
