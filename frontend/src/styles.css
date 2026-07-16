@@ -1331,3 +1331,10 @@ body { font-size: 14px; line-height: 1.5; }
 .hr-absence-completed { color: var(--muted); }
 .hr-absence-cancelled { color: var(--coral); text-decoration: line-through; }
 .hr-empty-note { color: var(--muted); font-size: 9px; margin: 0; padding: 14px 17px; }
+
+/* Termination case (профиль сотрудника) */
+.hr-case-card { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 14px 17px; }
+.hr-case-card > div > strong { display: block; font-size: 10px; }
+.hr-case-card > div > small { color: var(--muted); display: block; font-size: 8px; margin-top: 4px; }
+.hr-case-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.hr-termination-section > .secondary-button { margin: 0 17px 14px; }

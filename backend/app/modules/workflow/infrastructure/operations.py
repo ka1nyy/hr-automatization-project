@@ -912,14 +912,42 @@ class SqlAlchemyWorkflowOperations:
         self, user_id: UUID, offset: int, limit: int
     ) -> tuple[Sequence[WorkflowView], int]:
         async with self._sessions() as session:
-            query = select(WorkflowTaskModel).where(WorkflowTaskModel.assigned_user_id == user_id)
+            query = (
+                select(WorkflowTaskModel, ProcessStepDefinitionModel, ProcessInstanceModel)
+                .join(
+                    ProcessStepDefinitionModel,
+                    ProcessStepDefinitionModel.id == WorkflowTaskModel.step_definition_id,
+                )
+                .join(
+                    ProcessInstanceModel,
+                    ProcessInstanceModel.id == WorkflowTaskModel.process_instance_id,
+                )
+                .where(WorkflowTaskModel.assigned_user_id == user_id)
+            )
             rows = (
-                await session.scalars(
+                await session.execute(
                     query.order_by(WorkflowTaskModel.created_at.desc()).offset(offset).limit(limit)
                 )
             ).all()
-            total = await session.scalar(select(func.count()).select_from(query.subquery())) or 0
-            return [_task_view(row) for row in rows], total
+            total = (
+                await session.scalar(
+                    select(func.count())
+                    .select_from(WorkflowTaskModel)
+                    .where(WorkflowTaskModel.assigned_user_id == user_id)
+                )
+                or 0
+            )
+            views: list[WorkflowView] = []
+            for task, step, instance in rows:
+                view = dict(_task_view(task))
+                view["stepCode"] = step.code
+                view["stepName"] = step.name
+                view["allowedActions"] = list(step.allowed_actions)
+                view["businessType"] = instance.business_type
+                view["businessEntityId"] = instance.business_entity_id
+                view["organizationId"] = instance.organization_id
+                views.append(view)
+            return views, int(total)
 
     async def act_task(
         self,

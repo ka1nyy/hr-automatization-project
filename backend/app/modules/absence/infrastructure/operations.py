@@ -598,7 +598,7 @@ class SqlAlchemyAbsenceOperations:
     async def _balance(
         self, session: AsyncSession, row: LeaveRequestModel
     ) -> LeaveBalanceModel | None:
-        return await session.scalar(
+        return await session.scalar(  # type: ignore[no-any-return]
             select(LeaveBalanceModel)
             .where(
                 LeaveBalanceModel.employee_id == row.employee_id,

@@ -18,11 +18,16 @@ from app.modules.documents.infrastructure.models import (
     DocumentChecklistItemModel,
     DocumentRecordModel,
 )
-from app.modules.employees.infrastructure.models import EmployeeAssignmentModel, EmployeeModel
+from app.modules.employees.infrastructure.models import (
+    EmployeeAbsenceModel,
+    EmployeeAssignmentModel,
+    EmployeeModel,
+)
 from app.modules.organization.infrastructure.models import (
     OrganizationStructureVersionModel,
     StaffingSlotModel,
 )
+from app.modules.workflow.infrastructure.models import ProcessInstanceModel, WorkflowTaskModel
 from app.modules.workflow.infrastructure.operations import SqlAlchemyWorkflowOperations
 from app.shared.time import utc_now
 
@@ -69,6 +74,28 @@ class SqlAlchemyTerminationOperations:
             if value is None:
                 raise ResourceNotFoundError("offboarding task", task_id)
             return value
+
+    async def list_reasons(self, organization_id: UUID) -> Sequence[Mapping[str, object]]:
+        async with self._sessions() as s:
+            rows = (
+                await s.scalars(
+                    select(TerminationReasonModel)
+                    .where(
+                        TerminationReasonModel.organization_id == organization_id,
+                        TerminationReasonModel.active.is_(True),
+                    )
+                    .order_by(TerminationReasonModel.name)
+                )
+            ).all()
+            return [
+                {
+                    "id": row.id,
+                    "code": row.code,
+                    "name": row.name,
+                    "legalReviewRequired": row.legal_review_required,
+                }
+                for row in rows
+            ]
 
     async def list_cases(
         self,
@@ -617,15 +644,33 @@ class SqlAlchemyTerminationOperations:
                 if assignment.effective_to and assignment.effective_to <= row.effective_date:
                     assignment.status = "ended"
                     assignment.revision += 1
-            employee.employment_status = "terminated"
+            # "ended" is the only terminal EmploymentStatus the employees domain
+            # can hydrate; anything else breaks every read of this employee.
+            employee.employment_status = "ended"
             employee.termination_date = row.effective_date
             employee.active = False
             employee.updated_at = utc_now()
             employee.revision += 1
+            absences = (
+                await s.scalars(
+                    select(EmployeeAbsenceModel)
+                    .where(
+                        EmployeeAbsenceModel.employee_id == employee.id,
+                        EmployeeAbsenceModel.status != "cancelled",
+                        EmployeeAbsenceModel.date_from > row.effective_date,
+                    )
+                    .with_for_update()
+                )
+            ).all()
+            for absence in absences:
+                absence.status = "cancelled"
+                absence.updated_at = utc_now()
+                absence.revision += 1
             row.status = "completed"
             row.effective_at = utc_now()
             row.completed_at = utc_now()
             row.revision += 1
+            await self._close_linked_instance(s, row, "completed")
             await self._change(
                 s,
                 actor_id,
@@ -698,6 +743,35 @@ class SqlAlchemyTerminationOperations:
                 EventName.TERMINATION_CASE_CANCELLED,
             )
             return _view(row)
+
+    @staticmethod
+    async def _close_linked_instance(
+        s: AsyncSession, row: TerminationCaseModel, status: str
+    ) -> None:
+        """Finish the linked workflow instance so it stops occupying task queues."""
+
+        if row.process_instance_id is None:
+            return
+        instance = await s.get(ProcessInstanceModel, row.process_instance_id, with_for_update=True)
+        if instance is None or instance.status in {"completed", "cancelled"}:
+            return
+        instance.status = status
+        if status == "completed":
+            instance.completed_at = utc_now()
+        else:
+            instance.cancelled_at = utc_now()
+        instance.revision += 1
+        open_tasks = (
+            await s.scalars(
+                select(WorkflowTaskModel).where(
+                    WorkflowTaskModel.process_instance_id == instance.id,
+                    WorkflowTaskModel.status.in_(("pending", "active")),
+                )
+            )
+        ).all()
+        for task in open_tasks:
+            task.status = "cancelled"
+            task.revision += 1
 
     async def _audit(
         self,

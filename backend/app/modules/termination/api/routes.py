@@ -40,9 +40,17 @@ async def require(
     permission: str,
     org: UUID,
     unit: UUID | None = None,
+    *,
+    self_scope: bool = False,
 ) -> None:
+    # Self-scoped grants only match when the subject is the actor; without the
+    # subject the SELF scope can never authorize anyone.
     await auth.require(
-        principal=principal, permission_code=permission, organization_id=org, unit_id=unit
+        principal=principal,
+        permission_code=permission,
+        organization_id=org,
+        unit_id=unit,
+        subject_user_id=principal.user_id if self_scope else None,
     )
 
 
@@ -58,7 +66,7 @@ async def list_cases(
     unit_id: Annotated[UUID | None, Query(alias="unitId")] = None,
 ) -> ListResponse[dict[str, Any]]:
     if scope == "self":
-        await require(auth, principal, "termination.read_self", organization_id)
+        await require(auth, principal, "termination.read_self", organization_id, self_scope=True)
         if principal.employee_id is None:
             return ListResponse(data=[], meta=PageMeta(page=page, page_size=page_size, total=0))
         employee_id = principal.employee_id
@@ -83,6 +91,38 @@ async def list_cases(
     )
 
 
+# Static /reasons must precede the parameterized /{item_id} match.
+@router.get("/reasons", response_model=ListResponse[dict[str, Any]])
+async def list_reasons(
+    organization_id: Annotated[UUID, Query(alias="organizationId")],
+    ops: Ops,
+    auth: Auth,
+    principal: PrincipalDep,
+    unit_id: Annotated[UUID | None, Query(alias="unitId")] = None,
+) -> ListResponse[dict[str, Any]]:
+    attempts: list[tuple[str, UUID | None, bool]] = [
+        ("termination.read_all", None, False),
+        ("termination.initiate_self", None, True),
+    ]
+    if unit_id is not None:
+        attempts.append(("termination.initiate_unit", unit_id, False))
+    last_error: Exception | None = None
+    for permission, unit, self_scope in attempts:
+        try:
+            await require(auth, principal, permission, organization_id, unit, self_scope=self_scope)
+            last_error = None
+            break
+        except Exception as error:
+            last_error = error
+    if last_error is not None:
+        raise last_error
+    rows = await ops.list_reasons(organization_id)
+    return ListResponse(
+        data=[dict(x) for x in rows],
+        meta=PageMeta(page=1, page_size=len(rows) or 1, total=len(rows)),
+    )
+
+
 @router.get("/{item_id}", response_model=DataResponse[dict[str, Any]])
 async def get_case(
     item_id: UUID,
@@ -94,7 +134,7 @@ async def get_case(
     unit_id: Annotated[UUID | None, Query(alias="unitId")] = None,
 ) -> DataResponse[dict[str, Any]]:
     if scope == "self":
-        await require(auth, principal, "termination.read_self", organization_id)
+        await require(auth, principal, "termination.read_self", organization_id, self_scope=True)
         employee_id, scoped_unit = principal.employee_id, None
     elif scope == "unit":
         if unit_id is None:
@@ -125,7 +165,12 @@ async def initiate(
     self_case = principal.employee_id == body.employee_id
     permission = "termination.initiate_self" if self_case else "termination.initiate_unit"
     await require(
-        auth, principal, permission, body.organization_id, None if self_case else body.unit_id
+        auth,
+        principal,
+        permission,
+        body.organization_id,
+        None if self_case else body.unit_id,
+        self_scope=self_case,
     )
     return DataResponse(
         data=dict(
@@ -172,7 +217,12 @@ async def resubmit(
     self_case = principal.employee_id == body.employee_id
     permission = "termination.initiate_self" if self_case else "termination.initiate_unit"
     await require(
-        auth, principal, permission, body.organization_id, None if self_case else body.unit_id
+        auth,
+        principal,
+        permission,
+        body.organization_id,
+        None if self_case else body.unit_id,
+        self_scope=self_case,
     )
     await ops.require_case_organization(item_id, body.organization_id)
     return DataResponse(

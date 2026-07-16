@@ -720,7 +720,7 @@ async def test_termination_keeps_assignment_until_effective_completion(
                 {"id": employee_id},
             )
         ).one()
-    assert tuple(after) == (False, "terminated", "ended")
+    assert tuple(after) == (False, "ended", "ended")
     with pytest.raises(Exception) as cancellation:
         await operations.cancel(
             UUID(str(case["id"])),

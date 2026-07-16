@@ -6,8 +6,11 @@ import type {
   EmployeeFunctionDescriptor,
   HrEmployee,
   HrOverview,
+  InitiateTerminationInput,
   LeaveRequest,
-  StaffingSlotOption
+  StaffingSlotOption,
+  TerminationCase,
+  TerminationReason
 } from '../model/types';
 import type { HrRepository } from './contracts';
 
@@ -69,12 +72,14 @@ const PROBATION_DAYS = 90;
 function toHrEmployee(employee: CoreEmployee, directory: Directory): HrEmployee {
   const assignment = primaryAssignment(employee);
   const slot = assignment ? directory.slots.get(assignment.staffingSlotId) : undefined;
+  const unitId = slot?.organizationUnitId ?? null;
   const probationEnd = new Date(employee.hireDate);
   probationEnd.setDate(probationEnd.getDate() + PROBATION_DAYS);
   const onProbation = employee.employmentStatus === 'draft' || probationEnd > new Date();
   const completeness = 50 + (employee.corporateEmail ? 25 : 0) + (assignment ? 25 : 0);
   return {
     id: employee.id,
+    unitId,
     employeeNumber: employee.employeeNumber,
     fullName: employee.displayName,
     initials: initials(employee.displayName),
@@ -148,6 +153,46 @@ export class ApiHrRepository implements HrRepository {
 
   listAbsences(employeeId: string) {
     return this.api.get<EmployeeAbsences>(`/employees/${employeeId}/absences`);
+  }
+
+  private organizationIdPromise: Promise<string> | null = null;
+
+  private organizationId(): Promise<string> {
+    this.organizationIdPromise ??= this.api
+      .get<{ id: string }>('/organization')
+      .then((organization) => organization.id)
+      .catch((error: unknown) => {
+        this.organizationIdPromise = null;
+        throw error;
+      });
+    return this.organizationIdPromise;
+  }
+
+  async listTerminationReasons(unitId?: string | null): Promise<TerminationReason[]> {
+    const organizationId = await this.organizationId();
+    const unit = unitId ? `&unitId=${unitId}` : '';
+    return this.api.get<TerminationReason[]>(`/terminations/reasons?organizationId=${organizationId}${unit}`);
+  }
+
+  async listTerminationCases(employeeId: string): Promise<TerminationCase[]> {
+    const organizationId = await this.organizationId();
+    const rows = await this.api.get<TerminationCase[]>(`/terminations?organizationId=${organizationId}&pageSize=100`);
+    return rows.filter((row) => row.employee_id === employeeId);
+  }
+
+  async initiateTermination(input: InitiateTerminationInput): Promise<TerminationCase> {
+    const organizationId = await this.organizationId();
+    return this.api.post<TerminationCase>('/terminations', { organizationId, ...input });
+  }
+
+  async decideTermination(caseId: string, decision: 'approve' | 'return' | 'reject', comment: string, revision: number): Promise<TerminationCase> {
+    const organizationId = await this.organizationId();
+    return this.api.post<TerminationCase>(`/terminations/${caseId}/hr-review`, { organizationId, revision, decision, comment });
+  }
+
+  async cancelTermination(caseId: string, revision: number, reason: string): Promise<TerminationCase> {
+    const organizationId = await this.organizationId();
+    return this.api.post<TerminationCase>(`/terminations/${caseId}/cancel`, { organizationId, revision, reason });
   }
 
   listActiveAbsences() {
