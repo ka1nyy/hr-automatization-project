@@ -6,7 +6,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // Docker Compose publishes the combined app container's FastAPI
+        // process on this dedicated host port for Vite hot-reload sessions.
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true
       }
     }

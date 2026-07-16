@@ -5,15 +5,18 @@ identity, access control, organization structures, staffing, employees, configur
 functions, workflow, documents, recruitment, hiring, termination/offboarding, immutable audit and
 transactional integration events. The frontend from `spk-corporate-system` is not included.
 
-## Start the complete application
+## Start locally
 
 From the repository root:
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
+cd frontend
+npm install
+npm run dev
 ```
 
-Open `http://localhost:5173`. Docker Compose starts one application container plus an internal PostgreSQL service. The application image builds this repository's React frontend, applies Alembic migrations, seeds the development organization, starts FastAPI, and serves both the UI and same-origin `/api/v1` from one process and one exposed port.
+Open `http://localhost:5173`. Docker Compose starts PostgreSQL and FastAPI only. It applies Alembic migrations, seeds the development organization, and publishes the backend on `http://localhost:8000`. The frontend is served exclusively by Vite, so Docker does not create a second copy of the site.
 
 Stop the application with:
 
@@ -21,18 +24,20 @@ Stop the application with:
 docker compose down
 ```
 
-## Frontend development
+## Development ports
 
-Start PostgreSQL and the combined application first, then run Vite if you need hot reload:
+- `http://localhost:5173` — Vite frontend started by `npm run dev`.
+- `http://localhost:8000` — FastAPI backend started by Docker Compose.
+- `http://localhost:8000/health/ready` — backend readiness check.
+
+Vite proxies `/api` to `http://127.0.0.1:8000`, so the browser and backend use one development flow without CORS workarounds.
+
+If `8000` is occupied by another project, override the backend host port and update the Vite proxy target accordingly:
 
 ```powershell
-docker compose up -d postgres app
-cd frontend
-pnpm install
-pnpm dev
+$env:BACKEND_PORT = "8080"
+docker compose up -d --build
 ```
-
-Vite proxies `/api` to `http://localhost:8000`, so the browser never needs a hard-coded backend origin.
 
 See [backend/README.md](backend/README.md) for configuration, authentication, migration, seed,
 and test details. Architecture and API documents are in [backend/docs](backend/docs).
