@@ -144,5 +144,17 @@ export class MockHrRepository implements HrRepository {
     return wait([{ id: 'slot-1', label: 'Специалист · IT Support' }]);
   }
 
+  async listAbsences(employeeId: string) {
+    void employeeId;
+    return wait({
+      items: [],
+      vacationBalance: { year: new Date().getFullYear(), entitlement: 24, used: 0, remaining: 24 }
+    });
+  }
+
+  async listActiveAbsences() {
+    return wait([]);
+  }
+
   async reset() { localStorage.removeItem(STORAGE_KEY); }
 }

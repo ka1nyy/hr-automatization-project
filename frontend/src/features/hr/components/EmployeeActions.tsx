@@ -1,13 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, UserX, X } from 'lucide-react';
+import { ArrowLeftRight, BedDouble, CalendarDays, Plane, Stethoscope, UserX, X } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { hrRepository } from '../api';
 import type { EmployeeFunctionDescriptor } from '../model/types';
 
 const functionIcons: Record<string, ReactNode> = {
   'employee.terminate': <UserX size={16} />,
-  'employee.transfer': <ArrowLeftRight size={16} />
+  'employee.transfer': <ArrowLeftRight size={16} />,
+  'employee.vacation': <CalendarDays size={16} />,
+  'employee.sick_leave': <Stethoscope size={16} />,
+  'employee.business_trip': <Plane size={16} />,
+  'employee.day_off': <BedDouble size={16} />
 };
+
+const ABSENCE_FUNCTION_KEYS = new Set([
+  'employee.vacation',
+  'employee.sick_leave',
+  'employee.business_trip',
+  'employee.day_off'
+]);
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -43,7 +54,8 @@ function useInvokeFunction(employeeId: string, onDone: () => void) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['hr'] }),
-        queryClient.invalidateQueries({ queryKey: ['employee-functions'] })
+        queryClient.invalidateQueries({ queryKey: ['employee-functions'] }),
+        queryClient.invalidateQueries({ queryKey: ['employee-absences'] })
       ]);
       onDone();
     }
@@ -91,17 +103,43 @@ function TransferDialog({ employeeId, descriptor, onClose }: { employeeId: strin
   </FunctionDialog>;
 }
 
+function AbsenceDialog({ employeeId, descriptor, onClose }: { employeeId: string; descriptor: EmployeeFunctionDescriptor; onClose: () => void }) {
+  const [dateFrom, setDateFrom] = useState(today());
+  const [dateTo, setDateTo] = useState(today());
+  const [reason, setReason] = useState('');
+  const [details, setDetails] = useState('');
+  const invoke = useInvokeFunction(employeeId, onClose);
+  const isTrip = descriptor.key === 'employee.business_trip';
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    invoke.mutate({
+      key: descriptor.key,
+      payload: { dateFrom, dateTo, reason, ...(details.trim() ? { details } : {}) }
+    });
+  };
+
+  return <FunctionDialog descriptor={descriptor} onClose={onClose} onSubmit={submit} error={invoke.error ? String(invoke.error.message) : ''} pending={invoke.isPending}>
+    <label>Дата начала<em>*</em><input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} required /></label>
+    <label>Дата окончания<em>*</em><input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} required /></label>
+    {isTrip && <label className="span-two">Место и цель поездки<input value={details} onChange={(event) => setDetails(event.target.value)} maxLength={300} placeholder="г. Астана, переговоры" /></label>}
+    <label className="span-two">Основание<em>*</em><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Приказ, заявление или причина" required /></label>
+  </FunctionDialog>;
+}
+
 export function EmployeeActions({ employeeId }: { employeeId: string }) {
   const functions = useQuery({
     queryKey: ['employee-functions', employeeId],
     queryFn: () => hrRepository.listEmployeeFunctions(employeeId)
   });
   const [active, setActive] = useState<EmployeeFunctionDescriptor | null>(null);
-  const supported = new Set(['employee.terminate', 'employee.transfer']);
-  if (!functions.data?.length) return null;
+  const supported = new Set(['employee.terminate', 'employee.transfer', ...ABSENCE_FUNCTION_KEYS]);
+  // Cancellation is offered next to each absence row, not as a standalone button.
+  const buttons = (functions.data ?? []).filter((item) => item.key !== 'employee.absence_cancel');
+  if (!buttons.length) return null;
 
   return <>
-    {functions.data.map((descriptor) => (
+    {buttons.map((descriptor) => (
       <button
         key={descriptor.key}
         type="button"
@@ -115,5 +153,6 @@ export function EmployeeActions({ employeeId }: { employeeId: string }) {
     ))}
     {active?.key === 'employee.terminate' && <TerminateDialog employeeId={employeeId} descriptor={active} onClose={() => setActive(null)} />}
     {active?.key === 'employee.transfer' && <TransferDialog employeeId={employeeId} descriptor={active} onClose={() => setActive(null)} />}
+    {active && ABSENCE_FUNCTION_KEYS.has(active.key) && <AbsenceDialog employeeId={employeeId} descriptor={active} onClose={() => setActive(null)} />}
   </>;
 }

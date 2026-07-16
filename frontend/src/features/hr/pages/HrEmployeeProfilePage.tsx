@@ -7,6 +7,7 @@ import { usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
 import { hrRepository } from '../api';
 import { EmployeeActions } from '../components/EmployeeActions';
+import { EmployeeAbsencesSection } from '../components/EmployeeAbsencesSection';
 import { EmployeeStatus } from '../components/HrStatus';
 
 export default function HrEmployeeProfilePage() {
@@ -31,6 +32,7 @@ export default function HrEmployeeProfilePage() {
     <div className="hr-profile-grid">
       <div className="hr-profile-main">
         <Section title="Рабочая информация"><dl className="metadata-grid"><div><dt>Табельный номер</dt><dd>{employee.employeeNumber}</dd></div><div><dt>Дата выхода</dt><dd>{formatDate(employee.startDate, locale)}</dd></div><div><dt>Тип занятости</dt><dd>{employee.employmentType}</dd></div><div><dt>Локация</dt><dd>{employee.location}</dd></div><div><dt>Руководитель</dt><dd>{employee.manager ?? 'Не назначен'}</dd></div><div><dt>Окончание договора</dt><dd>{employee.contractEnd ? formatDate(employee.contractEnd, locale) : 'Бессрочный'}</dd></div><div><dt>Испытательный срок</dt><dd>{employee.probationEnd ? `до ${formatDate(employee.probationEnd, locale)}` : 'Завершён'}</dd></div></dl></Section>
+        <EmployeeAbsencesSection employeeId={employee.id} />
         <Section title="Компетенции и развитие"><div className="hr-skill-list">{employee.skills.map((skill) => <span key={skill}>{skill}</span>)}</div><div className="hr-development-note"><BriefcaseBusiness size={18} /><span><strong>План развития на 2026 год</strong><small>2 цели в работе · следующая встреча 22 июля</small></span></div></Section>
         <Section title="Последняя активность"><div className="audit-list"><div><i /><span><strong>Профиль сотрудника обновлён</strong><small>HR Service · 12 июля</small><p>Проверены контактные данные и место работы.</p></span></div><div><i /><span><strong>Создана заявка на отпуск</strong><small>Leave Request v2 · 14 июля</small><p>Документ ожидает согласования руководителя.</p></span></div></div></Section>
       </div>

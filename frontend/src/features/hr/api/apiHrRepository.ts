@@ -1,6 +1,8 @@
 import { ApiClient } from '../../../repositories/apiRepositories';
 import type {
   CoreEmployeeRecord,
+  EmployeeAbsence,
+  EmployeeAbsences,
   EmployeeFunctionDescriptor,
   HrEmployee,
   HrOverview,
@@ -144,17 +146,30 @@ export class ApiHrRepository implements HrRepository {
     return toHrEmployee(employee, directory);
   }
 
+  listAbsences(employeeId: string) {
+    return this.api.get<EmployeeAbsences>(`/employees/${employeeId}/absences`);
+  }
+
+  listActiveAbsences() {
+    return this.api.get<EmployeeAbsence[]>('/absences');
+  }
+
   async getOverview(): Promise<HrOverview> {
-    const employees = await this.listEmployees();
+    const [employees, activeAbsences] = await Promise.all([
+      this.listEmployees(),
+      this.listActiveAbsences()
+    ]);
     const horizon = new Date();
     horizon.setDate(horizon.getDate() + 90);
+    const byType = (type: EmployeeAbsence['absenceType']) =>
+      activeAbsences.filter((item) => item.absenceType === type).length;
     return {
       totalEmployees: employees.length,
       activeEmployees: employees.filter((item) => item.status === 'active').length,
       onProbation: employees.filter((item) => item.status === 'probation').length,
-      onLeave: 0,
-      onSickLeave: 0,
-      onBusinessTrip: 0,
+      onLeave: byType('vacation') + byType('day_off'),
+      onSickLeave: byType('sick_leave'),
+      onBusinessTrip: byType('business_trip'),
       onboardingCases: 0,
       overdueTasks: 0,
       incompleteFiles: employees.filter((item) => item.personnelFileCompleteness < 90).length,

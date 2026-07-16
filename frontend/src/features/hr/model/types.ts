@@ -60,6 +60,34 @@ export interface CreateLeaveRequestInput {
   substitute: string;
 }
 
+export type AbsenceTypeKey = 'vacation' | 'sick_leave' | 'business_trip' | 'day_off';
+export type AbsenceStatusKey = 'scheduled' | 'active' | 'completed' | 'cancelled';
+
+export interface EmployeeAbsence {
+  id: string;
+  employeeId: string;
+  absenceType: AbsenceTypeKey;
+  dateFrom: string;
+  dateTo: string;
+  days: number;
+  reason: string;
+  details: string | null;
+  status: AbsenceStatusKey;
+  revision: number;
+}
+
+export interface VacationBalance {
+  year: number;
+  entitlement: number;
+  used: number;
+  remaining: number;
+}
+
+export interface EmployeeAbsences {
+  items: EmployeeAbsence[];
+  vacationBalance: VacationBalance;
+}
+
 export type EmployeeFunctionScope = 'collection' | 'employee';
 
 export interface EmployeeFunctionDescriptor {

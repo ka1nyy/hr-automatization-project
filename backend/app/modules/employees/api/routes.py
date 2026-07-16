@@ -10,16 +10,19 @@ from fastapi.responses import JSONResponse
 
 from app.core.logging.context import get_request_id
 
-from ..application.functions import EmployeeFunctionService
+from ..application.functions import EmployeeFunctionService, FunctionResult
 from ..application.ports import Actor
 from ..application.service import EmployeeService
+from ..domain.entities import EmployeeAbsence
 from ..domain.errors import EmployeeDomainError
 from .schemas import (
+    AbsenceResponse,
     AssignmentResponse,
     CreateAssignmentRequest,
     CreateDelegationRequest,
     CreateEmployeeRequest,
     DelegationResponse,
+    EmployeeAbsencesResponse,
     EmployeeResponse,
     EndAssignmentRequest,
     Envelope,
@@ -57,6 +60,12 @@ DelegationSort = Literal[
 def _request_id(request: Request) -> UUID:
     del request
     return UUID(get_request_id())
+
+
+def _function_result_response(result: FunctionResult) -> EmployeeResponse | AbsenceResponse:
+    if isinstance(result, EmployeeAbsence):
+        return AbsenceResponse.from_domain(result)
+    return EmployeeResponse.from_details(result)
 
 
 async def employee_exception_handler(
@@ -163,7 +172,7 @@ def create_employee_router(
 
     @router.post(
         "/employees/functions/{function_key}",
-        response_model=Envelope[EmployeeResponse],
+        response_model=Envelope[EmployeeResponse | AbsenceResponse],
         status_code=status.HTTP_201_CREATED,
     )
     async def invoke_collection_function(
@@ -172,10 +181,10 @@ def create_employee_router(
         request: Request,
         functions: FunctionService,
         actor: CurrentActor,
-    ) -> Envelope[EmployeeResponse]:
+    ) -> Envelope[EmployeeResponse | AbsenceResponse]:
         result = await functions.invoke_collection_function(actor, function_key, body.payload)
         return Envelope(
-            data=EmployeeResponse.from_details(result),
+            data=_function_result_response(result),
             meta=Meta(request_id=_request_id(request)),
         )
 
@@ -197,7 +206,7 @@ def create_employee_router(
 
     @router.post(
         "/employees/{employee_id}/functions/{function_key}",
-        response_model=Envelope[EmployeeResponse],
+        response_model=Envelope[EmployeeResponse | AbsenceResponse],
     )
     async def invoke_employee_function(
         employee_id: UUID,
@@ -206,12 +215,43 @@ def create_employee_router(
         request: Request,
         functions: FunctionService,
         actor: CurrentActor,
-    ) -> Envelope[EmployeeResponse]:
+    ) -> Envelope[EmployeeResponse | AbsenceResponse]:
         result = await functions.invoke_employee_function(
             actor, employee_id, function_key, body.payload
         )
         return Envelope(
-            data=EmployeeResponse.from_details(result),
+            data=_function_result_response(result),
+            meta=Meta(request_id=_request_id(request)),
+        )
+
+    @router.get(
+        "/employees/{employee_id}/absences",
+        response_model=Envelope[EmployeeAbsencesResponse],
+    )
+    async def list_employee_absences(
+        employee_id: UUID,
+        request: Request,
+        service: Service,
+        actor: CurrentActor,
+    ) -> Envelope[EmployeeAbsencesResponse]:
+        view = await service.list_absences(actor, employee_id)
+        return Envelope(
+            data=EmployeeAbsencesResponse.from_view(view),
+            meta=Meta(request_id=_request_id(request)),
+        )
+
+    @router.get("/absences", response_model=Envelope[list[AbsenceResponse]])
+    async def list_active_absences(
+        request: Request,
+        service: Service,
+        actor: CurrentActor,
+        active_on: Annotated[datetime | None, Query(alias="activeOn")] = None,
+    ) -> Envelope[list[AbsenceResponse]]:
+        items = await service.list_active_absences(
+            actor, on_date=active_on.date() if active_on else None
+        )
+        return Envelope(
+            data=[AbsenceResponse.from_domain(item) for item in items],
             meta=Meta(request_id=_request_id(request)),
         )
 
