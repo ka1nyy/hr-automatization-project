@@ -81,7 +81,9 @@ def test_employee_service_is_lazy_and_bound_to_create_app_settings(monkeypatch: 
         ProbeSensitiveDataProtector,
     )
 
-    def capture_employee_router(service_provider: Any, _actor_provider: Any) -> APIRouter:
+    def capture_employee_router(
+        service_provider: Any, _actor_provider: Any, _function_service_provider: Any
+    ) -> APIRouter:
         service_providers.append(service_provider)
         return APIRouter()
 
@@ -127,9 +129,7 @@ def test_compiled_frontend_is_served_with_spa_fallback(tmp_path: Any) -> None:
     frontend_dir.mkdir()
     (frontend_dir / "index.html").write_text("<main>HR application</main>", encoding="utf-8")
     (frontend_dir / "asset.txt").write_text("compiled asset", encoding="utf-8")
-    settings = _test_settings().model_copy(
-        update={"frontend_dist_path": str(frontend_dir)}
-    )
+    settings = _test_settings().model_copy(update={"frontend_dist_path": str(frontend_dir)})
 
     with TestClient(create_app(settings)) as client:
         assert client.get("/").text == "<main>HR application</main>"

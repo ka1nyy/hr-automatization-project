@@ -17,6 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
         "employeeAssignmentEndScheduled",
         "employeeAssignmentReviewRequested",
         "employeeAssignmentReviewRejected",
+        "employeeHired",
+        "employeeTerminated",
+        "employeeTerminationScheduled",
+        "employeeTransferred",
     ],
 )
 async def test_employee_outbox_adapter_accepts_workflow_events(event_type: str) -> None:

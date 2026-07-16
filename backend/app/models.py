@@ -15,13 +15,6 @@ from app.modules.access_control.infrastructure.models import (
     RolePermissionModel,
     UserRoleAssignmentModel,
 )
-from app.modules.business_processes.infrastructure.models import (
-    CorrespondenceModel,
-    HiringRequestModel,
-    LeaveRequestModel,
-    ProcessDefinitionModel,
-    WorkTaskModel,
-)
 from app.modules.employees.infrastructure.models import (
     DelegationModel,
     EmployeeAssignmentModel,
@@ -47,12 +40,9 @@ __all__ = [
     "AccessScopeModel",
     "AccessScopeUnitModel",
     "AuditEventModel",
-    "CorrespondenceModel",
     "DelegationModel",
     "EmployeeAssignmentModel",
     "EmployeeModel",
-    "HiringRequestModel",
-    "LeaveRequestModel",
     "OrganizationModel",
     "OrganizationPolicyModel",
     "OrganizationRelationshipModel",
@@ -65,12 +55,10 @@ __all__ = [
     "PermissionModel",
     "PersonModel",
     "PositionDefinitionModel",
-    "ProcessDefinitionModel",
     "RoleModel",
     "RolePermissionModel",
     "StaffingSlotModel",
     "StructureReviewRequestModel",
     "UserAccountModel",
     "UserRoleAssignmentModel",
-    "WorkTaskModel",
 ]

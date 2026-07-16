@@ -371,6 +371,10 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
                 revision=employee.revision,
             )
         )
+        # EmployeeAssignmentModel references this employee without an ORM
+        # relationship. Flush the principal row so a same-transaction assignment
+        # INSERT cannot precede its foreign key target.
+        await self._session.flush()
 
     async def update(self, employee: Employee, expected_revision: int) -> None:
         result = await self._session.execute(

@@ -28,8 +28,11 @@ from .commands import (
     CreateDelegationCommand,
     CreateEmployeeCommand,
     EndAssignmentCommand,
+    HireEmployeeCommand,
     ReviewAssignmentCommand,
     RevokeDelegationCommand,
+    TerminateEmployeeCommand,
+    TransferEmployeeCommand,
     UpdateEmployeeCommand,
 )
 from .ports import (
@@ -361,41 +364,7 @@ class EmployeeService:
                     else AssignmentStatus.PLANNED
                 ),
             )
-            employee_assignments = await uow.assignments.list_for_employee(command.employee_id)
-            slot_assignments = await uow.assignments.list_for_slot(command.staffing_slot_id)
-            relevant_employee = [
-                item
-                for item in employee_assignments
-                if item.status is not AssignmentStatus.CANCELLED and assignment.overlaps(item)
-            ]
-            if assignment.primary and any(item.primary for item in relevant_employee):
-                raise EmployeeDomainError(
-                    "EMPLOYEE_ALREADY_ASSIGNED",
-                    "The employee already has a primary assignment for this period.",
-                    {},
-                )
-            employee_fte = self._peak_fte(assignment, relevant_employee)
-            if employee_fte > Decimal("1"):
-                raise EmployeeDomainError(
-                    "STAFFING_FTE_EXCEEDED",
-                    "The employee's assignments exceed 1.0 FTE for this period.",
-                    {"calculatedFte": str(employee_fte)},
-                )
-            relevant_slot = [
-                item
-                for item in slot_assignments
-                if item.status is not AssignmentStatus.CANCELLED and assignment.overlaps(item)
-            ]
-            slot_fte = self._peak_fte(assignment, relevant_slot)
-            if slot_fte > slot.full_time_equivalent:
-                raise EmployeeDomainError(
-                    "STAFFING_FTE_EXCEEDED",
-                    "Assignments exceed the staffing slot's approved FTE.",
-                    {
-                        "calculatedFte": str(slot_fte),
-                        "slotFte": str(slot.full_time_equivalent),
-                    },
-                )
+            await self._ensure_assignment_capacity(uow, assignment, slot)
             await uow.assignments.add(assignment)
             review_request: AssignmentReviewRequest | None = None
             if assignment.status is AssignmentStatus.PENDING_REVIEW:
@@ -497,43 +466,7 @@ class EmployeeService:
                         "The staffing slot is no longer available for assignment.",
                         {"status": slot.status},
                     )
-                employee_assignments = [
-                    item
-                    for item in await uow.assignments.list_for_employee(employee.id)
-                    if item.id != assignment.id
-                    and item.status is not AssignmentStatus.CANCELLED
-                    and assignment.overlaps(item)
-                ]
-                if assignment.primary and any(item.primary for item in employee_assignments):
-                    raise EmployeeDomainError(
-                        "EMPLOYEE_ALREADY_ASSIGNED",
-                        "The employee already has a primary assignment for this period.",
-                        {},
-                    )
-                employee_fte = self._peak_fte(assignment, employee_assignments)
-                if employee_fte > Decimal("1"):
-                    raise EmployeeDomainError(
-                        "STAFFING_FTE_EXCEEDED",
-                        "The employee's assignments exceed 1.0 FTE for this period.",
-                        {"calculatedFte": str(employee_fte)},
-                    )
-                slot_assignments = [
-                    item
-                    for item in await uow.assignments.list_for_slot(slot.id)
-                    if item.id != assignment.id
-                    and item.status is not AssignmentStatus.CANCELLED
-                    and assignment.overlaps(item)
-                ]
-                slot_fte = self._peak_fte(assignment, slot_assignments)
-                if slot_fte > slot.full_time_equivalent:
-                    raise EmployeeDomainError(
-                        "STAFFING_FTE_EXCEEDED",
-                        "Assignments exceed the staffing slot's approved FTE.",
-                        {
-                            "calculatedFte": str(slot_fte),
-                            "slotFte": str(slot.full_time_equivalent),
-                        },
-                    )
+                await self._ensure_assignment_capacity(uow, assignment, slot)
             before = self._safe_assignment(assignment)
             expected_revision = assignment.revision
             assignment.resolve_review(approved=command.approved, expected_revision=command.revision)
@@ -639,6 +572,345 @@ class EmployeeService:
             )
             await uow.commit()
             return assignment
+
+    async def hire_employee(self, actor: Actor, command: HireEmployeeCommand) -> EmployeeDetails:
+        """Create an active employment record, optionally with its primary assignment."""
+
+        self._require(actor, "employees.hire")
+        if command.iin is not None and (len(command.iin) != 12 or not command.iin.isdecimal()):
+            raise EmployeeDomainError(
+                "VALIDATION_FAILED",
+                "IIN must contain exactly 12 digits.",
+                {"field": "iin"},
+                422,
+            )
+        if command.staffing_slot_id is None and not actor.allows("employees.hire"):
+            raise EmployeeDomainError(
+                "AUTH_SCOPE_VIOLATION",
+                "Unit-scoped hiring requires a staffing slot.",
+                {},
+                403,
+            )
+        protected_iin = self._sensitive_data.protect(command.iin) if command.iin else None
+        person = Person(
+            first_name=command.first_name,
+            last_name=command.last_name,
+            middle_name=command.middle_name,
+            display_name=command.display_name,
+            protected_iin=protected_iin,
+            birth_date=command.birth_date,
+            personal_email=command.personal_email,
+            phone=command.phone,
+        )
+        employee = Employee(
+            organization_id=actor.organization_id,
+            created_by=actor.user_id,
+            person_id=person.id,
+            employee_number=command.employee_number,
+            hire_date=command.hire_date,
+            corporate_email=command.corporate_email,
+            employment_status=EmploymentStatus.ACTIVE,
+        )
+        async with self._uow_factory() as uow:
+            if (
+                await uow.employees.get_by_number(actor.organization_id, employee.employee_number)
+                is not None
+            ):
+                raise EmployeeDomainError(
+                    "VALIDATION_FAILED",
+                    "Employee number already exists.",
+                    {"field": "employeeNumber"},
+                    422,
+                )
+            assignment: EmployeeAssignment | None = None
+            if command.staffing_slot_id is not None:
+                await uow.lock_assignment_resources(employee.id, command.staffing_slot_id)
+                slot = await uow.staffing_slots.get(command.staffing_slot_id)
+                if slot is None:
+                    raise EmployeeDomainError(
+                        "RESOURCE_NOT_FOUND", "Staffing slot was not found.", {}, 404
+                    )
+                self._require_slot_scope(actor, slot, "employees.hire")
+                self._validate_active_structure(command.hire_date, slot)
+                self._validate_slot_dates(command.hire_date, None, slot)
+                if slot.status not in {"approved", "vacant", "occupied", "closing"}:
+                    raise EmployeeDomainError(
+                        "STAFFING_SLOT_NOT_AVAILABLE",
+                        "The staffing slot is not available for assignment.",
+                        {"status": slot.status},
+                    )
+                assignment = EmployeeAssignment(
+                    employee_id=employee.id,
+                    staffing_slot_id=command.staffing_slot_id,
+                    assignment_type=command.assignment_type,
+                    full_time_equivalent=command.full_time_equivalent,
+                    effective_from=command.hire_date,
+                    primary=True,
+                    status=(
+                        AssignmentStatus.ACTIVE
+                        if command.hire_date <= date.today()
+                        else AssignmentStatus.PLANNED
+                    ),
+                )
+                await self._ensure_assignment_capacity(uow, assignment, slot)
+            await uow.people.add(person)
+            await uow.employees.add(employee)
+            if assignment is not None:
+                await uow.assignments.add(assignment)
+            after = self._safe_employee(employee, person)
+            if assignment is not None:
+                after["assignmentId"] = str(assignment.id)
+                after["staffingSlotId"] = str(assignment.staffing_slot_id)
+            await uow.audit.append(
+                AuditEntry(
+                    actor.user_id,
+                    "employee.hired",
+                    "employee",
+                    employee.id,
+                    None,
+                    after,
+                    organization_id=actor.organization_id,
+                )
+            )
+            await uow.outbox.add(
+                PendingEvent(
+                    "employeeHired",
+                    "employee",
+                    employee.id,
+                    {
+                        "employeeId": str(employee.id),
+                        "organizationId": str(actor.organization_id),
+                        "assignmentId": str(assignment.id) if assignment is not None else None,
+                        "hireDate": command.hire_date.isoformat(),
+                    },
+                )
+            )
+            await uow.commit()
+        assignments = (assignment,) if assignment is not None else ()
+        return EmployeeDetails(employee, person, assignments)
+
+    async def terminate_employee(
+        self, actor: Actor, command: TerminateEmployeeCommand
+    ) -> EmployeeDetails:
+        """End employment and every assignment still open on the termination date."""
+
+        self._require(actor, "employees.terminate")
+        if not command.reason.strip():
+            raise EmployeeDomainError("VALIDATION_FAILED", "A reason is required.", {}, 422)
+        async with self._uow_factory() as uow:
+            employee = await self._get_employee(uow, command.employee_id)
+            person = await self._get_person(uow, employee.person_id)
+            assignments = await uow.assignments.list_for_employee(employee.id)
+            await self._require_employee_scope(
+                actor, uow, employee, assignments, "employees.terminate"
+            )
+            if command.revision != employee.revision:
+                raise self._concurrency(command.revision, employee.revision)
+            if command.termination_date < employee.hire_date:
+                raise EmployeeDomainError(
+                    "VALIDATION_FAILED",
+                    "Termination date cannot precede hire date.",
+                    {},
+                    422,
+                )
+            if employee.employment_status is EmploymentStatus.ENDED or not employee.active:
+                raise EmployeeDomainError(
+                    "VERSION_CONFLICT",
+                    "The employee is already terminated.",
+                    {"employmentStatus": employee.employment_status.value},
+                )
+            before = self._safe_employee(employee, person)
+            expected_employee_revision = employee.revision
+            employee.termination_date = command.termination_date
+            terminates_now = command.termination_date <= date.today()
+            if terminates_now:
+                employee.employment_status = EmploymentStatus.ENDED
+                employee.active = False
+            employee.revision += 1
+            employee.updated_at = utc_now()
+            await uow.employees.update(employee, expected_employee_revision)
+            for assignment in assignments:
+                if assignment.status in {AssignmentStatus.CANCELLED, AssignmentStatus.ENDED}:
+                    continue
+                expected_assignment_revision = assignment.revision
+                if (
+                    assignment.status is AssignmentStatus.PENDING_REVIEW
+                    or assignment.effective_from > command.termination_date
+                ):
+                    assignment.status = AssignmentStatus.CANCELLED
+                    assignment.revision += 1
+                    assignment.updated_at = utc_now()
+                    await uow.assignments.update(assignment, expected_assignment_revision)
+                    continue
+                if (
+                    assignment.effective_to is not None
+                    and assignment.effective_to <= command.termination_date
+                ):
+                    continue
+                assignment.end(
+                    effective_to=command.termination_date,
+                    expected_revision=expected_assignment_revision,
+                )
+                await uow.assignments.update(assignment, expected_assignment_revision)
+            await uow.audit.append(
+                AuditEntry(
+                    actor.user_id,
+                    "employee.terminated" if terminates_now else "employee.termination.scheduled",
+                    "employee",
+                    employee.id,
+                    before,
+                    self._safe_employee(employee, person),
+                    command.reason,
+                    organization_id=actor.organization_id,
+                )
+            )
+            await uow.outbox.add(
+                PendingEvent(
+                    "employeeTerminated" if terminates_now else "employeeTerminationScheduled",
+                    "employee",
+                    employee.id,
+                    {
+                        "employeeId": str(employee.id),
+                        "terminationDate": command.termination_date.isoformat(),
+                    },
+                )
+            )
+            await uow.commit()
+            return EmployeeDetails(employee, person, tuple(assignments))
+
+    async def transfer_employee(
+        self, actor: Actor, command: TransferEmployeeCommand
+    ) -> EmployeeDetails:
+        """Atomically end the current primary assignment and start one in another slot."""
+
+        self._require(actor, "employees.transfer")
+        if not command.reason.strip():
+            raise EmployeeDomainError("VALIDATION_FAILED", "A reason is required.", {}, 422)
+        async with self._uow_factory() as uow:
+            employee = await self._get_employee(uow, command.employee_id)
+            person = await self._get_person(uow, employee.person_id)
+            assignments = await uow.assignments.list_for_employee(employee.id)
+            await self._require_employee_scope(
+                actor, uow, employee, assignments, "employees.transfer"
+            )
+            if employee.employment_status is EmploymentStatus.ENDED or not employee.active:
+                raise EmployeeDomainError(
+                    "VERSION_CONFLICT",
+                    "A terminated employee cannot be transferred.",
+                    {"employmentStatus": employee.employment_status.value},
+                )
+            current = next(
+                (
+                    item
+                    for item in assignments
+                    if item.primary and item.effective_status() is AssignmentStatus.ACTIVE
+                ),
+                None,
+            )
+            if current is None:
+                raise EmployeeDomainError(
+                    "VERSION_CONFLICT",
+                    "The employee has no active primary assignment to transfer.",
+                    {},
+                )
+            if current.staffing_slot_id == command.staffing_slot_id:
+                raise EmployeeDomainError(
+                    "VALIDATION_FAILED",
+                    "The transfer target must differ from the current staffing slot.",
+                    {"field": "staffingSlotId"},
+                    422,
+                )
+            if command.effective_from <= current.effective_from:
+                raise EmployeeDomainError(
+                    "ASSIGNMENT_DATE_CONFLICT",
+                    "The transfer must start after the current assignment start date.",
+                    {"currentEffectiveFrom": current.effective_from.isoformat()},
+                )
+            await uow.lock_assignment_resources(employee.id, current.staffing_slot_id)
+            await uow.lock_assignment_resources(employee.id, command.staffing_slot_id)
+            slot = await uow.staffing_slots.get(command.staffing_slot_id)
+            if slot is None:
+                raise EmployeeDomainError(
+                    "RESOURCE_NOT_FOUND", "Staffing slot was not found.", {}, 404
+                )
+            self._require_slot_scope(actor, slot, "employees.transfer")
+            self._validate_active_structure(command.effective_from, slot)
+            self._validate_slot_dates(command.effective_from, None, slot)
+            if slot.status not in {"approved", "vacant", "occupied", "closing"}:
+                raise EmployeeDomainError(
+                    "STAFFING_SLOT_NOT_AVAILABLE",
+                    "The staffing slot is not available for assignment.",
+                    {"status": slot.status},
+                )
+            before = self._safe_assignment(current)
+            expected_current_revision = current.revision
+            current.end(
+                effective_to=command.effective_from - timedelta(days=1),
+                expected_revision=expected_current_revision,
+            )
+            await uow.assignments.update(current, expected_current_revision)
+            assignment = EmployeeAssignment(
+                employee_id=employee.id,
+                staffing_slot_id=command.staffing_slot_id,
+                assignment_type=command.assignment_type,
+                full_time_equivalent=command.full_time_equivalent,
+                effective_from=command.effective_from,
+                primary=True,
+                status=(
+                    AssignmentStatus.ACTIVE
+                    if command.effective_from <= date.today()
+                    else AssignmentStatus.PLANNED
+                ),
+            )
+            await self._ensure_assignment_capacity(uow, assignment, slot)
+            await uow.assignments.add(assignment)
+            after = self._safe_assignment(assignment)
+            after["previousAssignmentId"] = str(current.id)
+            await uow.audit.append(
+                AuditEntry(
+                    actor.user_id,
+                    "employee.transferred",
+                    "employee_assignment",
+                    assignment.id,
+                    before,
+                    after,
+                    command.reason,
+                    organization_id=actor.organization_id,
+                )
+            )
+            await uow.outbox.add(
+                PendingEvent(
+                    "employeeTransferred",
+                    "employee_assignment",
+                    assignment.id,
+                    {
+                        "employeeId": str(employee.id),
+                        "previousAssignmentId": str(current.id),
+                        "assignmentId": str(assignment.id),
+                        "fromStaffingSlotId": str(current.staffing_slot_id),
+                        "toStaffingSlotId": str(command.staffing_slot_id),
+                        "effectiveFrom": command.effective_from.isoformat(),
+                    },
+                )
+            )
+            await uow.commit()
+            return EmployeeDetails(
+                employee, person, tuple(await uow.assignments.list_for_employee(employee.id))
+            )
+
+    async def has_employee_permission(
+        self, actor: Actor, employee_id: UUID, permission: str
+    ) -> bool:
+        """Report whether the actor holds the permission within the employee's scope."""
+
+        if "*" not in actor.permissions and permission not in actor.permissions:
+            return False
+        async with self._uow_factory() as uow:
+            employee = await uow.employees.get(employee_id)
+            if employee is None:
+                return False
+            assignments = await uow.assignments.list_for_employee(employee.id)
+            return await self._has_employee_scope(actor, uow, employee, assignments, permission)
 
     async def create_delegation(self, actor: Actor, command: CreateDelegationCommand) -> Delegation:
         self._require(actor, "delegations.manage")
@@ -1030,6 +1302,50 @@ class EmployeeService:
             ),
             default=candidate.full_time_equivalent,
         )
+
+    async def _ensure_assignment_capacity(
+        self,
+        uow: EmployeeUnitOfWork,
+        assignment: EmployeeAssignment,
+        slot: StaffingSlotSnapshot,
+    ) -> None:
+        employee_assignments = [
+            item
+            for item in await uow.assignments.list_for_employee(assignment.employee_id)
+            if item.id != assignment.id
+            and item.status is not AssignmentStatus.CANCELLED
+            and assignment.overlaps(item)
+        ]
+        if assignment.primary and any(item.primary for item in employee_assignments):
+            raise EmployeeDomainError(
+                "EMPLOYEE_ALREADY_ASSIGNED",
+                "The employee already has a primary assignment for this period.",
+                {},
+            )
+        employee_fte = self._peak_fte(assignment, employee_assignments)
+        if employee_fte > Decimal("1"):
+            raise EmployeeDomainError(
+                "STAFFING_FTE_EXCEEDED",
+                "The employee's assignments exceed 1.0 FTE for this period.",
+                {"calculatedFte": str(employee_fte)},
+            )
+        slot_assignments = [
+            item
+            for item in await uow.assignments.list_for_slot(slot.id)
+            if item.id != assignment.id
+            and item.status is not AssignmentStatus.CANCELLED
+            and assignment.overlaps(item)
+        ]
+        slot_fte = self._peak_fte(assignment, slot_assignments)
+        if slot_fte > slot.full_time_equivalent:
+            raise EmployeeDomainError(
+                "STAFFING_FTE_EXCEEDED",
+                "Assignments exceed the staffing slot's approved FTE.",
+                {
+                    "calculatedFte": str(slot_fte),
+                    "slotFte": str(slot.full_time_equivalent),
+                },
+            )
 
     @staticmethod
     def _validate_active_structure(effective_from: date, slot: StaffingSlotSnapshot) -> None:

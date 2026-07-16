@@ -4,6 +4,10 @@ from uuid import uuid4
 
 import pytest
 from app.modules.employees.api import create_employee_router, employee_exception_handler
+from app.modules.employees.application.functions import (
+    EmployeeFunctionService,
+    default_employee_function_registry,
+)
 from app.modules.employees.application.ports import Actor
 from app.modules.employees.application.service import EmployeeService
 from app.modules.employees.domain.errors import EmployeeDomainError
@@ -25,7 +29,11 @@ async def test_not_found_error_has_stable_contract() -> None:
     )
     app = FastAPI()
     app.add_exception_handler(EmployeeDomainError, employee_exception_handler)  # type: ignore[arg-type]
-    app.include_router(create_employee_router(lambda: service, lambda: actor), prefix="/api/v1")
+    functions = EmployeeFunctionService(default_employee_function_registry(), service)
+    app.include_router(
+        create_employee_router(lambda: service, lambda: actor, lambda: functions),
+        prefix="/api/v1",
+    )
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(f"/api/v1/employees/{uuid4()}")

@@ -62,6 +62,21 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "employees.assign", "Assign employees", "Create and end employee assignments."
     ),
     PermissionDefinition(
+        "employees.hire",
+        "Hire employees",
+        "Run the hire business function: create an employment record with an assignment.",
+    ),
+    PermissionDefinition(
+        "employees.terminate",
+        "Terminate employees",
+        "Run the terminate business function: end employment and active assignments.",
+    ),
+    PermissionDefinition(
+        "employees.transfer",
+        "Transfer employees",
+        "Run the transfer business function: move an employee to another staffing slot.",
+    ),
+    PermissionDefinition(
         "delegations.manage", "Manage delegations", "Create and revoke temporary delegations."
     ),
     PermissionDefinition(

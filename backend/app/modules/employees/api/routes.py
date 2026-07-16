@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.logging.context import get_request_id
 
+from ..application.functions import EmployeeFunctionService
 from ..application.ports import Actor
 from ..application.service import EmployeeService
 from ..domain.errors import EmployeeDomainError
@@ -24,6 +25,8 @@ from .schemas import (
     Envelope,
     ErrorBody,
     ErrorEnvelope,
+    FunctionDescriptorResponse,
+    InvokeFunctionRequest,
     Meta,
     ReviewAssignmentRequest,
     RevokeDelegationRequest,
@@ -31,6 +34,7 @@ from .schemas import (
 )
 
 ServiceProvider = Callable[[], EmployeeService]
+FunctionServiceProvider = Callable[[], EmployeeFunctionService]
 ActorProvider = Callable[..., Actor | Awaitable[Actor]]
 EmployeeSort = Literal[
     "employeeNumber",
@@ -73,10 +77,13 @@ async def employee_exception_handler(
 
 
 def create_employee_router(
-    service_provider: ServiceProvider, actor_provider: ActorProvider
+    service_provider: ServiceProvider,
+    actor_provider: ActorProvider,
+    function_service_provider: FunctionServiceProvider,
 ) -> APIRouter:
     router = APIRouter(tags=["employees"])
     Service = Annotated[EmployeeService, Depends(service_provider)]
+    FunctionService = Annotated[EmployeeFunctionService, Depends(function_service_provider)]
     CurrentActor = Annotated[Actor, Depends(actor_provider)]
 
     @router.get("/employees", response_model=Envelope[list[EmployeeResponse]])
@@ -113,6 +120,76 @@ def create_employee_router(
         actor: CurrentActor,
     ) -> Envelope[EmployeeResponse]:
         result = await service.create_employee(actor, body.to_command())
+        return Envelope(
+            data=EmployeeResponse.from_details(result),
+            meta=Meta(request_id=_request_id(request)),
+        )
+
+    # Static /employees/functions routes must precede the /employees/{employee_id} match.
+    @router.get(
+        "/employees/functions",
+        response_model=Envelope[list[FunctionDescriptorResponse]],
+    )
+    async def list_collection_functions(
+        request: Request,
+        functions: FunctionService,
+        actor: CurrentActor,
+    ) -> Envelope[list[FunctionDescriptorResponse]]:
+        descriptors = functions.list_collection_functions(actor)
+        return Envelope(
+            data=[FunctionDescriptorResponse.from_descriptor(item) for item in descriptors],
+            meta=Meta(request_id=_request_id(request)),
+        )
+
+    @router.post(
+        "/employees/functions/{function_key}",
+        response_model=Envelope[EmployeeResponse],
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def invoke_collection_function(
+        function_key: str,
+        body: InvokeFunctionRequest,
+        request: Request,
+        functions: FunctionService,
+        actor: CurrentActor,
+    ) -> Envelope[EmployeeResponse]:
+        result = await functions.invoke_collection_function(actor, function_key, body.payload)
+        return Envelope(
+            data=EmployeeResponse.from_details(result),
+            meta=Meta(request_id=_request_id(request)),
+        )
+
+    @router.get(
+        "/employees/{employee_id}/functions",
+        response_model=Envelope[list[FunctionDescriptorResponse]],
+    )
+    async def list_employee_functions(
+        employee_id: UUID,
+        request: Request,
+        functions: FunctionService,
+        actor: CurrentActor,
+    ) -> Envelope[list[FunctionDescriptorResponse]]:
+        descriptors = await functions.list_employee_functions(actor, employee_id)
+        return Envelope(
+            data=[FunctionDescriptorResponse.from_descriptor(item) for item in descriptors],
+            meta=Meta(request_id=_request_id(request)),
+        )
+
+    @router.post(
+        "/employees/{employee_id}/functions/{function_key}",
+        response_model=Envelope[EmployeeResponse],
+    )
+    async def invoke_employee_function(
+        employee_id: UUID,
+        function_key: str,
+        body: InvokeFunctionRequest,
+        request: Request,
+        functions: FunctionService,
+        actor: CurrentActor,
+    ) -> Envelope[EmployeeResponse]:
+        result = await functions.invoke_employee_function(
+            actor, employee_id, function_key, body.payload
+        )
         return Envelope(
             data=EmployeeResponse.from_details(result),
             meta=Meta(request_id=_request_id(request)),

@@ -24,7 +24,6 @@ from app.modules.access_control.infrastructure.models import (
     RolePermissionModel,
     UserRoleAssignmentModel,
 )
-from app.modules.business_processes.seed import seed_business_processes
 from app.modules.employees.infrastructure.models import (
     EmployeeAssignmentModel,
     EmployeeModel,
@@ -908,7 +907,6 @@ async def seed_database() -> None:
         await _seed_structure(session)
         await _seed_demo_employment(session)
         await _seed_role_assignments(session)
-        await seed_business_processes(session)
 
 
 def main() -> None:

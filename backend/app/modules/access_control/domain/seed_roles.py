@@ -54,6 +54,9 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "employees.create",
                 "employees.edit",
                 "employees.assign",
+                "employees.hire",
+                "employees.terminate",
+                "employees.transfer",
                 "delegations.manage",
                 "audit.read",
             }

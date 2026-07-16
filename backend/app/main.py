@@ -30,11 +30,14 @@ from app.modules.access_control.api.dependencies import (
     get_organization_scope_resolver,
 )
 from app.modules.access_control.application.ports import OrganizationScopeResolver
-from app.modules.business_processes.api.routes import router as business_process_router
 from app.modules.employees.api import (
     create_employee_router,
     employee_exception_handler,
     get_employee_actor,
+)
+from app.modules.employees.application.functions import (
+    EmployeeFunctionService,
+    default_employee_function_registry,
 )
 from app.modules.employees.application.service import EmployeeService
 from app.modules.employees.domain.errors import EmployeeDomainError
@@ -174,6 +177,21 @@ def _employee_service_provider(runtime: Settings) -> Callable[[], EmployeeServic
     return provide
 
 
+def _employee_function_service_provider(
+    employee_service_provider: Callable[[], EmployeeService],
+) -> Callable[[], EmployeeFunctionService]:
+    """Bind the business-function registry to the lazily built employee service."""
+
+    @lru_cache(maxsize=1)
+    def provide() -> EmployeeFunctionService:
+        return EmployeeFunctionService(
+            default_employee_function_registry(),
+            employee_service_provider(),
+        )
+
+    return provide
+
+
 def _install_frontend(application: FastAPI, runtime: Settings) -> None:
     """Serve the repository's compiled SPA from the backend process when configured."""
 
@@ -291,9 +309,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(organization_router, prefix=runtime.api_prefix)
     application.include_router(access_router, prefix=runtime.api_prefix)
     application.include_router(audit_router, prefix=runtime.api_prefix)
-    application.include_router(business_process_router, prefix=runtime.api_prefix)
     application.include_router(
-        create_employee_router(employee_service_provider, get_employee_actor),
+        create_employee_router(
+            employee_service_provider,
+            get_employee_actor,
+            _employee_function_service_provider(employee_service_provider),
+        ),
         prefix=runtime.api_prefix,
     )
     _install_openapi_contract(application)

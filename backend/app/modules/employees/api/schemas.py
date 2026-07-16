@@ -19,6 +19,7 @@ from ..application.commands import (
     RevokeDelegationCommand,
     UpdateEmployeeCommand,
 )
+from ..application.functions import FunctionDescriptor
 from ..application.views import EmployeeDetails
 from ..domain.entities import Delegation, EmployeeAssignment
 from ..domain.enums import AssignmentType, DelegationScopeType, EmploymentStatus
@@ -256,6 +257,26 @@ class DelegationResponse(ApiModel):
             revoked_at=delegation.revoked_at,
             revision=delegation.revision,
         )
+
+
+class FunctionDescriptorResponse(ApiModel):
+    key: str
+    title: str
+    description: str
+    scope: str
+
+    @classmethod
+    def from_descriptor(cls, descriptor: FunctionDescriptor) -> FunctionDescriptorResponse:
+        return cls(
+            key=descriptor.key,
+            title=descriptor.title,
+            description=descriptor.description,
+            scope=descriptor.scope.value,
+        )
+
+
+class InvokeFunctionRequest(ApiModel):
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class ErrorBody(ApiModel):

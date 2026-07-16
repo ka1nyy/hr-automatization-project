@@ -53,6 +53,8 @@ ignore = ["B008"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "S105", "S106"]
 "migrations/**/*.py" = ["E501"]
+# Business-function titles are user-facing Russian labels rendered by the client.
+"app/modules/employees/application/functions.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.12"
