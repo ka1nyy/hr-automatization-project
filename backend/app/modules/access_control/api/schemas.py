@@ -20,6 +20,26 @@ class RoleCreateRequest(CamelModel):
     reason: str | None = Field(default=None, max_length=1000)
 
 
+class RoleUpdateRequest(CamelModel):
+    """Partial edit; omitted fields are left as they are.
+
+    ``revision`` is the revision the caller read, so a concurrent edit is reported
+    instead of being silently overwritten.
+    """
+
+    revision: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=4000)
+    active: bool | None = None
+    # Omit to leave grants untouched; send an empty list to clear them.
+    permission_codes: set[str] | None = None
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class RoleDeleteRequest(CamelModel):
+    reason: str | None = Field(default=None, max_length=1000)
+
+
 class RoleResponse(CamelModel):
     id: UUID
     organization_id: UUID | None
@@ -34,12 +54,35 @@ class RoleResponse(CamelModel):
     updated_at: datetime
 
 
+class PermissionCreateRequest(CamelModel):
+    code: str = Field(min_length=2, max_length=128, pattern=r"^[a-z][a-z0-9_.-]+$")
+    name: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1, max_length=4000)
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class PermissionUpdateRequest(CamelModel):
+    """Partial edit. The code is immutable: it is what the application checks against."""
+
+    revision: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, min_length=1, max_length=4000)
+    active: bool | None = None
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class PermissionDeleteRequest(CamelModel):
+    reason: str | None = Field(default=None, max_length=1000)
+
+
 class PermissionResponse(CamelModel):
     id: UUID
     code: str
     name: str
     description: str
     active: bool
+    system: bool
+    revision: int
 
 
 class AccessScopeRequest(CamelModel):

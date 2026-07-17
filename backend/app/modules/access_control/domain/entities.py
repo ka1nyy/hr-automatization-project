@@ -53,13 +53,21 @@ class Permission:
     description: str
     id: UUID = field(default_factory=uuid4)
     active: bool = True
+    # True for permissions the source tree checks by code; see PermissionModel.system.
+    system: bool = False
+    revision: int = 1
     created_at: datetime = field(default_factory=_utc_now)
+    updated_at: datetime = field(default_factory=_utc_now)
 
     def __post_init__(self) -> None:
         if not _CODE_PATTERN.fullmatch(self.code):
             raise ValueError("permission code must be a stable lowercase identifier")
         if not self.name.strip():
             raise ValueError("permission name must not be blank")
+        if not self.description.strip():
+            raise ValueError("permission description must not be blank")
+        if self.revision < 1:
+            raise ValueError("revision must be positive")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

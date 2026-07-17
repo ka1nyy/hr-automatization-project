@@ -25,6 +25,12 @@ class RoleRepository(Protocol):
 
     async def add(self, role: Role) -> None: ...
 
+    async def update(self, role: Role, *, expected_revision: int) -> bool: ...
+
+    async def delete(self, role_id: UUID) -> None: ...
+
+    async def assignment_count(self, role_id: UUID) -> int: ...
+
     async def replace_permissions(
         self, role_id: UUID, permission_ids: set[UUID], actor_id: UUID
     ) -> None: ...
@@ -33,7 +39,17 @@ class RoleRepository(Protocol):
 class PermissionRepository(Protocol):
     async def list(self, *, active_only: bool = True) -> Sequence[Permission]: ...
 
+    async def get(self, permission_id: UUID) -> Permission | None: ...
+
     async def find_by_codes(self, codes: set[str]) -> Sequence[Permission]: ...
+
+    async def add(self, permission: Permission) -> None: ...
+
+    async def update(self, permission: Permission, *, expected_revision: int) -> bool: ...
+
+    async def delete(self, permission_id: UUID) -> None: ...
+
+    async def granting_role_count(self, permission_id: UUID) -> int: ...
 
     async def synchronize_catalog(self, permissions: Sequence[Permission]) -> None: ...
 
@@ -109,6 +125,14 @@ class AccessChangeRecorder(Protocol):
 
     async def role_created(self, *, role: Role, actor_id: UUID, reason: str | None) -> None: ...
 
+    async def role_changed(
+        self, *, role: Role, actor_id: UUID, action: str, reason: str | None
+    ) -> None: ...
+
+    async def permission_changed(
+        self, *, permission: Permission, actor_id: UUID, action: str, reason: str | None
+    ) -> None: ...
+
     async def role_assignment_changed(
         self,
         *,
@@ -121,6 +145,16 @@ class AccessChangeRecorder(Protocol):
 
 class NullAccessChangeRecorder:
     async def role_created(self, *, role: Role, actor_id: UUID, reason: str | None) -> None:
+        return None
+
+    async def role_changed(
+        self, *, role: Role, actor_id: UUID, action: str, reason: str | None
+    ) -> None:
+        return None
+
+    async def permission_changed(
+        self, *, permission: Permission, actor_id: UUID, action: str, reason: str | None
+    ) -> None:
         return None
 
     async def role_assignment_changed(

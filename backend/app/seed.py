@@ -546,7 +546,12 @@ async def _seed_permissions_and_roles(session: AsyncSession) -> None:
                 "name": item.name,
                 "description": item.description,
                 "active": True,
+                # Everything in the catalogue is checked by the source tree, so the
+                # administration API must refuse to delete or deactivate it.
+                "system": True,
+                "revision": 1,
                 "created_at": SEED_TIMESTAMP,
+                "updated_at": SEED_TIMESTAMP,
             }
             for item in PERMISSION_CATALOG
         ],

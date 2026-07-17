@@ -14,7 +14,10 @@ from app.modules.access_control.application.authorization import (
 from app.modules.access_control.application.services import (
     AccessControlService,
     AssignRoleCommand,
+    CreatePermissionCommand,
     CreateRoleCommand,
+    UpdatePermissionCommand,
+    UpdateRoleCommand,
 )
 from app.modules.access_control.domain.entities import (
     Permission,
@@ -51,9 +54,11 @@ class AuthorizedAccessControlService:
         await self._require_manage(actor, target_organization)
         return await self._access.list_roles(organization_id=target_organization)
 
-    async def list_permissions(self, *, actor: AccessActor) -> Sequence[Permission]:
+    async def list_permissions(
+        self, *, actor: AccessActor, include_inactive: bool = False
+    ) -> Sequence[Permission]:
         await self._require_manage(actor, actor.organization_id)
-        return await self._access.list_permissions()
+        return await self._access.list_permissions(include_inactive=include_inactive)
 
     async def create_role(
         self,
@@ -65,6 +70,40 @@ class AuthorizedAccessControlService:
         await self._require_manage(actor, target_organization)
         scoped_command = replace(command, organization_id=target_organization)
         return await self._access.create_role(scoped_command, actor_id=actor.user_id)
+
+    async def update_role(self, command: UpdateRoleCommand, *, actor: AccessActor) -> Role:
+        role = await self._access.get_role(command.role_id)
+        await self._require_manage(actor, role.organization_id)
+        return await self._access.update_role(command, actor_id=actor.user_id)
+
+    async def delete_role(
+        self, role_id: UUID, *, actor: AccessActor, reason: str | None
+    ) -> None:
+        role = await self._access.get_role(role_id)
+        await self._require_manage(actor, role.organization_id)
+        await self._access.delete_role(role_id, actor_id=actor.user_id, reason=reason)
+
+    async def create_permission(
+        self, command: CreatePermissionCommand, *, actor: AccessActor
+    ) -> Permission:
+        # Permissions are global rather than per-organization, so managing them is checked
+        # against the actor's own organization scope.
+        await self._require_manage(actor, actor.organization_id)
+        return await self._access.create_permission(command, actor_id=actor.user_id)
+
+    async def update_permission(
+        self, command: UpdatePermissionCommand, *, actor: AccessActor
+    ) -> Permission:
+        await self._require_manage(actor, actor.organization_id)
+        return await self._access.update_permission(command, actor_id=actor.user_id)
+
+    async def delete_permission(
+        self, permission_id: UUID, *, actor: AccessActor, reason: str | None
+    ) -> None:
+        await self._require_manage(actor, actor.organization_id)
+        await self._access.delete_permission(
+            permission_id, actor_id=actor.user_id, reason=reason
+        )
 
     async def assign_role(
         self,

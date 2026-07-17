@@ -8,7 +8,7 @@ from datetime import datetime
 from types import TracebackType
 from uuid import UUID
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction
 from sqlalchemy.orm import selectinload
@@ -47,7 +47,10 @@ def _permission_to_domain(model: PermissionModel) -> Permission:
         name=model.name,
         description=model.description,
         active=model.active,
+        system=model.system,
+        revision=model.revision,
         created_at=model.created_at,
+        updated_at=model.updated_at,
     )
 
 
@@ -168,6 +171,48 @@ class SqlAlchemyRoleRepository(RoleRepository):
         )
         await self._session.flush()
 
+    async def update(self, role: Role, *, expected_revision: int) -> bool:
+        """Apply an edit, refusing to overwrite a concurrent one.
+
+        Returns False when ``expected_revision`` no longer matches, so the caller can
+        report the conflict rather than silently clobbering the other writer.
+        """
+
+        result = await self._session.execute(
+            update(RoleModel)
+            .where(RoleModel.id == role.id, RoleModel.revision == expected_revision)
+            .values(
+                name=role.name,
+                description=role.description,
+                active=role.active,
+                revision=expected_revision + 1,
+                updated_at=role.updated_at,
+            )
+        )
+        await self._session.flush()
+        return bool(result.rowcount)
+
+    async def delete(self, role_id: UUID) -> None:
+        await self._session.execute(
+            delete(RolePermissionModel).where(RolePermissionModel.role_id == role_id)
+        )
+        await self._session.execute(delete(RoleModel).where(RoleModel.id == role_id))
+        await self._session.flush()
+
+    async def assignment_count(self, role_id: UUID) -> int:
+        """Assignments referencing this role, revoked ones included.
+
+        A revoked assignment still names the role in its history, so deleting a role that
+        has ever been assigned would strand that record.
+        """
+
+        total = await self._session.scalar(
+            select(func.count())
+            .select_from(UserRoleAssignmentModel)
+            .where(UserRoleAssignmentModel.role_id == role_id)
+        )
+        return int(total or 0)
+
     async def replace_permissions(
         self,
         role_id: UUID,
@@ -200,6 +245,10 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
             _permission_to_domain(model) for model in (await self._session.scalars(statement)).all()
         )
 
+    async def get(self, permission_id: UUID) -> Permission | None:
+        model = await self._session.get(PermissionModel, permission_id)
+        return None if model is None else _permission_to_domain(model)
+
     async def find_by_codes(self, codes: set[str]) -> Sequence[Permission]:
         if not codes:
             return ()
@@ -210,6 +259,63 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
             )
         )
         return tuple(_permission_to_domain(model) for model in models.all())
+
+    async def add(self, permission: Permission) -> None:
+        self._session.add(
+            PermissionModel(
+                id=permission.id,
+                code=permission.code,
+                name=permission.name,
+                description=permission.description,
+                active=permission.active,
+                system=permission.system,
+                revision=permission.revision,
+                created_at=permission.created_at,
+                updated_at=permission.updated_at,
+            )
+        )
+        await self._session.flush()
+
+    async def update(self, permission: Permission, *, expected_revision: int) -> bool:
+        """Apply an edit, refusing to overwrite a concurrent one.
+
+        The code is deliberately not updatable: it is the identifier the source tree and
+        stored workflow rules check against, so renaming it would break them silently.
+        """
+
+        result = await self._session.execute(
+            update(PermissionModel)
+            .where(
+                PermissionModel.id == permission.id,
+                PermissionModel.revision == expected_revision,
+            )
+            .values(
+                name=permission.name,
+                description=permission.description,
+                active=permission.active,
+                revision=expected_revision + 1,
+                updated_at=permission.updated_at,
+            )
+        )
+        await self._session.flush()
+        return bool(result.rowcount)
+
+    async def delete(self, permission_id: UUID) -> None:
+        await self._session.execute(
+            delete(RolePermissionModel).where(RolePermissionModel.permission_id == permission_id)
+        )
+        await self._session.execute(
+            delete(PermissionModel).where(PermissionModel.id == permission_id)
+        )
+        await self._session.flush()
+
+    async def granting_role_count(self, permission_id: UUID) -> int:
+        total = await self._session.scalar(
+            select(func.count())
+            .select_from(RolePermissionModel)
+            .where(RolePermissionModel.permission_id == permission_id)
+        )
+        return int(total or 0)
 
     async def synchronize_catalog(self, permissions: Sequence[Permission]) -> None:
         codes = {permission.code for permission in permissions}
@@ -231,6 +337,7 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
                         name=permission.name,
                         description=permission.description,
                         active=True,
+                        system=True,
                         created_at=permission.created_at,
                     )
                 )
@@ -238,6 +345,9 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
                 model.name = permission.name
                 model.description = permission.description
                 model.active = True
+                # A code that appears in the catalogue is checked by the source tree,
+                # even if it was created through the administration API first.
+                model.system = True
         await self._session.flush()
 
 

@@ -11,7 +11,19 @@ from app.core.audit.service import AuditService
 from app.core.events.domain import ApplicationEvent, EventName
 from app.core.events.repository import SqlAlchemyTransactionalOutbox
 from app.modules.access_control.application.ports import AccessChangeRecorder
-from app.modules.access_control.domain.entities import Role, UserRoleAssignment
+from app.modules.access_control.domain.entities import Permission, Role, UserRoleAssignment
+
+
+def _permission_state(permission: Permission) -> dict[str, object]:
+    return {
+        "id": str(permission.id),
+        "code": permission.code,
+        "name": permission.name,
+        "description": permission.description,
+        "active": permission.active,
+        "system": permission.system,
+        "revision": permission.revision,
+    }
 
 
 def _role_state(role: Role) -> dict[str, object]:
@@ -72,6 +84,46 @@ class SqlAlchemyAccessChangeRecorder(AccessChangeRecorder):
             after_state=_role_state(role),
             reason=reason,
             organization_id=role.organization_id,
+        )
+
+    async def role_changed(
+        self,
+        *,
+        role: Role,
+        actor_id: UUID,
+        action: str,
+        reason: str | None,
+    ) -> None:
+        await self._audit.record(
+            actor_id=actor_id,
+            action=f"access.role.{action}",
+            entity_type="role",
+            entity_id=role.id,
+            # A deletion has no after-state; the audit row keeps the last known one so the
+            # trail still says what was removed.
+            after_state=None if action == "deleted" else _role_state(role),
+            before_state=_role_state(role) if action == "deleted" else None,
+            reason=reason,
+            organization_id=role.organization_id,
+        )
+
+    async def permission_changed(
+        self,
+        *,
+        permission: Permission,
+        actor_id: UUID,
+        action: str,
+        reason: str | None,
+    ) -> None:
+        await self._audit.record(
+            actor_id=actor_id,
+            action=f"access.permission.{action}",
+            entity_type="permission",
+            entity_id=permission.id,
+            after_state=None if action == "deleted" else _permission_state(permission),
+            before_state=_permission_state(permission) if action == "deleted" else None,
+            reason=reason,
+            organization_id=None,
         )
 
     async def role_assignment_changed(

@@ -76,7 +76,15 @@ class PermissionModel(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    # A system permission is one the source tree checks by code. Its wording is editable,
+    # but it cannot be deleted or deactivated: doing so would silently disable the
+    # authorization check that depends on it. Administrator-defined permissions are false.
+    system: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )
 

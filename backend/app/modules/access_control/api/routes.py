@@ -12,12 +12,17 @@ from app.core.security.identity import Principal
 from app.modules.access_control.api.dependencies import get_authorized_access_service
 from app.modules.access_control.api.schemas import (
     AccessScopeResponse,
+    PermissionCreateRequest,
+    PermissionDeleteRequest,
     PermissionResponse,
+    PermissionUpdateRequest,
     RoleAssignmentCreateRequest,
     RoleAssignmentResponse,
     RoleAssignmentRevokeRequest,
     RoleCreateRequest,
+    RoleDeleteRequest,
     RoleResponse,
+    RoleUpdateRequest,
 )
 from app.modules.access_control.application.facade import (
     AccessActor,
@@ -25,7 +30,10 @@ from app.modules.access_control.application.facade import (
 )
 from app.modules.access_control.application.services import (
     AssignRoleCommand,
+    CreatePermissionCommand,
     CreateRoleCommand,
+    UpdatePermissionCommand,
+    UpdateRoleCommand,
 )
 from app.modules.access_control.domain.entities import UserRoleAssignment
 from app.shared.api.schemas import DataResponse, ListResponse, PageMeta
@@ -136,6 +144,44 @@ async def create_role(
     return DataResponse(data=RoleResponse.model_validate(role))
 
 
+@router.patch("/roles/{role_id}", response_model=DataResponse[RoleResponse])
+async def update_role(
+    role_id: UUID,
+    payload: RoleUpdateRequest,
+    principal: PrincipalDependency,
+    service: ServiceDependency,
+) -> DataResponse[RoleResponse]:
+    role = await service.update_role(
+        UpdateRoleCommand(
+            role_id=role_id,
+            expected_revision=payload.revision,
+            name=payload.name,
+            description=payload.description,
+            active=payload.active,
+            permission_codes=(
+                None if payload.permission_codes is None else frozenset(payload.permission_codes)
+            ),
+            reason=payload.reason,
+        ),
+        actor=_actor(principal),
+    )
+    return DataResponse(data=RoleResponse.model_validate(role))
+
+
+@router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_role(
+    role_id: UUID,
+    principal: PrincipalDependency,
+    service: ServiceDependency,
+    payload: RoleDeleteRequest | None = None,
+) -> None:
+    await service.delete_role(
+        role_id,
+        actor=_actor(principal),
+        reason=None if payload is None else payload.reason,
+    )
+
+
 @router.get("/permissions", response_model=ListResponse[PermissionResponse])
 async def list_permissions(
     principal: PrincipalDependency,
@@ -143,9 +189,14 @@ async def list_permissions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=100, alias="pageSize", ge=1, le=100),
     sort: Annotated[PermissionSort, Query()] = "code",
+    include_inactive: bool = Query(default=False, alias="includeInactive"),
 ) -> ListResponse[PermissionResponse]:
     permissions = _sort_items(
-        list(await service.list_permissions(actor=_actor(principal))),
+        list(
+            await service.list_permissions(
+                actor=_actor(principal), include_inactive=include_inactive
+            )
+        ),
         sort,
         {"code": "code", "name": "name", "createdAt": "created_at"},
     )
@@ -157,6 +208,63 @@ async def list_permissions(
     return ListResponse(
         data=items,
         meta=PageMeta(page=page, page_size=page_size, total=len(permissions)),
+    )
+
+
+@router.post(
+    "/permissions",
+    response_model=DataResponse[PermissionResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_permission(
+    payload: PermissionCreateRequest,
+    principal: PrincipalDependency,
+    service: ServiceDependency,
+) -> DataResponse[PermissionResponse]:
+    permission = await service.create_permission(
+        CreatePermissionCommand(
+            code=payload.code,
+            name=payload.name,
+            description=payload.description,
+            reason=payload.reason,
+        ),
+        actor=_actor(principal),
+    )
+    return DataResponse(data=PermissionResponse.model_validate(permission))
+
+
+@router.patch("/permissions/{permission_id}", response_model=DataResponse[PermissionResponse])
+async def update_permission(
+    permission_id: UUID,
+    payload: PermissionUpdateRequest,
+    principal: PrincipalDependency,
+    service: ServiceDependency,
+) -> DataResponse[PermissionResponse]:
+    permission = await service.update_permission(
+        UpdatePermissionCommand(
+            permission_id=permission_id,
+            expected_revision=payload.revision,
+            name=payload.name,
+            description=payload.description,
+            active=payload.active,
+            reason=payload.reason,
+        ),
+        actor=_actor(principal),
+    )
+    return DataResponse(data=PermissionResponse.model_validate(permission))
+
+
+@router.delete("/permissions/{permission_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_permission(
+    permission_id: UUID,
+    principal: PrincipalDependency,
+    service: ServiceDependency,
+    payload: PermissionDeleteRequest | None = None,
+) -> None:
+    await service.delete_permission(
+        permission_id,
+        actor=_actor(principal),
+        reason=None if payload is None else payload.reason,
     )
 
 
