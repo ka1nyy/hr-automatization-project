@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Building, CheckCircle2, ChevronDown, Search, UserCheck, UserPlus } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader, QueryState } from '../../../shared/components';
 import { usePermission } from '../../../shared/permissions';
 import { hrRepository } from '../api';
@@ -24,6 +24,7 @@ const departmentsList = [
 
 export default function HrEmployeesPage() {
   const canRead = usePermission('hr.employees.read');
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isAdding = searchParams.get('add') === 'true';
   const queryParam = searchParams.get('query') || '';
@@ -228,15 +229,17 @@ export default function HrEmployeesPage() {
               <th>Подразделение</th>
               <th>Руководитель</th>
               <th>Статус</th>
-              <th>Личное дело</th>
-              <th>Остаток</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((employee) => (
-              <tr key={employee.id}>
+              <tr 
+                key={employee.id} 
+                onClick={() => navigate(`/departments/hr/employees/${employee.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <td>
-                  <Link className="hr-employee-cell" to={`/departments/hr/employees/${employee.id}`}>
+                  <Link className="hr-employee-cell" to={`/departments/hr/employees/${employee.id}`} onClick={(e) => e.stopPropagation()}>
                     <span className="avatar">{employee.initials}</span>
                     <span>
                       <strong>{employee.fullName}</strong>
@@ -248,13 +251,6 @@ export default function HrEmployeesPage() {
                 <td>{employee.department}<small>{employee.location}</small></td>
                 <td>{employee.manager ?? 'Не назначен'}</td>
                 <td><EmployeeStatus status={employee.status} /></td>
-                <td>
-                  <span className="hr-completeness">
-                    <i><b style={{ width: `${employee.personnelFileCompleteness}%` }} /></i>
-                    {employee.personnelFileCompleteness}%
-                  </span>
-                </td>
-                <td><strong>{employee.leaveBalance}</strong> дней</td>
               </tr>
             ))}
           </tbody>
