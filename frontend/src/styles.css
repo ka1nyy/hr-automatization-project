@@ -986,6 +986,47 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hiring-detail-main > header > span { align-items: center; background: #dcfae6; border-radius: 10px; color: #067647; display: flex; height: 38px; justify-content: center; width: 38px; }
 .hiring-detail-main > header small, .hiring-detail-main > header strong { display: block; }
 .hiring-detail-main h3, .hiring-document-panel h3 { align-items: center; display: flex; font-size: 14px; gap: 8px; margin: 18px 0 12px; }
+.workforce-create-section { border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border)); box-shadow: 0 16px 42px color-mix(in srgb, var(--primary) 8%, transparent); margin-bottom: 20px; overflow: hidden; animation: lifecycle-rise .24s ease both; }
+.workforce-create-section > header { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--paper)), var(--paper)); }
+.workforce-create-form { gap: 16px; padding: 20px; }
+.workforce-create-form label { color: var(--text); font-size: 12px; font-weight: 600; }
+.workforce-create-form input, .workforce-create-form select, .workforce-create-form textarea { background: color-mix(in srgb, var(--paper) 94%, var(--primary)); border-radius: 10px; margin-top: 7px; }
+.workforce-create-form .hr-form-footer { border-top: 1px solid var(--border); margin: 4px -20px -20px; padding: 16px 20px; }
+.leave-balance-inline { align-items: center; background: color-mix(in srgb, #12b76a 10%, var(--paper)); border: 1px solid color-mix(in srgb, #12b76a 28%, var(--border)); border-radius: 12px; color: #067647; display: flex; gap: 11px; padding: 12px 14px; }
+.leave-balance-inline span, .leave-balance-inline small, .leave-balance-inline strong { display: block; }
+.leave-balance-inline small { color: var(--muted); font-size: 10px; font-weight: 500; }
+.leave-balance-inline strong { font-size: 14px; margin-top: 2px; }
+.lifecycle-result { align-items: flex-start; animation: lifecycle-rise .24s ease both; background: color-mix(in srgb, #12b76a 9%, var(--paper)); border: 1px solid color-mix(in srgb, #12b76a 30%, var(--border)); border-radius: 14px; color: #067647; display: flex; gap: 11px; margin-bottom: 16px; padding: 14px 16px; }
+.lifecycle-result.rejected, .lifecycle-result.cancelled { background: color-mix(in srgb, #f04438 7%, var(--paper)); border-color: color-mix(in srgb, #f04438 25%, var(--border)); color: #b42318; }
+.lifecycle-result strong, .lifecycle-result p { display: block; margin: 0; }
+.lifecycle-result p { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.offboarding-block { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 4px; }
+.offboarding-heading { align-items: center; display: flex; justify-content: space-between; }
+.offboarding-heading small { color: var(--primary); font-size: 9px; font-weight: 700; letter-spacing: .08em; }
+.offboarding-heading h3 { margin-top: 3px; }
+.offboarding-heading > span { background: color-mix(in srgb, var(--primary) 12%, var(--paper)); border-radius: 999px; color: var(--primary); font-size: 12px; font-weight: 700; padding: 5px 10px; }
+.offboarding-list { display: grid; gap: 8px; }
+.offboarding-task { align-items: center; background: color-mix(in srgb, var(--paper) 95%, var(--primary)); border: 1px solid var(--border); border-radius: 12px; display: grid; gap: 10px; grid-template-columns: auto 1fr auto; padding: 11px 12px; transition: border-color .18s ease, transform .18s ease; }
+.offboarding-task:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); transform: translateY(-1px); }
+.offboarding-task > span { align-items: center; background: var(--soft); border-radius: 9px; color: var(--muted); display: flex; height: 34px; justify-content: center; width: 34px; }
+.offboarding-task.completed > span, .offboarding-task.waived > span { background: color-mix(in srgb, #12b76a 12%, var(--paper)); color: #067647; }
+.offboarding-task strong, .offboarding-task small { display: block; }
+.offboarding-task small { color: var(--muted); font-size: 10px; margin-top: 3px; }
+.offboarding-task > div:last-child { display: flex; gap: 6px; }
+.compact { font-size: 10px; min-height: 30px; padding: 6px 9px; }
+.hiring-action-box > strong { display: block; font-size: 13px; margin-bottom: 9px; }
+.hiring-action-box > p { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.danger-zone { border-color: color-mix(in srgb, #f04438 22%, var(--border)); margin-top: 18px; }
+.lifecycle-action-title { align-items: center; display: flex; gap: 10px; margin-bottom: 6px; }
+.lifecycle-action-title > span { align-items: center; background: color-mix(in srgb, var(--primary) 12%, var(--paper)); border-radius: 9px; color: var(--primary); display: flex; height: 36px; justify-content: center; width: 36px; }
+.lifecycle-action-title strong, .lifecycle-action-title small { display: block; }
+.lifecycle-action-title small { color: var(--muted); font-size: 10px; margin-top: 2px; }
+.lifecycle-hire-box { animation: lifecycle-rise .24s ease both; }
+.lifecycle-hire-complete dl { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(0, 1.3fr); gap: 8px 16px; margin: 0; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--success) 6%, transparent); }
+.lifecycle-hire-complete dt { color: var(--muted); font-size: 12px; }
+.lifecycle-hire-complete dd { margin: 0; overflow-wrap: anywhere; color: var(--text); font-weight: 700; }
+@keyframes lifecycle-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .workforce-create-section, .lifecycle-result, .lifecycle-hire-box { animation: none; } .offboarding-task { transition: none; } }
 .hiring-summary-grid { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin-top: 15px; overflow: hidden; }
 .hiring-summary-grid dl { background: var(--soft); margin: 0; padding: 12px; }
 .hiring-summary-grid dt { color: var(--muted); font-size: 10px; text-transform: uppercase; }

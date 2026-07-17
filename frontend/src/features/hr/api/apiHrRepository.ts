@@ -69,7 +69,7 @@ function primaryAssignment(employee: CoreEmployee) {
 
 const PROBATION_DAYS = 90;
 
-function toHrEmployee(employee: CoreEmployee, directory: Directory): HrEmployee {
+function toHrEmployee(employee: CoreEmployee, directory: Directory, activeAbsence?: EmployeeAbsence, leaveBalance = 24): HrEmployee {
   const assignment = primaryAssignment(employee);
   const slot = assignment ? directory.slots.get(assignment.staffingSlotId) : undefined;
   const unitId = slot?.organizationUnitId ?? null;
@@ -77,6 +77,11 @@ function toHrEmployee(employee: CoreEmployee, directory: Directory): HrEmployee 
   probationEnd.setDate(probationEnd.getDate() + PROBATION_DAYS);
   const onProbation = employee.employmentStatus === 'draft' || probationEnd > new Date();
   const completeness = 50 + (employee.corporateEmail ? 25 : 0) + (assignment ? 25 : 0);
+  const absenceStatus = activeAbsence?.absenceType === 'sick_leave'
+    ? 'sick_leave'
+    : activeAbsence?.absenceType === 'vacation' || activeAbsence?.absenceType === 'day_off'
+      ? 'on_leave'
+      : null;
   return {
     id: employee.id,
     unitId,
@@ -90,12 +95,12 @@ function toHrEmployee(employee: CoreEmployee, directory: Directory): HrEmployee 
     phone: '',
     startDate: employee.hireDate,
     location: 'Павлодар',
-    status: onProbation ? 'probation' : 'active',
-    availability: 'available',
+    status: absenceStatus ?? (onProbation ? 'probation' : 'active'),
+    availability: activeAbsence ? 'away' : 'available',
     employmentType: assignment?.assignmentType ?? 'not_assigned',
     contractEnd: assignment?.effectiveTo ?? null,
     probationEnd: probationEnd > new Date() ? probationEnd.toISOString().slice(0, 10) : null,
-    leaveBalance: 24,
+    leaveBalance,
     personnelFileCompleteness: completeness,
     salary: 0,
     currency: 'KZT',
@@ -126,21 +131,25 @@ export class ApiHrRepository implements HrRepository {
   }
 
   async listEmployees() {
-    const [employees, directory] = await Promise.all([
+    const [employees, directory, activeAbsences] = await Promise.all([
       this.api.get<CoreEmployee[]>('/employees?pageSize=200&active=true'),
-      this.directory()
+      this.directory(),
+      this.listActiveAbsences().catch(() => [] as EmployeeAbsence[])
     ]);
+    const absenceByEmployee = new Map(activeAbsences.map((absence) => [absence.employeeId, absence]));
     return employees
       .filter((employee) => employee.employmentStatus !== 'ended')
-      .map((employee) => toHrEmployee(employee, directory));
+      .map((employee) => toHrEmployee(employee, directory, absenceByEmployee.get(employee.id)));
   }
 
   async getEmployee(id: string) {
-    const [employee, directory] = await Promise.all([
+    const [employee, directory, absences] = await Promise.all([
       this.api.get<CoreEmployee>(`/employees/${id}`),
-      this.directory()
+      this.directory(),
+      this.listAbsences(id).catch(() => null)
     ]);
-    return toHrEmployee(employee, directory);
+    const activeAbsence = absences?.items.find((item) => item.status === 'active');
+    return toHrEmployee(employee, directory, activeAbsence, absences?.vacationBalance.remaining ?? 24);
   }
 
   async getCurrentEmployee() {
@@ -245,6 +254,9 @@ export class ApiHrRepository implements HrRepository {
   listEmployeeFunctions(employeeId: string) { return this.api.get<EmployeeFunctionDescriptor[]>(`/employees/${employeeId}/functions`); }
   invokeEmployeeFunction(employeeId: string, key: string, payload: Record<string, unknown>) {
     return this.api.post<unknown>(`/employees/${employeeId}/functions/${key}`, { payload });
+  }
+  invokeCollectionFunction(key: string, payload: Record<string, unknown>) {
+    return this.api.post<CoreEmployee>(`/employees/functions/${key}`, { payload });
   }
   getCoreEmployee(employeeId: string) { return this.api.get<CoreEmployeeRecord>(`/employees/${employeeId}`); }
 

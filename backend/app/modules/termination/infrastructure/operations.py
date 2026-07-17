@@ -53,6 +53,27 @@ class SqlAlchemyTerminationOperations:
             if actual != organization_id:
                 raise ResourceNotFoundError("termination case", case_id)
 
+    async def employee_unit(self, organization_id: UUID, employee_id: UUID) -> UUID:
+        async with self._sessions() as session:
+            unit_id = await session.scalar(
+                select(StaffingSlotModel.organization_unit_id)
+                .join(
+                    EmployeeAssignmentModel,
+                    EmployeeAssignmentModel.staffing_slot_id == StaffingSlotModel.id,
+                )
+                .join(EmployeeModel, EmployeeModel.id == EmployeeAssignmentModel.employee_id)
+                .where(
+                    EmployeeAssignmentModel.employee_id == employee_id,
+                    EmployeeModel.organization_id == organization_id,
+                    EmployeeAssignmentModel.primary.is_(True),
+                    EmployeeAssignmentModel.status.in_(("active", "scheduled_end")),
+                )
+                .order_by(EmployeeAssignmentModel.effective_from.desc())
+            )
+            if unit_id is None:
+                raise ResourceNotFoundError("employee unit", employee_id)
+            return unit_id
+
     async def require_task_organization(self, task_id: UUID, organization_id: UUID) -> None:
         async with self._sessions() as session:
             actual = await session.scalar(
@@ -441,6 +462,17 @@ class SqlAlchemyTerminationOperations:
                 s, actor_id, case.organization_id, "termination.offboarding.tasks.created", case
             )
             return result
+
+    async def list_tasks(self, case_id: UUID) -> Sequence[Mapping[str, object]]:
+        async with self._sessions() as session:
+            rows = (
+                await session.scalars(
+                    select(OffboardingTaskModel)
+                    .where(OffboardingTaskModel.termination_case_id == case_id)
+                    .order_by(OffboardingTaskModel.created_at, OffboardingTaskModel.task_type)
+                )
+            ).all()
+            return [_view(row) for row in rows]
 
     async def complete_task(
         self, task_id: UUID, actor_id: UUID, revision: int, evidence: Mapping[str, object]

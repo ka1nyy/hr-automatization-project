@@ -130,6 +130,7 @@ export interface CoreEmployeeRecord {
   employmentStatus: string;
   active: boolean;
   terminationDate: string | null;
+  assignments?: Array<{ id: string; status: string; primary: boolean }>;
 }
 
 export interface StaffingSlotOption {

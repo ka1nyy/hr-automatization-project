@@ -1,6 +1,6 @@
 ﻿import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, BriefcaseBusiness, CalendarDays, FileText, Mail, MapPin, Phone, ShieldCheck, UserRound } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, BriefcaseBusiness, CalendarDays, CheckCircle2, FileText, Mail, MapPin, Phone, ShieldCheck, UserRound } from 'lucide-react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
 import { formatDate } from '../../../shared/format';
 import { usePermission } from '../../../shared/permissions';
@@ -13,18 +13,26 @@ import { EmployeeStatus } from '../components/HrStatus';
 
 export default function HrEmployeeProfilePage() {
   const { employeeId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const locale = useDeveloperStore((state) => state.locale);
   const canReadAll = usePermission('hr.employees.read');
   const canReadSensitive = usePermission('hr.sensitive.read');
-  const isOwnProfile = employeeId === 'e-3';
+  const currentEmployee = useQuery({
+    queryKey: ['hr', 'employee', 'me'],
+    queryFn: () => hrRepository.getCurrentEmployee(),
+    enabled: !canReadAll
+  });
+  const isOwnProfile = currentEmployee.data?.id === employeeId;
   const allowed = canReadAll || isOwnProfile;
   const result = useQuery({ queryKey: ['hr', 'employee', employeeId], queryFn: () => hrRepository.getEmployee(employeeId), enabled: allowed });
+  if (!canReadAll && currentEmployee.isLoading) return <QueryState />;
   if (!allowed) return <div className="hr-access-denied"><span>HR</span><h1>Профиль недоступен</h1><p>Сотрудник может просматривать только собственный профиль.</p><Link className="secondary-button" to="/departments/hr">Вернуться в HR</Link></div>;
   if (result.isLoading) return <QueryState />;
   if (result.error || !result.data) return <QueryState error={result.error ?? new Error('Сотрудник не найден')} retry={() => result.refetch()} />;
   const employee = result.data;
   return <>
     <PageHeader eyebrow={`Сотрудники · ${employee.employeeNumber}`} title={employee.fullName} description={`${employee.position} · ${employee.department}`} actions={<><EmployeeActions employeeId={employee.id} /><Link className="secondary-button" to={canReadAll ? '/departments/hr/employees' : '/departments/hr'}><ArrowLeft size={16} /> Назад</Link></>} />
+    {searchParams.get('hired') === '1' && <div className="success-banner"><CheckCircle2 size={20} /><span><strong>Сотрудник зачислен в штат</strong>Карточка создана в backend и уже доступна в общем списке сотрудников.</span></div>}
     <div className="hr-profile-header">
       <span className="avatar hr-avatar-xl">{employee.initials}</span><div className="hr-profile-identity"><EmployeeStatus status={employee.status} /><strong>{employee.position}</strong><span>{employee.department}</span></div>
       <div className="hr-profile-contact"><span><Mail size={15} />{employee.workEmail}</span><span><Phone size={15} />{employee.phone}</span><span><MapPin size={15} />{employee.location}</span></div>

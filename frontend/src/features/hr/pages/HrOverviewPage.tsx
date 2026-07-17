@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ArrowUpRight, Calendar, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, ListTodo, MapPin, ShieldCheck, UserCheck, UserPlus, UsersRound, Video } from 'lucide-react';
+import { ArrowRight, Calendar, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, MapPin, ShieldCheck, UserCheck, UsersRound, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { repositories } from '../../../repositories';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
-import { BarChart, DonutChart } from '../../../shared/charts';
+import { DonutChart } from '../../../shared/charts';
 import { formatDate } from '../../../shared/format';
 import { getPermissions, usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';

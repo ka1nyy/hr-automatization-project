@@ -130,6 +130,10 @@ export class MockHrRepository implements HrRepository {
     return wait({ employeeId, key });
   }
 
+  async invokeCollectionFunction() {
+    throw new Error('Collection functions are available only with the live HR backend.');
+  }
+
   async getCoreEmployee(employeeId: string) {
     return wait({
       id: employeeId,

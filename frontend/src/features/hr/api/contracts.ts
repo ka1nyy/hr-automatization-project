@@ -21,6 +21,7 @@ export interface HrRepository {
   listCollectionFunctions(): Promise<EmployeeFunctionDescriptor[]>;
   listEmployeeFunctions(employeeId: string): Promise<EmployeeFunctionDescriptor[]>;
   invokeEmployeeFunction(employeeId: string, key: string, payload: Record<string, unknown>): Promise<unknown>;
+  invokeCollectionFunction(key: string, payload: Record<string, unknown>): Promise<unknown>;
   getCoreEmployee(employeeId: string): Promise<CoreEmployeeRecord>;
   listVacantSlots(): Promise<StaffingSlotOption[]>;
   listAbsences(employeeId: string): Promise<EmployeeAbsences>;

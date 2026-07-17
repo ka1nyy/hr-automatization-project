@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator, Mapping
+from datetime import date
 from typing import Any, cast
 from uuid import UUID
 
@@ -19,7 +20,9 @@ from app.modules.documents.application.service import DocumentService
 from app.modules.documents.infrastructure.models import DocumentTypeModel
 from app.modules.documents.infrastructure.operations import SqlAlchemyDocumentOperations
 from app.modules.employees.infrastructure.crypto import FernetSensitiveDataProtector
+from app.modules.employees.infrastructure.models import EmployeeModel, PersonModel
 from app.modules.identity.infrastructure.models import UserAccountModel
+from app.shared.identifiers import new_uuid
 from app.shared.time import utc_now
 
 from .domain import APPROVAL_STAGES, EDITABLE_STATUSES, REQUIRED_ATTACHMENT_CATEGORIES
@@ -573,6 +576,7 @@ class HiringRequestService:
             row.status = "completed" if pending == 0 else "partially_acknowledged"
             if pending == 0:
                 row.completed_at = utc_now()
+                await self._auto_hire(session, row, principal.user_id)
             row.revision += 1
             await self._audit(
                 session,
@@ -590,6 +594,97 @@ class HiringRequestService:
                 {"recipient": dispatch.recipient_type, "status": row.status},
             )
             return await self._view(session, row, sensitive=True)
+
+    async def _auto_hire(
+        self, session: AsyncSession, row: HiringRequestModel, actor_id: UUID
+    ) -> EmployeeModel:
+        """Create exactly one active employee when the hiring route is completed."""
+
+        if row.hired_employee_id is not None:
+            employee = await session.get(EmployeeModel, row.hired_employee_id)
+            if employee is not None:
+                return employee
+
+        personal = self._reveal(row.protected_personal_data)
+        employment = row.employment_data
+        employee_id = new_uuid()
+        person_id = new_uuid()
+        timestamp = utc_now()
+        employee_number = f"EMP-{employee_id.hex.upper()}"
+        corporate_email = f"employee.{employee_id.hex}@ertis.kz"
+        first_name = str(personal.get("firstName") or "").strip()
+        last_name = str(personal.get("lastName") or "").strip()
+        middle_name = str(personal.get("middleName") or "").strip() or None
+        display_name = " ".join(filter(None, (last_name, first_name, middle_name)))
+        birth_date_value = str(personal.get("birthDate") or "").strip()
+        hire_date_value = str(employment.get("startDate") or "").strip()
+        iin = str(personal.get("iin") or "").strip()
+
+        person = PersonModel(
+            id=person_id,
+            first_name=first_name,
+            last_name=last_name,
+            middle_name=middle_name,
+            display_name=display_name,
+            protected_iin=self.protector.protect(iin) if iin else None,
+            birth_date=date.fromisoformat(birth_date_value) if birth_date_value else None,
+            personal_email=str(personal.get("personalEmail") or "").strip() or None,
+            phone=str(personal.get("personalPhone") or "").strip() or None,
+            status="active",
+            created_at=timestamp,
+            updated_at=timestamp,
+            revision=1,
+        )
+        employee = EmployeeModel(
+            id=employee_id,
+            organization_id=row.organization_id,
+            created_by=row.created_by,
+            person_id=person_id,
+            employee_number=employee_number,
+            employment_status="active",
+            hire_date=date.fromisoformat(hire_date_value) if hire_date_value else timestamp.date(),
+            termination_date=None,
+            corporate_email=corporate_email,
+            active=True,
+            created_at=timestamp,
+            updated_at=timestamp,
+            revision=1,
+        )
+        session.add(person)
+        await session.flush()
+        session.add(employee)
+        await session.flush()
+        row.hired_employee_id = employee.id
+
+        await AuditService(SqlAlchemyAuditLog(session)).record(
+            actor_id=actor_id,
+            action="employee.hired.automatically",
+            entity_type="employee",
+            entity_id=employee.id,
+            before_state=None,
+            after_state={
+                "hiringRequestId": str(row.id),
+                "employeeNumber": employee_number,
+                "corporateEmail": corporate_email,
+            },
+            organization_id=row.organization_id,
+        )
+        await SqlAlchemyTransactionalOutbox(session).append(
+            ApplicationEvent(
+                name=EventName.EMPLOYEE_HIRED,
+                aggregate_type="employee",
+                aggregate_id=employee.id,
+                payload={
+                    "employeeId": str(employee.id),
+                    "organizationId": str(row.organization_id),
+                    "hiringRequestId": str(row.id),
+                    "hireDate": employee.hire_date.isoformat(),
+                    "employeeNumber": employee_number,
+                    "corporateEmail": corporate_email,
+                },
+            )
+        )
+        return employee
 
     async def _document_type_id(self, organization_id: UUID, code: str) -> UUID:
         async with self.sessions() as session:
@@ -651,6 +746,11 @@ class HiringRequestService:
             if row.status == "under_review" and row.current_stage < len(APPROVAL_STAGES)
             else None
         )
+        hired_employee = (
+            await session.get(EmployeeModel, row.hired_employee_id)
+            if row.hired_employee_id is not None
+            else None
+        )
         return {
             "id": row.id,
             "organizationId": row.organization_id,
@@ -676,6 +776,15 @@ class HiringRequestService:
             "finalApprovedAt": row.final_approved_at,
             "dispatchedAt": row.dispatched_at,
             "completedAt": row.completed_at,
+            "hiredEmployee": (
+                {
+                    "id": hired_employee.id,
+                    "employeeNumber": hired_employee.employee_number,
+                    "corporateEmail": hired_employee.corporate_email,
+                }
+                if hired_employee is not None
+                else None
+            ),
             "attachments": [
                 {
                     "id": x.id,

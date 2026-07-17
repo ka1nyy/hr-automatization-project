@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Building, ChevronDown, Search, UserCheck, UserPlus } from 'lucide-react';
+import { Building, CheckCircle2, ChevronDown, Search, UserCheck, UserPlus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader, QueryState } from '../../../shared/components';
 import { usePermission } from '../../../shared/permissions';
@@ -70,10 +70,6 @@ export default function HrEmployeesPage() {
     { status: 'probation', label: 'Испытательный срок', count: counts.probation },
   ] as const;
 
-  const toggleStatusFilter = (status: HrEmployeeStatus) => {
-    setStatusFilter(prev => prev === status ? 'all' : status);
-  };
-
   const [isDeptOpen, setIsDeptOpen] = useState(false);
 
   const selectedDeptLabel = useMemo(() => {
@@ -83,10 +79,9 @@ export default function HrEmployeesPage() {
 
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
-  const selectedStatusLabel = useMemo(() => {
-    if (statusFilter === 'all') return 'Все статусы';
-    return statusFilters.find(sf => sf.status === statusFilter)?.label ?? statusFilter;
-  }, [statusFilter]);
+  const selectedStatusLabel = statusFilter === 'all'
+    ? 'Все статусы'
+    : statusFilters.find((item) => item.status === statusFilter)?.label ?? statusFilter;
 
   if (!canRead) return <div className="hr-access-denied"><span>HR</span><h1>Доступ ограничен</h1><p>Каталог сотрудников доступен только HR-ролям. Переключите developer persona на HR Specialist для проверки этой стороны.</p><Link className="secondary-button" to="/departments/hr">Вернуться в HR</Link></div>;
 
@@ -96,6 +91,7 @@ export default function HrEmployeesPage() {
 
   return <>
     <PageHeader eyebrow="HR · Сотрудники" title="Сотрудники" actions={canHire ? <button type="button" className="primary-button" onClick={() => setSearchParams((prev) => { prev.set('add', 'true'); return prev; })}><UserPlus size={16} /> Добавить сотрудника</button> : undefined} />
+    {searchParams.get('lifecycle') === 'terminated' && <div className="success-banner"><CheckCircle2 size={20} /><span><strong>Увольнение зарегистрировано</strong>Сотрудник исключён из активного состава, его назначения и будущие отсутствия завершены.</span></div>}
     <div className="register-toolbar hr-toolbar">
       <label className="field-search" style={{ flex: 1 }}>
         <Search size={16} />

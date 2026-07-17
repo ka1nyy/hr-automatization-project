@@ -45,6 +45,9 @@ class HiringRequestModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixin, Bas
     final_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    hired_employee_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("employees.id", ondelete="SET NULL"), unique=True
+    )
 
 
 class HiringAttachmentModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):

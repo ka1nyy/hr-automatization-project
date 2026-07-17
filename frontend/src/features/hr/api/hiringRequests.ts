@@ -13,6 +13,7 @@ export type HiringRequest = {
   pdfVersionId?: string; finalPdfVersionId?: string; attachments: HiringAttachment[]; decisions: ApprovalDecision[];
   approvalStages: Array<{ stageNumber: number; code: string; name: string; role: string }>;
   dispatches: Array<{ id: string; recipientType: 'accounting' | 'it'; status: string; acknowledgedAt?: string }>;
+  hiredEmployee?: { id: string; employeeNumber: string; corporateEmail?: string } | null;
   createdAt: string; submittedAt?: string; finalApprovedAt?: string;
 };
 

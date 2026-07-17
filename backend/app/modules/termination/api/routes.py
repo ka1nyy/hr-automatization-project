@@ -73,7 +73,9 @@ async def list_cases(
         scoped_unit = None
     elif scope == "unit":
         if unit_id is None:
-            raise ValidationError("unitId is required for unit scope")
+            if principal.employee_id is None:
+                raise ValidationError("unitId is required for unit scope")
+            unit_id = await ops.employee_unit(organization_id, principal.employee_id)
         await require(auth, principal, "termination.read_unit", organization_id, unit_id)
         employee_id, scoped_unit = None, unit_id
     else:
@@ -138,7 +140,9 @@ async def get_case(
         employee_id, scoped_unit = principal.employee_id, None
     elif scope == "unit":
         if unit_id is None:
-            raise ValidationError("unitId is required for unit scope")
+            if principal.employee_id is None:
+                raise ValidationError("unitId is required for unit scope")
+            unit_id = await ops.employee_unit(organization_id, principal.employee_id)
         await require(auth, principal, "termination.read_unit", organization_id, unit_id)
         employee_id, scoped_unit = None, unit_id
     else:
@@ -276,6 +280,32 @@ async def tasks(
         item_id, principal.user_id, body.model_dump(by_alias=True)["tasks"]
     )
     return DataResponse(data=[dict(x) for x in rows])
+
+
+@router.get("/{item_id}/tasks", response_model=DataResponse[list[dict[str, Any]]])
+async def list_tasks(
+    item_id: UUID,
+    organization_id: Annotated[UUID, Query(alias="organizationId")],
+    ops: Ops,
+    auth: Auth,
+    principal: PrincipalDep,
+    scope: Literal["self", "unit", "all"] = "all",
+    unit_id: Annotated[UUID | None, Query(alias="unitId")] = None,
+) -> DataResponse[list[dict[str, Any]]]:
+    if scope == "self":
+        await require(auth, principal, "termination.read_self", organization_id, self_scope=True)
+        await ops.get_case(item_id, organization_id, employee_id=principal.employee_id)
+    elif scope == "unit":
+        if unit_id is None:
+            if principal.employee_id is None:
+                raise ValidationError("unitId is required for unit scope")
+            unit_id = await ops.employee_unit(organization_id, principal.employee_id)
+        await require(auth, principal, "termination.read_unit", organization_id, unit_id)
+        await ops.get_case(item_id, organization_id, unit_id=unit_id)
+    else:
+        await require(auth, principal, "termination.read_all", organization_id)
+        await ops.require_case_organization(item_id, organization_id)
+    return DataResponse(data=[dict(x) for x in await ops.list_tasks(item_id)])
 
 
 @router.post("/tasks/{item_id}/complete", response_model=DataResponse[dict[str, Any]])
