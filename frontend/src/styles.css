@@ -980,10 +980,10 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hiring-empty p { margin: 0; max-width: 460px; }
 .api-error-card { background: #fff1f0; border: 1px solid #fda29b; border-radius: 14px; color: #b42318; margin-bottom: 14px; padding: 14px; }
 .api-error-card p { margin: 5px 0 0; }
-.hiring-detail-grid { align-items: start; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
+.hiring-detail-grid { align-items: stretch !important; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
 .hiring-detail-main, .hiring-document-panel { background: var(--paper); border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
 .hiring-detail-main > header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 12px; padding-bottom: 15px; }
-.hiring-detail-main > header > span { align-items: center; background: #dcfae6; border-radius: 10px; color: #067647; display: flex; height: 38px; justify-content: center; width: 38px; }
+.hiring-detail-main > header > span { align-items: center; background: color-mix(in srgb, var(--teal) 12%, var(--paper)) !important; border-radius: 10px !important; color: var(--teal) !important; display: flex; height: 38px; justify-content: center; width: 38px; }
 .hiring-detail-main > header small, .hiring-detail-main > header strong { display: block; }
 .hiring-detail-main h3, .hiring-document-panel h3 { align-items: center; display: flex; font-size: 14px; gap: 8px; margin: 18px 0 12px; }
 .workforce-create-section { border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border)); box-shadow: 0 16px 42px color-mix(in srgb, var(--primary) 8%, transparent); margin-bottom: 20px; overflow: hidden; animation: lifecycle-rise .24s ease both; }
@@ -2579,6 +2579,281 @@ body { font-size: 14px; line-height: 1.5; }
 .data-table tbody tr:hover {
   background: color-mix(in srgb, var(--teal) 3%, var(--paper)) !important;
 }
+
+/* Bottom Feedback Container & Decisions History Timeline styling */
+.hiring-bottom-feedback-container {
+  margin-top: 20px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hiring-decisions-history h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 16px 0;
+}
+
+.decisions-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  padding-left: 20px;
+}
+
+.decisions-timeline::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  border: 2px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.timeline-item.decision-approve .timeline-dot {
+  background: var(--emerald);
+  box-shadow: 0 0 0 1px var(--emerald);
+}
+
+.timeline-item.decision-reject .timeline-dot {
+  background: var(--coral);
+  box-shadow: 0 0 0 1px var(--coral);
+}
+
+.timeline-item.decision-return .timeline-dot {
+  background: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+
+.timeline-content {
+  flex: 1;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.timeline-content header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.timeline-content header strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.timeline-content header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.timeline-content header time {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.decision-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.decision-badge.decision-approve {
+  background: color-mix(in srgb, var(--emerald) 12%, var(--paper));
+  color: #067647;
+}
+
+.decision-badge.decision-reject {
+  background: color-mix(in srgb, var(--coral) 12%, var(--paper));
+  color: #b42318;
+}
+
+.decision-badge.decision-return {
+  background: color-mix(in srgb, var(--gold) 12%, var(--paper));
+  color: #9a6700;
+}
+
+.decision-comment {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/* Comment Input & Actions */
+.hiring-comment-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+.comment-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-input-area label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.non-resizable-comment {
+  width: 100%;
+  height: 80px;
+  resize: none !important;
+  background: var(--soft) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  font-size: 13px !important;
+  color: var(--ink) !important;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.non-resizable-comment:hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--ink)) !important;
+}
+
+.non-resizable-comment:focus {
+  border-color: var(--teal) !important;
+  background: var(--paper) !important;
+}
+
+.action-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-buttons-row button {
+  align-items: center;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 20px;
+  transition: all 0.15s ease;
+  font-size: 13px;
+}
+
+.action-buttons-row button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-buttons-row .approve-btn {
+  background: var(--emerald);
+  color: white;
+}
+.action-buttons-row .approve-btn:hover:not(:disabled) {
+  background: #0e9f5d;
+}
+
+.action-buttons-row .return-btn {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+.action-buttons-row .return-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--soft) 92%, var(--ink));
+}
+
+.action-buttons-row .reject-btn {
+  background: var(--coral);
+  color: white;
+}
+.action-buttons-row .reject-btn:hover:not(:disabled) {
+  background: #d9382e;
+}
+
+.action-buttons-row button.full-width {
+  width: 100%;
+}
+
+/* Dispatch panel */
+.hiring-dispatch-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+/* Employee created box */
+.hiring-employee-created-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hired-employee-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  background: color-mix(in srgb, var(--emerald) 6%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.hired-employee-details dl {
+  margin: 0;
+}
+
+.hired-employee-details dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+
+.hired-employee-details dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 
 
 
