@@ -14,8 +14,10 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import FromClause
 
+from app.core.config import get_settings
 from app.core.database import session_scope
 from app.module2_seed import seed_module2
+from app.module4_seed import seed_module4
 from app.modules.access_control.domain.permissions import PERMISSION_CATALOG
 from app.modules.access_control.domain.seed_roles import SEED_ROLES
 from app.modules.access_control.infrastructure.models import (
@@ -30,6 +32,7 @@ from app.modules.employees.infrastructure.models import (
     EmployeeModel,
     PersonModel,
 )
+from app.modules.documents.infrastructure.storage_factory import build_document_storage
 from app.modules.identity.infrastructure.models import UserAccountModel
 from app.modules.organization.infrastructure.models import (
     OrganizationModel,
@@ -442,6 +445,9 @@ DEMO_EMPLOYMENTS: tuple[DemoEmploymentSeed, ...] = (
 )
 
 OCCUPIED_SLOT_KEYS = frozenset(item.staffing_slot_key for item in DEMO_EMPLOYMENTS)
+
+# The units the demo employees sit in; Module 4 opens a timesheet period for each.
+DEMO_UNIT_CODES: tuple[str, ...] = ("STABILIZATION_FUND", "IT_SUPPORT")
 
 
 async def _insert_rows(
@@ -959,13 +965,25 @@ async def seed_database() -> None:
             seed_id=_seed_id,
             insert_rows=_insert_rows,
         )
+        await seed_module4(
+            session,
+            organization_id=ORGANIZATION_ID,
+            actor_id=_development_user_id("admin"),
+            timestamp=SEED_TIMESTAMP,
+            seed_id=_seed_id,
+            insert_rows=_insert_rows,
+            storage=build_document_storage(get_settings()),
+            employee_ids=[item.employee_id for item in DEMO_EMPLOYMENTS],
+            unit_ids=[_seed_id("unit", code) for code in DEMO_UNIT_CODES],
+            effective_from=SEED_EFFECTIVE_DATE,
+        )
 
 
 def main() -> None:
     # psycopg async requires a selector loop on Windows; it is also valid on POSIX.
     with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
         runner.run(seed_database())
-    print(f"Module 1 and Module 2 seed completed for organization {ORGANIZATION_ID}.")
+    print(f"Module 1, Module 2, and Module 4 seed completed for organization {ORGANIZATION_ID}.")
 
 
 if __name__ == "__main__":

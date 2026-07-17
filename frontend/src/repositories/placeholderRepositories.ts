@@ -1,5 +1,6 @@
 import { hrRepository } from '../features/hr/api';
 import type { Correspondence, DashboardSnapshot, Employee, ProcessDefinition, WorkTask } from '../shared/types';
+import { ApiClient } from './apiRepositories';
 import type {
   CorrespondenceRepository,
   OperationsRepository,
@@ -33,6 +34,57 @@ export class PlaceholderTaskRepository implements TaskRepository {
 
 export class PlaceholderWorkflowRepository implements WorkflowRepository {
   async listDefinitions(): Promise<ProcessDefinition[]> { return []; }
+  async retryIncident(): Promise<ProcessDefinition> { throw retired(); }
+}
+
+type CoreProcessDefinition = {
+  id: string;
+  code: string;
+  name: string;
+  owner: string;
+  versionNumber: number;
+  state: ProcessDefinition['state'];
+  steps: string[];
+  activeInstances: number;
+  updatedAt: string | null;
+};
+
+type ActiveStructure = { version: { organizationId: string } | null };
+
+/** Process definitions are served by the core workflow API. */
+export class CoreWorkflowRepository implements WorkflowRepository {
+  constructor(private readonly api = new ApiClient()) {}
+
+  /**
+   * The workflow API scopes definitions by an explicit organization, unlike the
+   * employee endpoints which resolve it from the principal. The active structure is
+   * the only read that exposes the caller's organization id.
+   */
+  private async organizationId(): Promise<string> {
+    const structure = await this.api.get<ActiveStructure>('/organization/structure/active');
+    const id = structure.version?.organizationId;
+    if (!id) throw new Error('Не удалось определить организацию текущего пользователя.');
+    return id;
+  }
+
+  async listDefinitions(): Promise<ProcessDefinition[]> {
+    const organizationId = await this.organizationId();
+    const definitions = await this.api.get<CoreProcessDefinition[]>(
+      `/workflow/definitions?organizationId=${encodeURIComponent(organizationId)}`
+    );
+    return definitions.map((item) => ({
+      id: item.id,
+      name: item.name,
+      version: item.versionNumber,
+      state: item.state,
+      activeInstances: item.activeInstances,
+      owner: item.owner,
+      updatedAt: item.updatedAt ?? '',
+      steps: item.steps
+    }));
+  }
+
+  /** Instance recovery has no core endpoint yet; the catalogue is read-only. */
   async retryIncident(): Promise<ProcessDefinition> { throw retired(); }
 }
 
