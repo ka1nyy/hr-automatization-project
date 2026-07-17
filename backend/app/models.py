@@ -41,6 +41,7 @@ from app.modules.organization.infrastructure.models import (
 )
 from app.modules.recruitment.infrastructure import models as recruitment_models
 from app.modules.termination.infrastructure import models as termination_models
+from app.modules.timekeeping.infrastructure import models as timekeeping_models
 from app.modules.workflow.infrastructure import models as workflow_models
 
 __all__ = [
@@ -78,5 +79,6 @@ _MODULE_MODELS = (
     hiring_request_models,
     recruitment_models,
     termination_models,
+    timekeeping_models,
     workflow_models,
 )

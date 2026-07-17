@@ -103,6 +103,18 @@ class SqlAlchemyAbsenceOperations:
             if actual != organization_id:
                 raise ResourceNotFoundError(f"{resource} request", item_id)
 
+    async def request_unit(self, resource: str, item_id: UUID) -> UUID:
+        model = LeaveRequestModel if resource == "leave" else BusinessTripRequestModel
+        async with self._sessions() as session:
+            unit_id = await session.scalar(select(model.unit_id).where(model.id == item_id))
+            if unit_id is None:
+                raise ResourceNotFoundError(f"{resource} request", item_id)
+            return unit_id
+
+    async def employee_unit(self, organization_id: UUID, employee_id: UUID) -> UUID:
+        async with self._sessions() as session:
+            return await self._employee_unit(session, organization_id, employee_id)
+
     async def create_leave(
         self, organization_id: UUID, actor_id: UUID, data: Mapping[str, object]
     ) -> View:

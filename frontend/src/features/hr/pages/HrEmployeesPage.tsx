@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Building, ChevronDown, Search, UserCheck, UserPlus } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Building, CheckCircle2, ChevronDown, Search, UserCheck, UserPlus } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader, QueryState } from '../../../shared/components';
 import { usePermission } from '../../../shared/permissions';
 import { hrRepository } from '../api';
@@ -24,6 +24,7 @@ const departmentsList = [
 
 export default function HrEmployeesPage() {
   const canRead = usePermission('hr.employees.read');
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isAdding = searchParams.get('add') === 'true';
   const queryParam = searchParams.get('query') || '';
@@ -51,6 +52,7 @@ export default function HrEmployeesPage() {
       active: list.filter(e => e.status === 'active').length,
       on_leave: list.filter(e => e.status === 'on_leave').length,
       sick_leave: list.filter(e => e.status === 'sick_leave').length,
+      business_trip: list.filter(e => e.status === 'business_trip').length,
       probation: list.filter(e => e.status === 'probation').length,
     };
   }, [deptFilteredEmployees]);
@@ -66,13 +68,10 @@ export default function HrEmployeesPage() {
   const statusFilters = [
     { status: 'active', label: 'Активны', count: counts.active },
     { status: 'on_leave', label: 'В отпуске', count: counts.on_leave },
+    { status: 'business_trip', label: 'В командировке', count: counts.business_trip },
     { status: 'sick_leave', label: 'Больничный', count: counts.sick_leave },
     { status: 'probation', label: 'Испытательный срок', count: counts.probation },
   ] as const;
-
-  const toggleStatusFilter = (status: HrEmployeeStatus) => {
-    setStatusFilter(prev => prev === status ? 'all' : status);
-  };
 
   const [isDeptOpen, setIsDeptOpen] = useState(false);
 
@@ -83,10 +82,9 @@ export default function HrEmployeesPage() {
 
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
-  const selectedStatusLabel = useMemo(() => {
-    if (statusFilter === 'all') return 'Все статусы';
-    return statusFilters.find(sf => sf.status === statusFilter)?.label ?? statusFilter;
-  }, [statusFilter]);
+  const selectedStatusLabel = statusFilter === 'all'
+    ? 'Все статусы'
+    : statusFilters.find((item) => item.status === statusFilter)?.label ?? statusFilter;
 
   if (!canRead) return <div className="hr-access-denied"><span>HR</span><h1>Доступ ограничен</h1><p>Каталог сотрудников доступен только HR-ролям. Переключите developer persona на HR Specialist для проверки этой стороны.</p><Link className="secondary-button" to="/departments/hr">Вернуться в HR</Link></div>;
 
@@ -96,6 +94,7 @@ export default function HrEmployeesPage() {
 
   return <>
     <PageHeader eyebrow="HR · Сотрудники" title="Сотрудники" actions={canHire ? <button type="button" className="primary-button" onClick={() => setSearchParams((prev) => { prev.set('add', 'true'); return prev; })}><UserPlus size={16} /> Добавить сотрудника</button> : undefined} />
+    {searchParams.get('lifecycle') === 'terminated' && <div className="success-banner"><CheckCircle2 size={20} /><span><strong>Увольнение зарегистрировано</strong>Сотрудник исключён из активного состава, его назначения и будущие отсутствия завершены.</span></div>}
     <div className="register-toolbar hr-toolbar">
       <label className="field-search" style={{ flex: 1 }}>
         <Search size={16} />
@@ -230,15 +229,17 @@ export default function HrEmployeesPage() {
               <th>Подразделение</th>
               <th>Руководитель</th>
               <th>Статус</th>
-              <th>Личное дело</th>
-              <th>Остаток</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((employee) => (
-              <tr key={employee.id}>
+              <tr 
+                key={employee.id} 
+                onClick={() => navigate(`/departments/hr/employees/${employee.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <td>
-                  <Link className="hr-employee-cell" to={`/departments/hr/employees/${employee.id}`}>
+                  <Link className="hr-employee-cell" to={`/departments/hr/employees/${employee.id}`} onClick={(e) => e.stopPropagation()}>
                     <span className="avatar">{employee.initials}</span>
                     <span>
                       <strong>{employee.fullName}</strong>
@@ -250,13 +251,6 @@ export default function HrEmployeesPage() {
                 <td>{employee.department}<small>{employee.location}</small></td>
                 <td>{employee.manager ?? 'Не назначен'}</td>
                 <td><EmployeeStatus status={employee.status} /></td>
-                <td>
-                  <span className="hr-completeness">
-                    <i><b style={{ width: `${employee.personnelFileCompleteness}%` }} /></i>
-                    {employee.personnelFileCompleteness}%
-                  </span>
-                </td>
-                <td><strong>{employee.leaveBalance}</strong> дней</td>
               </tr>
             ))}
           </tbody>

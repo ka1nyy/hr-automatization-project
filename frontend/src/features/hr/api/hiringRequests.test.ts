@@ -22,6 +22,28 @@ describe('hiring request development identity', () => {
     }));
   });
 
+  it('requests only final-approved packages for the HR dispatch queue', async () => {
+    localStorage.setItem('ertis-developer-settings', JSON.stringify({ state: { persona: 'hr-specialist' } }));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: 'ready', status: 'final_approved' },
+          { id: 'done', status: 'completed' }
+        ],
+        meta: { requestId: 'test-request' }
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const requests = await hiringRequestsApi.list('dispatch');
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('scope=dispatch'), expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Dev-User': 'hr.initiator' })
+    }));
+    expect(requests).toEqual([expect.objectContaining({ id: 'ready', status: 'final_approved' })]);
+  });
+
   it('keeps approver identities unchanged', async () => {
     localStorage.setItem('ertis-developer-settings', JSON.stringify({ state: { persona: 'hr-director' } }));
     const fetchMock = vi.fn().mockResolvedValue({

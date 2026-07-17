@@ -100,10 +100,9 @@ export default function IncomingPage() {
     { status: 'dispatch', label: 'К отправке', count: statusCounts.dispatch },
   ] as const;
 
-  const selectedStatusLabel = useMemo(() => {
-    if (status === 'all') return 'Все статусы';
-    return statusFilters.find(sf => sf.status === status)?.label ?? status;
-  }, [status]);
+  const selectedStatusLabel = status === 'all'
+    ? 'Все статусы'
+    : statusFilters.find((item) => item.status === status)?.label ?? status;
 
   return <>
     <PageHeader eyebrow={isHr ? 'HR · Входящие сообщения' : 'Секретариат · Реестр'} title={isHr ? 'Входящие сообщения' : 'Входящая корреспонденция'} actions={!isHr ? <Link className="primary-button" to="/correspondence/incoming/new"><Plus size={16} /> Зарегистрировать письмо</Link> : undefined} />

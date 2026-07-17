@@ -1626,7 +1626,14 @@ class EmployeeService:
             "employeeNumber": employee.employee_number,
             "displayName": person.display_name,
             "employmentStatus": employee.employment_status.value,
+            "positionTitle": employee.position_title,
+            "departmentName": employee.department_name,
+            "managerName": employee.manager_name,
+            "employmentTypeLabel": employee.employment_type_label,
             "hireDate": employee.hire_date.isoformat(),
+            "probationEnd": employee.probation_end.isoformat()
+            if employee.probation_end
+            else None,
             "terminationDate": employee.termination_date.isoformat()
             if employee.termination_date
             else None,

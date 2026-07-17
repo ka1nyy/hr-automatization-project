@@ -88,6 +88,7 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "termination.read_all",
                 "termination.review_hr",
                 "termination.complete",
+                "termination.exit_interview.manage",
                 "hiring.request.create",
                 "hiring.request.read",
                 "hiring.request.read_sensitive",
@@ -186,6 +187,8 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
             {
                 "organization.read",
                 "organization.structure.read",
+                "employees.read",
+                "employees.lifecycle.override",
                 "hiring.request.create",
                 "hiring.request.read",
                 "hiring.request.read_sensitive",
@@ -194,6 +197,15 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "documents.read_sensitive",
                 "documents.create",
                 "documents.upload",
+                "documents.register",
+                "absence.read_all",
+                "leave.review_hr",
+                "business_trip.register",
+                "termination.initiate_unit",
+                "termination.read_all",
+                "termination.review_hr",
+                "termination.complete",
+                "termination.exit_interview.manage",
                 "audit.read",
             }
         ),
@@ -204,12 +216,24 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
         permission_codes=frozenset(
             {
                 "organization.read",
+                "organization.structure.read",
+                "employees.read",
+                "employees.lifecycle.override",
                 "hiring.request.read",
                 "hiring.request.read_sensitive",
                 "hiring.approve.hr_director",
                 "documents.read_sensitive",
                 "documents.create",
                 "documents.upload",
+                "documents.register",
+                "absence.read_all",
+                "leave.review_hr",
+                "business_trip.register",
+                "termination.initiate_unit",
+                "termination.read_all",
+                "termination.review_hr",
+                "termination.complete",
+                "termination.exit_interview.manage",
                 "audit.read",
             }
         ),
@@ -224,6 +248,8 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "hiring.request.read_sensitive",
                 "hiring.approve.economic",
                 "documents.read_sensitive",
+                "absence.read_all",
+                "business_trip.review_finance",
                 "audit.read",
             }
         ),
@@ -252,6 +278,8 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "hiring.request.read_sensitive",
                 "hiring.approve.legal",
                 "documents.read_sensitive",
+                "termination.read_all",
+                "termination.review_legal",
                 "audit.read",
             }
         ),
@@ -268,6 +296,8 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "documents.read_sensitive",
                 "documents.create",
                 "documents.upload",
+                "termination.read_all",
+                "termination.sign",
                 "audit.read",
             }
         ),
@@ -278,10 +308,16 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
         permission_codes=frozenset(
             {
                 "organization.read",
+                "employees.read",
                 "hiring.request.read",
                 "hiring.request.read_sensitive",
                 "hiring.request.acknowledge",
                 "documents.read_sensitive",
+                "absence.read_all",
+                "business_trip.review_finance",
+                "termination.read_all",
+                "termination.assets.confirm",
+                "termination.settlement.confirm",
             }
         ),
     ),
@@ -291,10 +327,13 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
         permission_codes=frozenset(
             {
                 "organization.read",
+                "employees.read",
                 "hiring.request.read",
                 "hiring.request.read_sensitive",
                 "hiring.request.acknowledge",
                 "documents.read_sensitive",
+                "termination.read_all",
+                "termination.access.confirm",
             }
         ),
     ),

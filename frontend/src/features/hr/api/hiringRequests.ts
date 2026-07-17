@@ -5,14 +5,13 @@ import type { AddEmployeeFormValues } from '../add-employee/schema';
 export const DEMO_ORGANIZATION_ID = '63f3d186-4702-561f-b6f3-c410df730708';
 
 export type HiringAttachment = { id: string; category: 'identity' | 'diploma'; documentId: string; versionId: string; originalFilename: string; sizeBytes: number; mimeType: string };
-export type ApprovalDecision = { id: string; stageNumber: number; stageCode: string; stageName: string; approverName: string; approverRole: string; decision: 'approve' | 'return' | 'reject'; comment?: string; decidedAt: string };
 export type HiringRequest = {
   id: string; organizationId: string; requestNumber: string; candidateName: string; initiatorName: string;
   status: string; currentStage?: number; currentStageCode?: string; currentStageName?: string; revision: number;
   personal: Record<string, unknown>; employmentData: Record<string, unknown>; educationData: Record<string, unknown>;
-  pdfVersionId?: string; finalPdfVersionId?: string; attachments: HiringAttachment[]; decisions: ApprovalDecision[];
-  approvalStages: Array<{ stageNumber: number; code: string; name: string; role: string }>;
+  pdfVersionId?: string; finalPdfVersionId?: string; attachments: HiringAttachment[];
   dispatches: Array<{ id: string; recipientType: 'accounting' | 'it'; status: string; acknowledgedAt?: string }>;
+  hiredEmployee?: { id: string; employeeNumber: string; corporateEmail?: string } | null;
   createdAt: string; submittedAt?: string; finalApprovedAt?: string;
 };
 
@@ -31,7 +30,7 @@ const personaToHiringDevUser: Record<string, string> = {
   'it-specialist': 'it.specialist'
 };
 
-export type HiringRequestScope = 'mine' | 'inbox' | 'received' | undefined;
+export type HiringRequestScope = 'mine' | 'inbox' | 'received' | 'dispatch' | undefined;
 
 export const hiringStatusLabels: Record<string, string> = {
   draft: 'Черновик', pdf_generated: 'PDF готов', under_review: 'На согласовании',
@@ -111,7 +110,10 @@ function payload(values: AddEmployeeFormValues) {
 export const hiringRequestsApi = {
   create: (values: AddEmployeeFormValues) => api.post<HiringRequest>('/hiring-requests', payload(values), hiringDevUser()),
   update: (id: string, revision: number, values: AddEmployeeFormValues) => api.patch<HiringRequest>(`/hiring-requests/${id}`, { ...payload(values), revision }, hiringDevUser()),
-  list: (scope: HiringRequestScope = 'mine') => api.get<HiringRequest[]>(`/hiring-requests?organizationId=${DEMO_ORGANIZATION_ID}${scope ? `&scope=${scope}` : ''}`, hiringDevUser()),
+  list: async (scope: HiringRequestScope = 'mine') => {
+    const requests = await api.get<HiringRequest[]>(`/hiring-requests?organizationId=${DEMO_ORGANIZATION_ID}${scope ? `&scope=${scope}` : ''}`, hiringDevUser());
+    return scope === 'dispatch' ? requests.filter((request) => request.status === 'final_approved') : requests;
+  },
   get: (id: string) => api.get<HiringRequest>(`/hiring-requests/${id}?organizationId=${DEMO_ORGANIZATION_ID}`, hiringDevUser()),
   upload: (id: string, category: 'identity' | 'diploma', file: File) => {
     const data = new FormData(); data.append('organizationId', DEMO_ORGANIZATION_ID); data.append('category', category); data.append('file', file);

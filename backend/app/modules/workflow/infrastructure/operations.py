@@ -25,6 +25,7 @@ from app.modules.access_control.infrastructure.models import (
 )
 from app.modules.employees.infrastructure.models import DelegationModel
 from app.modules.identity.infrastructure.models import UserAccountModel
+from app.modules.organization.infrastructure.models import OrganizationModel
 from app.modules.workflow.application.ports import WorkflowView
 from app.modules.workflow.domain.entities import (
     ConfigurationProblem,
@@ -32,7 +33,12 @@ from app.modules.workflow.domain.entities import (
     ProcessTransitionDefinition,
     validate_definition,
 )
-from app.modules.workflow.domain.enums import CompletionMode, StepType
+from app.modules.workflow.domain.enums import (
+    CompletionMode,
+    DefinitionVersionStatus,
+    ProcessStatus,
+    StepType,
+)
 from app.shared.time import utc_now
 
 from .models import (
@@ -198,6 +204,12 @@ class SqlAlchemyWorkflowOperations:
                 raise ResourceNotFoundError(resource, resource_id)
 
     async def list_definitions(self, organization_id: UUID) -> Sequence[WorkflowView]:
+        """Definitions with the route summary the process catalogue needs.
+
+        The summary is assembled here rather than left to the caller so the catalogue
+        costs one request instead of one per definition.
+        """
+
         async with self._sessions() as session:
             rows = (
                 await session.scalars(
@@ -206,7 +218,103 @@ class SqlAlchemyWorkflowOperations:
                     .order_by(ProcessDefinitionModel.code)
                 )
             ).all()
-            return [_definition_view(row) for row in rows]
+            if not rows:
+                return []
+
+            definition_ids = [row.id for row in rows]
+
+            # The route on show is the published version; a definition that has never
+            # been published falls back to its newest draft.
+            ranked = (
+                select(
+                    ProcessDefinitionVersionModel.id,
+                    ProcessDefinitionVersionModel.process_definition_id,
+                    ProcessDefinitionVersionModel.version_number,
+                    ProcessDefinitionVersionModel.status,
+                    ProcessDefinitionVersionModel.published_at,
+                    ProcessDefinitionVersionModel.created_at,
+                    func.row_number()
+                    .over(
+                        partition_by=ProcessDefinitionVersionModel.process_definition_id,
+                        order_by=(
+                            (
+                                ProcessDefinitionVersionModel.status
+                                == DefinitionVersionStatus.PUBLISHED
+                            ).desc(),
+                            ProcessDefinitionVersionModel.version_number.desc(),
+                        ),
+                    )
+                    .label("rank"),
+                )
+                .where(ProcessDefinitionVersionModel.process_definition_id.in_(definition_ids))
+                .subquery()
+            )
+            current_versions = {
+                row.process_definition_id: row
+                for row in (await session.execute(select(ranked).where(ranked.c.rank == 1))).all()
+            }
+
+            steps_by_version: dict[UUID, list[str]] = {}
+            version_ids = [version.id for version in current_versions.values()]
+            if version_ids:
+                step_rows = (
+                    await session.execute(
+                        select(
+                            ProcessStepDefinitionModel.definition_version_id,
+                            ProcessStepDefinitionModel.name,
+                        )
+                        .where(
+                            ProcessStepDefinitionModel.definition_version_id.in_(version_ids),
+                            ProcessStepDefinitionModel.active.is_(True),
+                        )
+                        .order_by(
+                            ProcessStepDefinitionModel.definition_version_id,
+                            ProcessStepDefinitionModel.sequence,
+                        )
+                    )
+                ).all()
+                for version_id, name in step_rows:
+                    steps_by_version.setdefault(version_id, []).append(name)
+
+            instance_counts = {
+                (definition_id, status): count
+                for definition_id, status, count in (
+                    await session.execute(
+                        select(
+                            ProcessInstanceModel.process_definition_id,
+                            ProcessInstanceModel.status,
+                            func.count(),
+                        )
+                        .where(ProcessInstanceModel.process_definition_id.in_(definition_ids))
+                        .group_by(
+                            ProcessInstanceModel.process_definition_id,
+                            ProcessInstanceModel.status,
+                        )
+                    )
+                ).all()
+            }
+
+            owner = await session.scalar(
+                select(OrganizationModel.display_name).where(
+                    OrganizationModel.id == organization_id
+                )
+            )
+
+            return [
+                _definition_summary_view(
+                    row,
+                    version=current_versions.get(row.id),
+                    steps=steps_by_version.get(
+                        current_versions[row.id].id if row.id in current_versions else None, []
+                    ),
+                    active_instances=instance_counts.get((row.id, ProcessStatus.ACTIVE), 0),
+                    failed_instances=instance_counts.get(
+                        (row.id, ProcessStatus.CONFIGURATION_ERROR), 0
+                    ),
+                    owner=owner or "",
+                )
+                for row in rows
+            ]
 
     async def create_form_definition(
         self, organization_id: UUID, actor_id: UUID, data: Mapping[str, Any]
@@ -1969,6 +2077,40 @@ def _definition_view(row: ProcessDefinitionModel) -> dict[str, Any]:
         "name": row.name,
         "description": row.description,
         "active": row.active,
+    }
+
+
+def _definition_summary_view(
+    row: ProcessDefinitionModel,
+    *,
+    version: Any,
+    steps: list[str],
+    active_instances: int,
+    failed_instances: int,
+    owner: str,
+) -> dict[str, Any]:
+    """A definition plus its current route, for the process catalogue."""
+
+    # A definition whose instances hit a configuration error is surfaced as an incident
+    # regardless of how its version is published: the route is live but not working.
+    if failed_instances:
+        state = "incident"
+    elif version is not None and version.status == DefinitionVersionStatus.PUBLISHED:
+        state = "published"
+    else:
+        state = "draft"
+    updated_at = None
+    if version is not None:
+        updated_at = version.published_at or version.created_at
+    return {
+        **_definition_view(row),
+        "owner": owner,
+        "versionNumber": version.version_number if version is not None else 0,
+        "state": state,
+        "steps": steps,
+        "activeInstances": active_instances,
+        "failedInstances": failed_instances,
+        "updatedAt": updated_at,
     }
 
 

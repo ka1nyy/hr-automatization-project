@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ArrowUpRight, Calendar, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, ListTodo, MapPin, ShieldCheck, UserCheck, UserPlus, UsersRound, Video } from 'lucide-react';
+import { ArrowRight, Calendar, CalendarCheck2, CheckCircle2, FileWarning, GraduationCap, Inbox, MapPin, ShieldCheck, UserCheck, UsersRound, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { repositories } from '../../../repositories';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
-import { BarChart, DonutChart } from '../../../shared/charts';
+import { DonutChart } from '../../../shared/charts';
 import { formatDate } from '../../../shared/format';
 import { getPermissions, usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
@@ -27,7 +26,9 @@ export default function HrOverviewPage() {
   const permissions = getPermissions(persona);
   const attentionScope: HiringRequestScope = permissions.includes('hiring.approve')
     ? 'inbox'
-    : permissions.includes('hiring.receive') ? 'received' : 'mine';
+    : permissions.includes('hiring.receive')
+      ? 'received'
+      : permissions.includes('hiring.initiate') ? 'dispatch' : 'mine';
   const overview = useQuery({ queryKey: ['hr', 'overview'], queryFn: () => hrRepository.getOverview(), enabled: canOpen && isHr });
   const employee = useQuery({ queryKey: ['hr', 'employee', 'me'], queryFn: () => hrRepository.getCurrentEmployee(), enabled: canOpen && !isHr });
   const leaveRequests = useQuery({ queryKey: ['hr', 'leave'], queryFn: () => hrRepository.listLeaveRequests(), enabled: canOpen });
@@ -56,15 +57,16 @@ export default function HrOverviewPage() {
   }
 
   const stats = overview.data!;
-  const messages = hiringActivity.data!.filter((item) => !['draft', 'pdf_generated'].includes(item.status));
-  const pending = permissions.includes('hiring.approve') ? messages : [];
-  const workforceTotal = Math.max(1, stats.activeEmployees + stats.onLeave + stats.onBusinessTrip + stats.onSickLeave);
-  const presenceRate = Math.round(stats.activeEmployees / workforceTotal * 100);
+  const messages = hiringActivity.data!;
+  const pending = permissions.includes('hiring.approve') || permissions.includes('hiring.initiate') || permissions.includes('hiring.receive') ? messages : [];
+  const workforceTotal = Math.max(1, stats.activeEmployees + stats.onProbation + stats.onLeave + stats.onBusinessTrip + stats.onSickLeave);
+  const presenceRate = Math.round((stats.activeEmployees + stats.onProbation) / workforceTotal * 100);
   const workforceChart = [
     { label: 'Активны', value: stats.activeEmployees, color: 'var(--teal)', detail: 'На рабочем месте', to: '/hr/employees' },
     { label: 'В отпуске', value: stats.onLeave, color: 'var(--gold)', detail: 'Плановое отсутствие', to: '/hr/leave' },
     { label: 'Командировка', value: stats.onBusinessTrip, color: 'var(--violet)', detail: 'Служебная поездка', to: '/hr/calendar' },
     { label: 'Больничный', value: stats.onSickLeave, color: 'var(--coral)', detail: 'Нетрудоспособность', to: '/hr/sick-leave' },
+    { label: 'Испытательный срок', value: stats.onProbation, color: 'var(--emerald)', detail: 'Вводный период', to: '/hr/employees?status=probation' },
   ];
   return <>
     <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" />
@@ -96,34 +98,21 @@ export default function HrOverviewPage() {
                             {String(request.employmentData.department ?? 'Подразделение не указано')} · {String(request.employmentData.position ?? 'Должность не указана')}
                           </span>
                         </div>
-                        <span className="hub-row-tag tag-urgent">Требует действия</span>
+                        <span className="hub-row-tag tag-urgent">{attentionScope === 'dispatch' ? 'Отправить в подразделения' : 'Требует действия'}</span>
                       </div>
 
-                      <div className="hub-row-body">
-                        <div className="hub-route-tracker">
-                          <div className="hub-route-step completed">
-                            <CheckCircle2 size={13} />
-                            <span>Заявка</span>
-                          </div>
-                          <div className="hub-route-connector completed" />
-                          <div className="hub-route-step active">
-                            <Clock3 size={13} />
-                            <span>{request.currentStageName}</span>
-                          </div>
-                          <div className="hub-route-connector" />
-                          <div className="hub-route-step pending">
-                            <span className="step-dot" />
-                            <span>Финал</span>
-                          </div>
-                        </div>
+                      <div className="hub-row-body hub-request-facts">
+                        <span><small>Дата выхода</small><strong>{String(request.employmentData.startDate ?? '—')}</strong></span>
+                        <span><small>Формат</small><strong>{String(request.employmentData.workArrangement ?? '—')}</strong></span>
+                        <span><small>Документы</small><strong>{request.attachments?.length ?? 0}</strong></span>
                       </div>
 
                       <div className="hub-row-footer">
                         <span className="hub-row-info">
-                          Номер: <code>{request.requestNumber}</code> · Этап {request.currentStage ?? 0} из {request.approvalStages.length}
+                          Номер: <code>{request.requestNumber}</code> · Пакет зарегистрирован
                         </span>
                         <span className="hub-row-action-btn">
-                          Рассмотреть <ArrowRight size={14} />
+                          {attentionScope === 'dispatch' ? 'Передать в бухгалтерию и IT' : attentionScope === 'received' ? 'Подтвердить получение' : 'Рассмотреть'} <ArrowRight size={14} />
                         </span>
                       </div>
                     </Link>
@@ -235,7 +224,7 @@ export default function HrOverviewPage() {
                             Заявка <code>{item.requestNumber}</code> переведена в статус <strong>{hiringStatusLabels[item.status] ?? item.status}</strong>
                           </p>
                           <div className="hub-timeline-footer">
-                            <span>{item.currentStageName ?? 'Маршрут завершён'}</span>
+                            <span>{attentionScope === 'dispatch' ? 'Готов к отправке в бухгалтерию и IT' : 'Пакет документов'}</span>
                             <span className="hub-timeline-action">Открыть <ArrowRight size={12} /></span>
                           </div>
                         </div>

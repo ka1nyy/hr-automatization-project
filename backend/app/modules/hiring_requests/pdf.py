@@ -16,8 +16,6 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .domain import APPROVAL_STAGES
-
 STATUS_LABELS = {
     "draft": "Черновик",
     "pdf_generated": "PDF сформирован",
@@ -29,9 +27,6 @@ STATUS_LABELS = {
     "partially_acknowledged": "Получено частично",
     "completed": "Завершено",
 }
-
-DECISION_LABELS = {"approve": "Согласовано", "return": "Возвращено", "reject": "Отклонено"}
-
 
 def _font_file() -> Path:
     root = files("rinoh_typeface_dejavusansmono")
@@ -91,7 +86,6 @@ def _section(title: str, rows: Iterable[tuple[str, object]], font: str) -> list[
 def render_hiring_request_pdf(
     request: Mapping[str, Any],
     personal: Mapping[str, Any],
-    decisions: list[Mapping[str, Any]],
     attachments: list[Mapping[str, Any]],
 ) -> bytes:
     font = _font()
@@ -246,26 +240,6 @@ def render_hiring_request_pdf(
     story += _section(
         "Вложения", [("Файл", item.get("originalFilename")) for item in attachments], font
     )
-    by_stage = {int(item["stageNumber"]): item for item in decisions}
-    rows = []
-    for index, stage in enumerate(APPROVAL_STAGES, 1):
-        decision = by_stage.get(index, {})
-        summary = " | ".join(
-            filter(
-                None,
-                [
-                    DECISION_LABELS.get(
-                        str(decision.get("decision")),
-                        str(decision.get("decision") or "Ожидает"),
-                    ),
-                    str(decision.get("approverName") or ""),
-                    str(decision.get("decidedAt") or ""),
-                    str(decision.get("comment") or ""),
-                ],
-            )
-        )
-        rows.append((f"{index}. {stage.name}", summary))
-    story += _section("Лист согласования", rows, font)
     story.append(
         Paragraph(
             "Документ сформирован информационной системой ERTIS OPERATIONS. "

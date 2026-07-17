@@ -10,8 +10,6 @@ import {
   GraduationCap,
   Loader2,
   Paperclip,
-  RotateCcw,
-  Save,
   Send,
   Trash2,
   UserRound,
@@ -114,7 +112,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
   const [notice, setNotice] = useState('');
   const [attachmentError, setAttachmentError] = useState('');
   const [submitError, setSubmitError] = useState('');
-  const [confirmClear, setConfirmClear] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [requestRevision, setRequestRevision] = useState(1);
   const [pdfVersionId, setPdfVersionId] = useState<string | null>(null);
@@ -125,7 +122,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
   const educationLevel = values.educationLevel;
   const diplomaRequired = educationLevel !== 'Среднее общее';
   const currentStep = registrationSteps[activeStep];
-  const progress = Math.round(((activeStep + 1) / registrationSteps.length) * 100);
   const candidateName = [values.lastName, values.firstName, values.middleName].filter(Boolean).join(' ') || 'Новый сотрудник';
 
   useEffect(() => {
@@ -160,19 +156,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       setNotice(`Не удалось сохранить черновик: ${error instanceof Error ? error.message : 'ошибка API'}`);
       return undefined;
     } finally { if (manageBusy) setBusy(false); }
-  };
-
-  const clearForm = () => {
-    clearEmployeeDraft(localStorage);
-    reset(addEmployeeDefaults);
-    setAttachments([]);
-    setAttachmentError('');
-    setSubmitError('');
-    setActiveStep(0);
-    setHighestStep(0);
-    setConfirmClear(false);
-    setRequestId(null); setRequestRevision(1); setPdfVersionId(null); setSubmitted(false);
-    setNotice('Форма и локальный черновик очищены');
   };
 
   const addFiles = (files: File[], category: AttachmentCategory) => {
@@ -219,7 +202,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
         setSubmitted(true);
         clearEmployeeDraft(localStorage);
         reset(getValues());
-        setNotice(`Заявление ${sent.requestNumber} отправлено. Текущий этап: ${sent.currentStageName}.`);
+        setNotice(`Заявление ${sent.requestNumber} отправлено на рассмотрение.`);
         return;
       }
       const saved = await saveDraft(false);
@@ -236,7 +219,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       setSubmitted(true);
       clearEmployeeDraft(localStorage);
       reset(getValues());
-      setNotice(`Заявление ${sent.requestNumber} сформировано в PDF и отправлено. Текущий этап: ${sent.currentStageName}.`);
+      setNotice(`Заявление ${sent.requestNumber} сформировано в PDF и отправлено на рассмотрение.`);
     } catch (error) {
       const message = `Не удалось отправить заявление: ${error instanceof Error ? error.message : 'ошибка API'}`;
       setSubmitError(message);
@@ -262,7 +245,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
     <PageHeader
       eyebrow="HR · Регистрация сотрудника"
       title={candidateName === 'Новый сотрудник' ? 'Регистрация сотрудника' : `Регистрация: ${candidateName}`}
-      description="Заполните этапы для добавления нового сотрудника в систему. Данные сохраняются автоматически."
       actions={onBack ? <button type="button" className="secondary-button" onClick={onBack}><ArrowLeft size={16} /> Назад к списку</button> : undefined}
     />
 
@@ -270,17 +252,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
 
     <form id="employee-registration-wizard" className="hr-registration-wizard" onSubmit={complete}>
       <div className="hr-timeline-container">
-        <div className="hr-timeline-header">
-          <div className="hr-timeline-summary">
-            <span className="hr-timeline-progress-label">Заполнение карточки</span>
-            <span className="hr-timeline-candidate">{candidateName}</span>
-          </div>
-          <div className="hr-timeline-percentage" aria-label={`Заполнено ${progress}%`}>
-            <strong>{progress}%</strong>
-            <small>этап {activeStep + 1} из 4</small>
-          </div>
-        </div>
-
         <div className="hr-timeline-wrapper">
           <div className="hr-timeline-line-background">
             <div className="hr-timeline-line-filled" style={{ width: `${(activeStep / (registrationSteps.length - 1)) * 100}%` }} />
@@ -295,7 +266,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
                   </span>
                   <div className="hr-timeline-text">
                     <strong>{step.shortTitle}</strong>
-                    <small>{index === activeStep ? 'Заполняется' : index < activeStep ? 'Готово' : 'Ожидает'}</small>
                   </div>
                 </button>
               </li>;
@@ -360,8 +330,6 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
         </div>
 
         <footer className="hr-registration-actions">
-          <div className="hr-registration-save-state"><i className={isDirty ? 'dirty' : ''} /><span>{isDirty ? 'Есть несохранённые изменения' : 'Черновик сохранён'}<small>Можно вернуться к заполнению позже</small></span></div>
-          <div className="hr-registration-secondary-actions"><button type="button" className="text-button" onClick={() => setConfirmClear(true)} disabled={busy}><RotateCcw size={15} />Очистить</button><button type="button" className="secondary-button" aria-label="Сохранить" onClick={() => void saveDraft()} disabled={busy || submitted}>{busy ? <Loader2 className="spin" size={16} /> : <Save size={16} />}Сохранить черновик</button>{pdfVersionId && requestId && <a className="secondary-button" href={hiringRequestsApi.downloadUrl(requestId, pdfVersionId, true)} target="_blank" rel="noreferrer"><FileText size={16} />PDF</a>}</div>
           <div className="hr-registration-navigation">
             {activeStep > 0 && <button type="button" className="secondary-button" onClick={() => { setActiveStep((step) => step - 1); scrollToWizard(); }}><ChevronLeft size={17} />Назад</button>}
             {activeStep < 3 ? <button type="button" className="primary-button" onClick={goNext}>Продолжить<ArrowRight size={17} /></button> : <button type="submit" className="primary-button" disabled={busy || submitted}>{busy ? <Loader2 className="spin" size={17} /> : <Send size={17} />}{submitted ? 'Заявление отправлено' : 'Отправить заявление'}</button>}
@@ -370,6 +338,5 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       </section>
     </form>
 
-    {confirmClear && <div className="dialog-backdrop"><section className="dialog hr-confirm-dialog" role="dialog" aria-modal="true" aria-label="Очистить форму"><header><span>Очистить форму?</span><button className="icon-button" onClick={() => setConfirmClear(false)} aria-label="Закрыть"><X size={18} /></button></header><p>Все введённые данные, вложения и локальный черновик будут удалены.</p><footer><button className="secondary-button" onClick={() => setConfirmClear(false)}>Отмена</button><button className="primary-button" onClick={clearForm}>Очистить</button></footer></section></div>}
   </>;
 }

@@ -138,6 +138,7 @@ async def test_available_functions_follow_permissions_and_state(
 async def test_terminate_ends_employment_and_assignments(functions, actor, uow, organization_id):  # type: ignore[no-untyped-def]
     details, _slot = await hire(functions, actor, uow, organization_id)
     employee_id = details.employee.id
+    employee_number = details.employee.employee_number
     result = await functions.invoke_employee_function(
         actor,
         employee_id,
@@ -150,6 +151,7 @@ async def test_terminate_ends_employment_and_assignments(functions, actor, uow, 
     )
     assert result.employee.employment_status is EmploymentStatus.ENDED
     assert result.employee.active is False
+    assert result.employee.employee_number == employee_number
     assignment = next(iter(uow.assignments.items.values()))
     assert assignment.effective_to == date.today()
     assert uow.audit.items[-1].action == "employee.terminated"

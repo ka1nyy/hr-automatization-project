@@ -1,4 +1,4 @@
-export type HrEmployeeStatus = 'active' | 'probation' | 'on_leave' | 'sick_leave';
+export type HrEmployeeStatus = 'active' | 'probation' | 'on_leave' | 'sick_leave' | 'business_trip';
 export type Availability = 'available' | 'away' | 'remote';
 export type LeaveRequestStatus = 'pending_manager' | 'hr_review' | 'approved' | 'rejected';
 
@@ -130,6 +130,7 @@ export interface CoreEmployeeRecord {
   employmentStatus: string;
   active: boolean;
   terminationDate: string | null;
+  assignments?: Array<{ id: string; status: string; primary: boolean }>;
 }
 
 export interface StaffingSlotOption {

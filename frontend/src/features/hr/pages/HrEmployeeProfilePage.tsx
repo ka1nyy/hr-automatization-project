@@ -1,6 +1,6 @@
 ﻿import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, BriefcaseBusiness, CalendarDays, FileText, Mail, MapPin, Phone, ShieldCheck, UserRound } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, BriefcaseBusiness, CalendarDays, CheckCircle2, FileText, Mail, MapPin, Phone, ShieldCheck, UserRound } from 'lucide-react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
 import { formatDate } from '../../../shared/format';
 import { usePermission } from '../../../shared/permissions';
@@ -13,18 +13,31 @@ import { EmployeeStatus } from '../components/HrStatus';
 
 export default function HrEmployeeProfilePage() {
   const { employeeId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const locale = useDeveloperStore((state) => state.locale);
   const canReadAll = usePermission('hr.employees.read');
   const canReadSensitive = usePermission('hr.sensitive.read');
-  const isOwnProfile = employeeId === 'e-3';
+  const currentEmployee = useQuery({
+    queryKey: ['hr', 'employee', 'me'],
+    queryFn: () => hrRepository.getCurrentEmployee(),
+    enabled: !canReadAll
+  });
+  const isOwnProfile = currentEmployee.data?.id === employeeId;
   const allowed = canReadAll || isOwnProfile;
   const result = useQuery({ queryKey: ['hr', 'employee', employeeId], queryFn: () => hrRepository.getEmployee(employeeId), enabled: allowed });
+  if (!canReadAll && currentEmployee.isLoading) return <QueryState />;
   if (!allowed) return <div className="hr-access-denied"><span>HR</span><h1>Профиль недоступен</h1><p>Сотрудник может просматривать только собственный профиль.</p><Link className="secondary-button" to="/departments/hr">Вернуться в HR</Link></div>;
   if (result.isLoading) return <QueryState />;
   if (result.error || !result.data) return <QueryState error={result.error ?? new Error('Сотрудник не найден')} retry={() => result.refetch()} />;
   const employee = result.data;
+  const probationLabel = !employee.probationEnd
+    ? 'Не предусмотрен'
+    : employee.probationEnd >= new Date().toISOString().slice(0, 10)
+      ? `до ${formatDate(employee.probationEnd, locale)}`
+      : `Завершён ${formatDate(employee.probationEnd, locale)}`;
   return <>
     <PageHeader eyebrow={`Сотрудники · ${employee.employeeNumber}`} title={employee.fullName} description={`${employee.position} · ${employee.department}`} actions={<><EmployeeActions employeeId={employee.id} /><Link className="secondary-button" to={canReadAll ? '/departments/hr/employees' : '/departments/hr'}><ArrowLeft size={16} /> Назад</Link></>} />
+    {searchParams.get('hired') === '1' && <div className="success-banner"><CheckCircle2 size={20} /><span><strong>Сотрудник зачислен в штат</strong>Карточка создана в backend и уже доступна в общем списке сотрудников.</span></div>}
     <div className="hr-profile-header">
       <span className="avatar hr-avatar-xl">{employee.initials}</span><div className="hr-profile-identity"><EmployeeStatus status={employee.status} /><strong>{employee.position}</strong><span>{employee.department}</span></div>
       <div className="hr-profile-contact"><span><Mail size={15} />{employee.workEmail}</span><span><Phone size={15} />{employee.phone}</span><span><MapPin size={15} />{employee.location}</span></div>
@@ -32,7 +45,7 @@ export default function HrEmployeeProfilePage() {
     </div>
     <div className="hr-profile-grid">
       <div className="hr-profile-main">
-        <Section title="Рабочая информация"><dl className="metadata-grid"><div><dt>Табельный номер</dt><dd>{employee.employeeNumber}</dd></div><div><dt>Дата выхода</dt><dd>{formatDate(employee.startDate, locale)}</dd></div><div><dt>Тип занятости</dt><dd>{employee.employmentType}</dd></div><div><dt>Локация</dt><dd>{employee.location}</dd></div><div><dt>Руководитель</dt><dd>{employee.manager ?? 'Не назначен'}</dd></div><div><dt>Окончание договора</dt><dd>{employee.contractEnd ? formatDate(employee.contractEnd, locale) : 'Бессрочный'}</dd></div><div><dt>Испытательный срок</dt><dd>{employee.probationEnd ? `до ${formatDate(employee.probationEnd, locale)}` : 'Завершён'}</dd></div></dl></Section>
+        <Section title="Рабочая информация"><dl className="metadata-grid"><div><dt>Табельный номер</dt><dd>{employee.employeeNumber}</dd></div><div><dt>Дата выхода</dt><dd>{formatDate(employee.startDate, locale)}</dd></div><div><dt>Тип занятости</dt><dd>{employee.employmentType}</dd></div><div><dt>Локация</dt><dd>{employee.location}</dd></div><div><dt>Руководитель</dt><dd>{employee.manager ?? 'Не назначен'}</dd></div><div><dt>Окончание договора</dt><dd>{employee.contractEnd ? formatDate(employee.contractEnd, locale) : 'Бессрочный'}</dd></div><div><dt>Испытательный срок</dt><dd>{probationLabel}</dd></div></dl></Section>
         <EmployeeAbsencesSection employeeId={employee.id} />
         <TerminationSection employee={employee} />
         <Section title="Компетенции и развитие"><div className="hr-skill-list">{employee.skills.map((skill) => <span key={skill}>{skill}</span>)}</div><div className="hr-development-note"><BriefcaseBusiness size={18} /><span><strong>План развития на 2026 год</strong><small>2 цели в работе · следующая встреча 22 июля</small></span></div></Section>

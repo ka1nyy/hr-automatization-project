@@ -94,7 +94,9 @@ async def _list(
         employee_id, scoped_unit = principal.employee_id, None
     elif scope == "unit":
         if unit_id is None:
-            raise ValidationError("unitId is required for unit scope.")
+            if principal.employee_id is None:
+                raise ValidationError("unitId is required for unit scope.")
+            unit_id = await ops.employee_unit(organization_id, principal.employee_id)
         await _require(auth, principal, "absence.read_unit", organization_id, unit_id)
         employee_id, scoped_unit = None, unit_id
     else:
@@ -157,8 +159,9 @@ async def _leave_decision(
     auth: AuthorizationPort,
     principal: Principal,
 ) -> DataResponse[dict[str, Any]]:
-    await _require(auth, principal, permission, body.organization_id)
     await ops.require_organization("leave", item_id, body.organization_id)
+    unit_id = await ops.request_unit("leave", item_id) if stage == "manager_review" else None
+    await _require(auth, principal, permission, body.organization_id, unit_id)
     return DataResponse(
         data=dict(
             await ops.decide_leave(
@@ -260,8 +263,9 @@ async def _trip_decision(
     auth: AuthorizationPort,
     principal: Principal,
 ) -> DataResponse[dict[str, Any]]:
-    await _require(auth, principal, permission, body.organization_id)
     await ops.require_organization("trip", item_id, body.organization_id)
+    unit_id = await ops.request_unit("trip", item_id) if stage == "manager_review" else None
+    await _require(auth, principal, permission, body.organization_id, unit_id)
     return DataResponse(
         data=dict(
             await ops.decide_trip(

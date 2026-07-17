@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from calendar import monthrange
 from collections.abc import AsyncIterator, Mapping
+from datetime import date
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.audit.repository import SqlAlchemyAuditLog
@@ -19,7 +21,9 @@ from app.modules.documents.application.service import DocumentService
 from app.modules.documents.infrastructure.models import DocumentTypeModel
 from app.modules.documents.infrastructure.operations import SqlAlchemyDocumentOperations
 from app.modules.employees.infrastructure.crypto import FernetSensitiveDataProtector
+from app.modules.employees.infrastructure.models import EmployeeModel, PersonModel
 from app.modules.identity.infrastructure.models import UserAccountModel
+from app.shared.identifiers import new_uuid
 from app.shared.time import utc_now
 
 from .domain import APPROVAL_STAGES, EDITABLE_STATUSES, REQUIRED_ATTACHMENT_CATEGORIES
@@ -30,6 +34,52 @@ from .infrastructure.models import (
     HiringRequestModel,
 )
 from .pdf import render_hiring_request_pdf
+
+MAX_EMPLOYEE_NUMBER = 999_999
+DEPARTMENT_DIRECTORS = {
+    "Департамент управления персоналом": "Сауле Бекенова",
+    "Департамент документооборота и управления персоналом": "Сауле Бекенова",
+    "Департамент цифровой трансформации": "Мирас Абдрахманов",
+    "Строительный департамент": "Нуржан Тлеубаев",
+    "Юридический департамент": "Елена Ким",
+    "Департамент экономического планирования": "Руслан Ибраев",
+}
+
+
+def format_employee_identity(sequence_value: int) -> tuple[str, str]:
+    """Return the public employee ID and its deterministic corporate e-mail."""
+
+    if sequence_value < 1 or sequence_value > MAX_EMPLOYEE_NUMBER:
+        raise ConflictError("The six-digit employee identifier range is exhausted")
+    employee_number = f"{sequence_value:06d}"
+    return employee_number, f"ertis{employee_number}@ertis.kz"
+
+
+def calculate_probation_end(hire_date: date, probation_months: object) -> date | None:
+    """Return the contractual probation end date, or None when probation is absent."""
+
+    try:
+        months = int(str(probation_months or 0))
+    except (TypeError, ValueError):
+        months = 0
+    if months <= 0:
+        return None
+    month_index = hire_date.month - 1 + months
+    year = hire_date.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(hire_date.day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def resolve_department_director(department: object, requested_manager: object) -> str | None:
+    """Resolve the department director stored on the hired employee profile."""
+
+    department_name = str(department or "").strip()
+    configured = DEPARTMENT_DIRECTORS.get(department_name)
+    if configured:
+        return configured
+    manager = str(requested_manager or "").strip()
+    return manager if manager and manager != "Не указан" else None
 
 
 class HiringRequestService:
@@ -129,6 +179,12 @@ class HiringRequestService:
             )
             if scope == "mine":
                 stmt = stmt.where(HiringRequestModel.created_by == principal.user_id)
+            elif scope == "dispatch":
+                await self.require(principal, "hiring.request.dispatch", organization_id)
+                stmt = stmt.where(
+                    HiringRequestModel.created_by == principal.user_id,
+                    HiringRequestModel.status == "final_approved",
+                )
             elif scope == "inbox":
                 allowed = []
                 for index, stage in enumerate(APPROVAL_STAGES):
@@ -137,14 +193,28 @@ class HiringRequestService:
                         allowed.append(index)
                     except ForbiddenError:
                         pass
+                already_decided_in_cycle = (
+                    select(HiringApprovalDecisionModel.id)
+                    .where(
+                        HiringApprovalDecisionModel.request_id == HiringRequestModel.id,
+                        HiringApprovalDecisionModel.approval_cycle
+                        == HiringRequestModel.approval_cycle,
+                        HiringApprovalDecisionModel.approver_user_id == principal.user_id,
+                    )
+                    .exists()
+                )
                 stmt = stmt.where(
                     HiringRequestModel.status == "under_review",
                     HiringRequestModel.current_stage.in_(allowed or [-1]),
+                    ~already_decided_in_cycle,
                 )
             elif scope == "received":
                 stmt = stmt.join(HiringDispatchModel).where(
-                    HiringDispatchModel.assigned_user_id == principal.user_id
+                    HiringDispatchModel.assigned_user_id == principal.user_id,
+                    HiringDispatchModel.status != "acknowledged",
                 )
+            elif scope is not None:
+                raise ValidationError("Unsupported hiring request scope")
             rows = (
                 await session.scalars(stmt.order_by(HiringRequestModel.created_at.desc()))
             ).all()
@@ -310,7 +380,6 @@ class HiringRequestService:
         content = render_hiring_request_pdf(
             details,
             cast(Mapping[str, Any], details["personal"]),
-            cast(list[Mapping[str, Any]], details["decisions"]),
             cast(list[Mapping[str, Any]], details["attachments"]),
         )
         if document_id is None:
@@ -573,6 +642,7 @@ class HiringRequestService:
             row.status = "completed" if pending == 0 else "partially_acknowledged"
             if pending == 0:
                 row.completed_at = utc_now()
+                await self._auto_hire(session, row, principal.user_id)
             row.revision += 1
             await self._audit(
                 session,
@@ -590,6 +660,118 @@ class HiringRequestService:
                 {"recipient": dispatch.recipient_type, "status": row.status},
             )
             return await self._view(session, row, sensitive=True)
+
+    async def _auto_hire(
+        self, session: AsyncSession, row: HiringRequestModel, actor_id: UUID
+    ) -> EmployeeModel:
+        """Create exactly one active employee when the hiring route is completed."""
+
+        if row.hired_employee_id is not None:
+            employee = await session.get(EmployeeModel, row.hired_employee_id)
+            if employee is not None:
+                return employee
+
+        personal = self._reveal(row.protected_personal_data)
+        employment = row.employment_data
+        employee_id = new_uuid()
+        person_id = new_uuid()
+        timestamp = utc_now()
+        sequence_value = await session.scalar(text("SELECT nextval('employee_number_seq')"))
+        employee_number, corporate_email = format_employee_identity(int(sequence_value or 0))
+        first_name = str(personal.get("firstName") or "").strip()
+        last_name = str(personal.get("lastName") or "").strip()
+        middle_name = str(personal.get("middleName") or "").strip() or None
+        display_name = " ".join(filter(None, (last_name, first_name, middle_name)))
+        birth_date_value = str(personal.get("birthDate") or "").strip()
+        hire_date_value = str(employment.get("startDate") or "").strip()
+        hire_date = date.fromisoformat(hire_date_value) if hire_date_value else timestamp.date()
+        probation_end = calculate_probation_end(hire_date, employment.get("probationMonths"))
+        position_title = str(employment.get("position") or "").strip() or None
+        department_name = str(employment.get("department") or "").strip() or None
+        manager_name = resolve_department_director(
+            employment.get("department"), employment.get("manager")
+        )
+        employment_type_label = str(employment.get("employmentType") or "").strip() or None
+        iin = str(personal.get("iin") or "").strip()
+
+        person = PersonModel(
+            id=person_id,
+            first_name=first_name,
+            last_name=last_name,
+            middle_name=middle_name,
+            display_name=display_name,
+            protected_iin=self.protector.protect(iin) if iin else None,
+            birth_date=date.fromisoformat(birth_date_value) if birth_date_value else None,
+            personal_email=str(personal.get("personalEmail") or "").strip() or None,
+            phone=str(personal.get("personalPhone") or "").strip() or None,
+            status="active",
+            created_at=timestamp,
+            updated_at=timestamp,
+            revision=1,
+        )
+        employee = EmployeeModel(
+            id=employee_id,
+            organization_id=row.organization_id,
+            created_by=row.created_by,
+            person_id=person_id,
+            employee_number=employee_number,
+            employment_status="active",
+            position_title=position_title,
+            department_name=department_name,
+            manager_name=manager_name,
+            employment_type_label=employment_type_label,
+            hire_date=hire_date,
+            probation_end=probation_end,
+            termination_date=None,
+            corporate_email=corporate_email,
+            active=True,
+            created_at=timestamp,
+            updated_at=timestamp,
+            revision=1,
+        )
+        session.add(person)
+        await session.flush()
+        session.add(employee)
+        await session.flush()
+        row.hired_employee_id = employee.id
+
+        await AuditService(SqlAlchemyAuditLog(session)).record(
+            actor_id=actor_id,
+            action="employee.hired.automatically",
+            entity_type="employee",
+            entity_id=employee.id,
+            before_state=None,
+            after_state={
+                "hiringRequestId": str(row.id),
+                "employeeNumber": employee_number,
+                "corporateEmail": corporate_email,
+                "positionTitle": position_title,
+                "departmentName": department_name,
+                "managerName": manager_name,
+                "probationEnd": probation_end.isoformat() if probation_end else None,
+            },
+            organization_id=row.organization_id,
+        )
+        await SqlAlchemyTransactionalOutbox(session).append(
+            ApplicationEvent(
+                name=EventName.EMPLOYEE_HIRED,
+                aggregate_type="employee",
+                aggregate_id=employee.id,
+                payload={
+                    "employeeId": str(employee.id),
+                    "organizationId": str(row.organization_id),
+                    "hiringRequestId": str(row.id),
+                    "hireDate": employee.hire_date.isoformat(),
+                    "employeeNumber": employee_number,
+                    "corporateEmail": corporate_email,
+                    "positionTitle": position_title,
+                    "departmentName": department_name,
+                    "managerName": manager_name,
+                    "probationEnd": probation_end.isoformat() if probation_end else None,
+                },
+            )
+        )
+        return employee
 
     async def _document_type_id(self, organization_id: UUID, code: str) -> UUID:
         async with self.sessions() as session:
@@ -621,16 +803,6 @@ class HiringRequestService:
                 .order_by(HiringAttachmentModel.category)
             )
         ).all()
-        decisions = (
-            await session.scalars(
-                select(HiringApprovalDecisionModel)
-                .where(HiringApprovalDecisionModel.request_id == row.id)
-                .order_by(
-                    HiringApprovalDecisionModel.approval_cycle,
-                    HiringApprovalDecisionModel.stage_number,
-                )
-            )
-        ).all()
         dispatches = (
             await session.scalars(
                 select(HiringDispatchModel)
@@ -649,6 +821,11 @@ class HiringRequestService:
         stage = (
             APPROVAL_STAGES[row.current_stage]
             if row.status == "under_review" and row.current_stage < len(APPROVAL_STAGES)
+            else None
+        )
+        hired_employee = (
+            await session.get(EmployeeModel, row.hired_employee_id)
+            if row.hired_employee_id is not None
             else None
         )
         return {
@@ -676,6 +853,15 @@ class HiringRequestService:
             "finalApprovedAt": row.final_approved_at,
             "dispatchedAt": row.dispatched_at,
             "completedAt": row.completed_at,
+            "hiredEmployee": (
+                {
+                    "id": hired_employee.id,
+                    "employeeNumber": hired_employee.employee_number,
+                    "corporateEmail": hired_employee.corporate_email,
+                }
+                if hired_employee is not None
+                else None
+            ),
             "attachments": [
                 {
                     "id": x.id,
@@ -688,25 +874,9 @@ class HiringRequestService:
                 }
                 for x in attachments
             ],
-            "decisions": [
-                {
-                    "id": x.id,
-                    "approvalCycle": x.approval_cycle,
-                    "stageNumber": x.stage_number,
-                    "stageCode": x.stage_code,
-                    "stageName": x.stage_name,
-                    "approverName": x.approver_name,
-                    "approverRole": x.approver_role,
-                    "decision": x.decision,
-                    "comment": x.comment,
-                    "decidedAt": x.decided_at,
-                }
-                for x in decisions
-            ],
-            "approvalStages": [
-                {"stageNumber": i + 1, "code": x.code, "name": x.name, "role": x.role_label}
-                for i, x in enumerate(APPROVAL_STAGES)
-            ],
+            # The route and decision history stay internal to the workflow engine.
+            "decisions": [],
+            "approvalStages": [],
             "dispatches": [
                 {
                     "id": x.id,

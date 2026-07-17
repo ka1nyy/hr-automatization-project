@@ -124,7 +124,12 @@ class EmployeeResponse(ApiModel):
     middle_name: str | None
     display_name: str
     employment_status: EmploymentStatus
+    position_title: str | None
+    department_name: str | None
+    manager_name: str | None
+    employment_type_label: str | None
     hire_date: date
+    probation_end: date | None
     termination_date: date | None
     corporate_email: str | None
     active: bool
@@ -152,7 +157,12 @@ class EmployeeResponse(ApiModel):
             middle_name=person.middle_name,
             display_name=person.display_name or "",
             employment_status=employee.employment_status,
+            position_title=employee.position_title,
+            department_name=employee.department_name,
+            manager_name=employee.manager_name,
+            employment_type_label=employee.employment_type_label,
             hire_date=employee.hire_date,
+            probation_end=employee.probation_end,
             termination_date=employee.termination_date,
             corporate_email=employee.corporate_email,
             active=employee.active,
