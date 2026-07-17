@@ -1027,16 +1027,17 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .lifecycle-hire-complete dd { margin: 0; overflow-wrap: anywhere; color: var(--text); font-weight: 700; }
 @keyframes lifecycle-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .workforce-create-section, .lifecycle-result, .lifecycle-hire-box { animation: none; } .offboarding-task { transition: none; } }
-.hiring-summary-grid { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin-top: 15px; overflow: hidden; }
-.hiring-summary-grid dl { background: var(--soft); margin: 0; padding: 12px; }
-.hiring-summary-grid dt { color: var(--muted); font-size: 10px; text-transform: uppercase; }
-.hiring-summary-grid dd { font-size: 12px; font-weight: 700; margin: 5px 0 0; }
+.hiring-summary-grid { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin-top: 15px; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--border); }
+.hiring-summary-grid dl { background: var(--soft); margin: 0; padding: 14px 16px; }
+.hiring-summary-grid dt { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+.hiring-summary-grid dd { font-size: 13px; font-weight: 700; margin: 6px 0 0; color: var(--ink); }
 .hiring-request-information > header p { color: var(--muted); font-size: 11px; margin: 3px 0 0; }
 .hiring-information-section { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 1px; }
-.hiring-information-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.hiring-information-grid dl { background: var(--soft); border: 1px solid color-mix(in srgb, var(--border) 75%, transparent); border-radius: 12px; margin: 0; min-height: 68px; padding: 12px; }
+.hiring-information-grid { display: grid; gap: 1px; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); margin-top: 12px; }
+.hiring-information-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.hiring-information-grid dl { background: var(--soft); margin: 0; padding: 14px 16px; border: none; border-radius: 0; min-height: unset; }
 .hiring-information-grid dt { color: var(--muted); font-size: 10px; letter-spacing: .03em; text-transform: uppercase; }
-.hiring-information-grid dd { font-size: 12px; font-weight: 700; line-height: 1.4; margin: 6px 0 0; overflow-wrap: anywhere; }
+.hiring-information-grid dd { font-size: 13px; font-weight: 700; line-height: 1.4; margin: 6px 0 0; overflow-wrap: anywhere; color: var(--ink); }
 .hiring-private-route-note { align-items: flex-start; background: color-mix(in srgb, var(--primary) 7%, var(--paper)); border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border)); border-radius: 14px; color: var(--primary); display: flex; gap: 11px; margin-top: 18px; padding: 14px; }
 .hiring-private-route-note strong { color: var(--text); display: block; font-size: 13px; }
 .hiring-private-route-note p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 3px 0 0; }
@@ -1046,8 +1047,9 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hub-request-facts small { color: var(--muted); font-size: 9px; text-transform: uppercase; }
 .hub-request-facts strong { font-size: 11px; margin-top: 3px; overflow-wrap: anywhere; }
 .hiring-document-panel { position: sticky; top: 82px; }
-.hiring-files { display: grid; gap: 8px; margin: 12px 0; }
-.hiring-files a { align-items: center; border: 1px solid var(--border); border-radius: 12px; color: inherit; display: flex; justify-content: space-between; padding: 10px; text-decoration: none; }
+.hiring-files { display: grid; gap: 1px; margin: 12px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); }
+.hiring-files a { align-items: center; background: var(--soft); color: inherit; display: flex; justify-content: space-between; padding: 14px 16px; text-decoration: none; border: none; border-radius: 0; transition: background-color 0.2s ease; }
+.hiring-files a:hover { background: color-mix(in srgb, var(--teal) 6%, var(--soft)) !important; }
 .hiring-files strong, .hiring-files small { display: block; }
 .hiring-files small { color: var(--muted); font-size: 10px; margin-top: 3px; }
 .hiring-action-box { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }

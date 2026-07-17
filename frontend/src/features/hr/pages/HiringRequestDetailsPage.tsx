@@ -125,7 +125,7 @@ export default function HiringRequestDetailsPage() {
         
         <div className="hiring-information-section">
           <h3><GraduationCap size={17} />Образование и опыт</h3>
-          <div className="hiring-information-grid">
+          <div className="hiring-information-grid cols-4">
             <dl>
               <dt>Уровень образования</dt>
               <dd>{String(request.educationData.educationLevel ?? 'Не указан')}</dd>
