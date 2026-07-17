@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BriefcaseBusiness, CalendarCheck2, FileSignature, Plus, RefreshCw, UserMinus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHeader, Section } from '../../../shared/components';
 import { formatDate } from '../../../shared/format';
 import { useDeveloperStore } from '../../../shared/store';
@@ -33,14 +33,14 @@ function dateOf(item: WorkforceProcess, kind: ProcessKind) {
   return kind === 'termination' ? (item as TerminationProcess).requested_date : (item as LeaveProcess | TripProcess).start_date;
 }
 
-function ProcessCreateForm({ kind, close }: { kind: ProcessKind; close: () => void }) {
+function ProcessCreateForm({ kind, close, initialEmployeeId = '' }: { kind: ProcessKind; close: () => void; initialEmployeeId?: string }) {
   const client = useQueryClient();
   const employees = useQuery({ queryKey: ['hr', 'employees'], queryFn: () => hrRepository.listEmployees() });
   const current = useQuery({ queryKey: ['workforce-process', 'current-employee'], queryFn: workforceProcessesApi.currentEmployee, enabled: kind !== 'termination' });
   const leaveTypes = useQuery({ queryKey: ['workforce-process', 'leave-types'], queryFn: workforceProcessesApi.listLeaveTypes, enabled: kind === 'leave' });
   const leaveBalances = useQuery({ queryKey: ['workforce-process', 'leave-balances'], queryFn: () => workforceProcessesApi.listLeaveBalances(), enabled: kind === 'leave' });
   const reasons = useQuery({ queryKey: ['workforce-process', 'termination-reasons'], queryFn: workforceProcessesApi.listTerminationReasons, enabled: kind === 'termination' });
-  const [values, setValues] = useState({ employeeId: '', leaveTypeId: '', startDate: '', endDate: '', reason: '', destination: '', purpose: '', estimatedCost: '0', currency: 'KZT', fundingSource: '', costCenter: '', reasonId: '', requestedDate: '', legalBasis: '' });
+  const [values, setValues] = useState({ employeeId: initialEmployeeId, leaveTypeId: '', startDate: '', endDate: '', reason: '', destination: '', purpose: '', estimatedCost: '0', currency: 'KZT', fundingSource: '', costCenter: '', reasonId: '', requestedDate: new Date().toISOString().slice(0, 10), legalBasis: '' });
   const set = (key: keyof typeof values, value: string) => setValues((currentValues) => ({ ...currentValues, [key]: value }));
   const mutation = useMutation({
     mutationFn: async () => {
@@ -61,9 +61,10 @@ function ProcessCreateForm({ kind, close }: { kind: ProcessKind; close: () => vo
   const submit = (event: FormEvent) => { event.preventDefault(); mutation.mutate(); };
   const balance = leaveBalances.data?.find((item) => item.leave_type_id === values.leaveTypeId);
   const availableDays = balance ? balance.entitlement_days - balance.used_days - balance.reserved_days : null;
-  return <Section className="workforce-create-section" title={kind === 'termination' ? 'Запустить увольнение' : kind === 'leave' ? 'Новая заявка на отпуск' : 'Новая командировка'} meta="Данные сохраняются в кадровом контуре">
+  return <Section className="workforce-create-section" title={kind === 'termination' ? 'Заявление на увольнение' : kind === 'leave' ? 'Новая заявка на отпуск' : 'Новая командировка'} meta={kind === 'termination' ? 'Формальный кадровый маршрут' : 'Данные сохраняются в кадровом контуре'}>
     <form onSubmit={submit} className="field-grid workforce-create-form">
       {kind === 'termination' && <>
+        <div className="termination-form-intro span-two"><span><UserMinus size={20} /></span><div><strong>Оформление прекращения трудовых отношений</strong><p>Заполните основание и дату. После отправки заявка пройдёт тот же корпоративный контур, что и найм, но без конкурсной комиссии.</p></div></div>
         <label className="span-two">Сотрудник<select required value={values.employeeId} onChange={(event) => set('employeeId', event.target.value)}><option value="">Выберите сотрудника</option>{(employees.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.position}</option>)}</select></label>
         <label className="span-two">Причина<select required value={values.reasonId} onChange={(event) => set('reasonId', event.target.value)}><option value="">Выберите основание</option>{(reasons.data ?? []).map((item) => <option key={item.id} value={item.id}>{terminationReasonLabels[item.code] ?? item.name}</option>)}</select></label>
         <label>Желаемая дата<input required min={new Date().toISOString().slice(0, 10)} type="date" value={values.requestedDate} onChange={(event) => set('requestedDate', event.target.value)} /></label>
@@ -95,7 +96,8 @@ function ProcessCreateForm({ kind, close }: { kind: ProcessKind; close: () => vo
 export default function WorkforceProcessPage({ kind }: { kind: ProcessKind }) {
   const persona = useDeveloperStore((state) => state.persona);
   const locale = useDeveloperStore((state) => state.locale);
-  const [creating, setCreating] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [creating, setCreating] = useState(searchParams.get('create') === 'true');
   const definition = config[kind];
   const query = useQuery({
     queryKey: ['workforce-processes', kind, persona],
@@ -103,6 +105,15 @@ export default function WorkforceProcessPage({ kind }: { kind: ProcessKind }) {
   });
   const employees = useQuery({ queryKey: ['hr', 'employees'], queryFn: () => hrRepository.listEmployees() });
   const rows = query.data ?? [];
+  const roleTaskTypes = ({
+    executive: ['handover'],
+    accountant: ['asset_return', 'settlement'],
+    'it-specialist': ['access_revocation']
+  } as Record<string, string[]>)[persona] ?? [];
+  const visibleRows = kind !== 'termination' || hrPersonas.includes(persona)
+    ? rows
+    : rows.filter((item) => canActOnProcess(persona, kind, item.status)
+      || roleTaskTypes.some((taskType) => (item as TerminationProcess).pending_task_types?.includes(taskType)));
   const employeeNames = new Map((employees.data ?? []).map((item) => [item.id, item.fullName]));
   const actionable = rows.filter((item) => canActOnProcess(persona, kind, item.status)).length;
   const completed = rows.filter((item) => ['approved', 'registered', 'completed'].includes(item.status)).length;
@@ -111,19 +122,20 @@ export default function WorkforceProcessPage({ kind }: { kind: ProcessKind }) {
 
   return <>
     <PageHeader eyebrow={definition.eyebrow} title={definition.title} description={definition.description} actions={<>{canCreate && <button className="primary-button" onClick={() => setCreating(!creating)}><Plus size={16} />{kind === 'termination' ? 'Начать увольнение' : 'Создать заявку'}</button>}</>} />
-    {creating && <ProcessCreateForm kind={kind} close={() => setCreating(false)} />}
+    {creating && <ProcessCreateForm kind={kind} initialEmployeeId={searchParams.get('employee') ?? ''} close={() => setCreating(false)} />}
     <div className="planned-metric-grid">
       <article><span><Icon size={20} /></span><div><small>Всего записей</small><strong>{rows.length}</strong><em>из backend</em></div></article>
       <article><span><FileSignature size={20} /></span><div><small>Требуют действия</small><strong>{actionable}</strong><em>для текущей роли</em></div></article>
       <article><span><CalendarCheck2 size={20} /></span><div><small>Завершено</small><strong>{completed}</strong><em>маршрут пройден</em></div></article>
     </div>
-    <div className="hiring-list-toolbar"><span><Icon size={17} />{rows.length} записей</span><button className="secondary-button" onClick={() => void query.refetch()}><RefreshCw size={15} />Обновить</button></div>
-    {query.isError ? <div className="api-error-card"><strong>Не удалось загрузить данные</strong><p>{query.error instanceof Error ? query.error.message : 'Ошибка API'}</p></div> : query.isLoading || employees.isLoading ? <div className="hiring-empty">Загрузка…</div> : rows.length ? <div className="hiring-request-list">{rows.map((item) => {
+    <div className="hiring-list-toolbar"><span><Icon size={17} />{visibleRows.length} записей для вашей роли</span><button className="secondary-button" onClick={() => void query.refetch()}><RefreshCw size={15} />Обновить</button></div>
+    {query.isError ? <div className="api-error-card"><strong>Не удалось загрузить данные</strong><p>{query.error instanceof Error ? query.error.message : 'Ошибка API'}</p></div> : query.isLoading || employees.isLoading ? <div className="hiring-empty">Загрузка…</div> : visibleRows.length ? <div className="hiring-request-list">{visibleRows.map((item) => {
       const leave = kind === 'leave' ? item as LeaveProcess : null;
       const trip = kind === 'trip' ? item as TripProcess : null;
       const title = employeeNames.get(item.employee_id) ?? 'Сотрудник';
       const detail = leave ? `${formatDate(leave.start_date, locale)} — ${formatDate(leave.end_date, locale)} · ${leave.requested_days} дн.` : trip ? `${trip.destination} · ${formatDate(trip.start_date, locale)} — ${formatDate(trip.end_date, locale)}` : `Желаемая дата: ${formatDate((item as TerminationProcess).requested_date, locale)}`;
-      return <Link key={item.id} to={`${pathByKind[kind]}/${item.id}`} className="hiring-request-card"><span className="hiring-request-icon"><Icon size={20} /></span><div><small>{kind === 'leave' ? 'ОТПУСК' : kind === 'trip' ? 'КОМАНДИРОВКА' : 'УВОЛЬНЕНИЕ'}</small><strong>{title}</strong><p>{detail}</p></div><span className={`hiring-status ${item.status}`}>{processStatusLabels[item.status] ?? item.status}</span><div className="hiring-request-stage"><small>{canActOnProcess(persona, kind, item.status) ? 'Ожидает вашего решения' : 'Маршрут выполняется'}</small><time>{formatDate(dateOf(item, kind), locale)}</time></div><ArrowRight size={18} /></Link>;
+      const ownTask = kind === 'termination' && roleTaskTypes.some((taskType) => (item as TerminationProcess).pending_task_types?.includes(taskType));
+      return <Link key={item.id} to={`${pathByKind[kind]}/${item.id}`} className="hiring-request-card"><span className="hiring-request-icon"><Icon size={20} /></span><div><small>{kind === 'leave' ? 'ОТПУСК' : kind === 'trip' ? 'КОМАНДИРОВКА' : 'УВОЛЬНЕНИЕ'}</small><strong>{title}</strong><p>{detail}</p></div><span className={`hiring-status ${item.status}`}>{kind === 'termination' && !canActOnProcess(persona, kind, item.status) && !hrPersonas.includes(persona) ? 'Задача офбординга' : processStatusLabels[item.status] ?? item.status}</span><div className="hiring-request-stage"><small>{canActOnProcess(persona, kind, item.status) ? 'Ожидает вашего решения' : ownTask ? 'Ожидает подтверждения' : 'Маршрут выполняется'}</small><time>{formatDate(dateOf(item, kind), locale)}</time></div><ArrowRight size={18} /></Link>;
     })}</div> : <div className="hiring-empty"><span><Icon size={28} /></span><strong>Записей пока нет</strong><p>Новые заявки появятся здесь сразу после отправки в backend.</p></div>}
   </>;
 }

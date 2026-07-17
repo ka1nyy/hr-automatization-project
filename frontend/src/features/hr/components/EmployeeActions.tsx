@@ -64,23 +64,6 @@ function useInvokeFunction(employeeId: string, onDone: () => void) {
   });
 }
 
-function TerminateDialog({ employeeId, descriptor, onClose, onTerminated }: { employeeId: string; descriptor: EmployeeFunctionDescriptor; onClose: () => void; onTerminated: () => void }) {
-  const [terminationDate, setTerminationDate] = useState(today());
-  const [reason, setReason] = useState('');
-  const invoke = useInvokeFunction(employeeId, onTerminated);
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const record = await hrRepository.getCoreEmployee(employeeId);
-    invoke.mutate({ key: descriptor.key, payload: { terminationDate, reason, revision: record.revision } });
-  };
-
-  return <FunctionDialog descriptor={descriptor} onClose={onClose} onSubmit={submit} error={invoke.error ? String(invoke.error.message) : ''} pending={invoke.isPending}>
-    <label>Дата увольнения<em>*</em><input type="date" value={terminationDate} onChange={(event) => setTerminationDate(event.target.value)} required /></label>
-    <label className="span-two">Причина<em>*</em><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Основание увольнения" required /></label>
-  </FunctionDialog>;
-}
-
 function TransferDialog({ employeeId, descriptor, onClose }: { employeeId: string; descriptor: EmployeeFunctionDescriptor; onClose: () => void }) {
   const [staffingSlotId, setStaffingSlotId] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState(today());
@@ -149,12 +132,13 @@ export function EmployeeActions({ employeeId }: { employeeId: string }) {
         className="secondary-button"
         disabled={!supported.has(descriptor.key)}
         title={supported.has(descriptor.key) ? descriptor.description : 'Форма для этой функции ещё не подключена'}
-        onClick={() => setActive(descriptor)}
+        onClick={() => descriptor.key === 'employee.terminate'
+          ? navigate(`/hr/terminations?create=true&employee=${employeeId}`)
+          : setActive(descriptor)}
       >
         {functionIcons[descriptor.key]}{descriptor.title}
       </button>
     ))}
-    {active?.key === 'employee.terminate' && <TerminateDialog employeeId={employeeId} descriptor={active} onClose={() => setActive(null)} onTerminated={() => navigate('/hr/employees?lifecycle=terminated', { replace: true })} />}
     {active?.key === 'employee.transfer' && <TransferDialog employeeId={employeeId} descriptor={active} onClose={() => setActive(null)} />}
     {active && ABSENCE_FUNCTION_KEYS.has(active.key) && <AbsenceDialog employeeId={employeeId} descriptor={active} onClose={() => setActive(null)} />}
   </>;

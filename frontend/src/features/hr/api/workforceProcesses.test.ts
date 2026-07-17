@@ -41,8 +41,11 @@ describe('workforce process frontend routing', () => {
     expect(canActOnProcess('executive', 'leave', 'manager_review')).toBe(true);
     expect(canActOnProcess('hr-specialist', 'leave', 'hr_review')).toBe(true);
     expect(canActOnProcess('economic-director', 'trip', 'finance_review')).toBe(true);
+    expect(canActOnProcess('hr-director', 'termination', 'hr_review')).toBe(true);
+    expect(canActOnProcess('economic-director', 'termination', 'economic_review')).toBe(true);
     expect(canActOnProcess('legal-reviewer', 'termination', 'legal_review')).toBe(true);
-    expect(canActOnProcess('executive', 'termination', 'signature')).toBe(true);
+    expect(canActOnProcess('board-chairman', 'termination', 'signature')).toBe(true);
+    expect(canActOnProcess('executive', 'termination', 'signature')).toBe(false);
     expect(canActOnProcess('board-chairman', 'leave', 'manager_review')).toBe(false);
     expect(canActOnProcess('secretary', 'termination', 'signature')).toBe(false);
   });

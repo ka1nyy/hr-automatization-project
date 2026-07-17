@@ -603,6 +603,22 @@ async def test_termination_keeps_assignment_until_effective_completion(
         UUID(str(case["id"])),
         _development_user_id("admin"),
         int(case["revision"]),
+        "economic_review",
+        "approve",
+        "staffing and settlement confirmed",
+    )
+    case = await operations.decide(
+        UUID(str(case["id"])),
+        _development_user_id("admin"),
+        int(case["revision"]),
+        "legal_review",
+        "approve",
+        "legal basis confirmed",
+    )
+    case = await operations.decide(
+        UUID(str(case["id"])),
+        _development_user_id("admin"),
+        int(case["revision"]),
         "signature",
         "approve",
         "signed",
@@ -661,26 +677,14 @@ async def test_termination_keeps_assignment_until_effective_completion(
         int(case["revision"]),
         UUID(str(document["id"])),
     )
-    tasks = await operations.create_tasks(
-        UUID(str(case["id"])),
-        _development_user_id("hr"),
-        [
-            {"taskType": value, "assignedEmployeeId": employee_id}
-            for value in ("handover", "asset_return", "access_revocation", "settlement")
-        ],
-    )
-    await documents.create_checklist_item(
-        ORGANIZATION_ID,
-        _development_user_id("hr"),
-        {
-            "businessEntityType": "terminationCase",
-            "businessEntityId": case["id"],
-            "documentTypeId": order_type,
-            "documentId": document["id"],
-            "mandatory": True,
-            "status": "validated",
-        },
-    )
+    tasks = await operations.list_tasks(UUID(str(case["id"])))
+    assert {task["task_type"] for task in tasks} == {
+        "handover",
+        "asset_return",
+        "access_revocation",
+        "settlement",
+        "exit_interview",
+    }
     case = await operations.schedule(
         UUID(str(case["id"])), _development_user_id("hr"), int(case["revision"]), date.today(), []
     )
@@ -713,14 +717,15 @@ async def test_termination_keeps_assignment_until_effective_completion(
         after = (
             await session.execute(
                 text(
-                    "SELECT e.active, e.employment_status, a.status FROM employees e "
+                    "SELECT e.active, e.employment_status, a.status, u.active FROM employees e "
                     "JOIN employee_assignments a ON a.employee_id=e.id "
+                    "JOIN user_accounts u ON u.employee_id=e.id "
                     'WHERE e.id=:id AND a."primary"=true'
                 ),
                 {"id": employee_id},
             )
         ).one()
-    assert tuple(after) == (False, "ended", "ended")
+    assert tuple(after) == (False, "ended", "ended", False)
     with pytest.raises(Exception) as cancellation:
         await operations.cancel(
             UUID(str(case["id"])),
@@ -771,6 +776,15 @@ async def test_conditional_legal_return_and_cancellation_before_effective_date(
         "hr_review",
         "approve",
         "complete",
+    )
+    assert case["status"] == "economic_review"
+    case = await operations.decide(
+        UUID(str(case["id"])),
+        _development_user_id("admin"),
+        int(case["revision"]),
+        "economic_review",
+        "approve",
+        "economic review complete",
     )
     assert case["status"] == "legal_review"
     case = await operations.decide(

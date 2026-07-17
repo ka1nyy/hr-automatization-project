@@ -30,6 +30,7 @@ export type TerminationProcess = {
   status: string; revision: number; created_at: string; order_document_id?: string;
   process_instance_id?: string; primary_assignment_id?: string; secondary_assignment_plan?: Array<{ assignmentId: string; action: 'end' | 'retain' }>;
   cancellation_reason?: string;
+  pending_task_types?: string[];
 };
 export type WorkforceProcess = LeaveProcess | TripProcess | TerminationProcess;
 
@@ -65,7 +66,7 @@ function scope() {
 const orgQuery = `organizationId=${DEMO_ORGANIZATION_ID}`;
 
 export const processStatusLabels: Record<string, string> = {
-  manager_review: 'Решение руководителя', hr_review: 'Проверка HR', finance_review: 'Проверка финансов',
+  manager_review: 'Решение руководителя', hr_review: 'Директор HR', economic_review: 'Экономический директор', finance_review: 'Проверка финансов',
   hr_registration: 'Регистрация HR', legal_review: 'Юридическая проверка', signature: 'Подписание',
   registration: 'Регистрация приказа', offboarding: 'Офбординг', scheduled: 'Запланировано',
   effective: 'Вступило в силу', approved: 'Одобрено', registered: 'Зарегистрировано',
@@ -82,11 +83,11 @@ export function canActOnProcess(persona: PersonaId, kind: ProcessKind, status: s
     if (status === 'finance_review') return persona === 'economic-director' || persona === 'accountant';
     return status === 'hr_registration' && ['hr-specialist', 'hr-initiator', 'hr-director'].includes(persona);
   }
-  if (['hr_review', 'registration', 'offboarding', 'scheduled', 'effective'].includes(status)) {
-    return ['hr-specialist', 'hr-initiator', 'hr-director'].includes(persona);
-  }
+  if (status === 'hr_review') return persona === 'hr-director';
+  if (status === 'economic_review') return persona === 'economic-director';
+  if (['registration', 'offboarding', 'scheduled', 'effective'].includes(status)) return ['hr-specialist', 'hr-initiator', 'hr-director'].includes(persona);
   if (status === 'legal_review') return persona === 'legal-reviewer';
-  if (status === 'signature') return persona === 'executive' || persona === 'board-chairman';
+  if (status === 'signature') return persona === 'board-chairman';
   return false;
 }
 
@@ -125,7 +126,7 @@ export const workforceProcessesApi = {
   createTermination: (input: { employeeId: string; unitId: string; reasonId: string; requestedDate: string; legalBasis: string }) =>
     api.post<TerminationProcess>('/terminations', { organizationId: DEMO_ORGANIZATION_ID, ...input }, 'hr'),
   decideTermination: (item: TerminationProcess, decision: ProcessDecision, comment: string) => {
-    const action = { hr_review: 'hr-review', legal_review: 'legal-review', signature: 'sign' }[item.status];
+    const action = { hr_review: 'hr-review', economic_review: 'economic-review', legal_review: 'legal-review', signature: 'sign' }[item.status];
     if (!action) throw new Error('Для текущего этапа действие недоступно.');
     return api.post<TerminationProcess>(`/terminations/${item.id}/${action}`, { organizationId: DEMO_ORGANIZATION_ID, revision: item.revision, decision, comment }, devUser());
   },

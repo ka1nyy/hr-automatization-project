@@ -14,15 +14,18 @@ from app.core.errors import ConcurrencyConflictError, ResourceNotFoundError, Val
 from app.core.errors.codes import ErrorCode
 from app.core.events.domain import ApplicationEvent, EventName
 from app.core.events.repository import SqlAlchemyTransactionalOutbox
+from app.modules.absence.infrastructure.models import BusinessTripRequestModel, LeaveRequestModel
 from app.modules.documents.infrastructure.models import (
     DocumentChecklistItemModel,
     DocumentRecordModel,
 )
 from app.modules.employees.infrastructure.models import (
+    DelegationModel,
     EmployeeAbsenceModel,
     EmployeeAssignmentModel,
     EmployeeModel,
 )
+from app.modules.identity.infrastructure.models import UserAccountModel
 from app.modules.organization.infrastructure.models import (
     OrganizationStructureVersionModel,
     StaffingSlotModel,
@@ -152,7 +155,25 @@ class SqlAlchemyTerminationOperations:
                 )
             ).all()
             total = int(await s.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
-            return [_view(x) for x in rows], total
+            pending_by_case: dict[UUID, list[str]] = {row.id: [] for row in rows}
+            if rows:
+                pending_tasks = (
+                    await s.execute(
+                        select(
+                            OffboardingTaskModel.termination_case_id,
+                            OffboardingTaskModel.task_type,
+                        ).where(
+                            OffboardingTaskModel.termination_case_id.in_(pending_by_case),
+                            OffboardingTaskModel.status == "pending",
+                        )
+                    )
+                ).all()
+                for pending_case_id, task_type in pending_tasks:
+                    pending_by_case[pending_case_id].append(task_type)
+            return [
+                {**_view(row), "pending_task_types": pending_by_case[row.id]}
+                for row in rows
+            ], total
 
     async def get_case(
         self,
@@ -189,7 +210,15 @@ class SqlAlchemyTerminationOperations:
                 row = await session.scalar(stmt)
                 if row is None:
                     raise ResourceNotFoundError("termination case", case_id)
-                return _view(row)
+                pending_tasks = (
+                    await session.scalars(
+                        select(OffboardingTaskModel.task_type).where(
+                            OffboardingTaskModel.termination_case_id == row.id,
+                            OffboardingTaskModel.status == "pending",
+                        )
+                    )
+                ).all()
+                return {**_view(row), "pending_task_types": list(pending_tasks)}
         return result
 
     async def initiate(
@@ -202,11 +231,21 @@ class SqlAlchemyTerminationOperations:
             if (
                 employee is None
                 or employee.organization_id != organization_id
+                or not employee.active
+                or employee.employment_status == "ended"
                 or reason is None
                 or reason.organization_id != organization_id
                 or not reason.active
             ):
                 raise ResourceNotFoundError("employee or termination reason")
+            existing = await s.scalar(
+                select(TerminationCaseModel.id).where(
+                    TerminationCaseModel.employee_id == employee.id,
+                    TerminationCaseModel.status.not_in(("rejected", "cancelled", "completed")),
+                )
+            )
+            if existing is not None:
+                raise ValidationError("Employee already has an active termination case.")
             legal_basis = str(data.get("legalBasis", "")).strip()
             if not legal_basis:
                 raise ValidationError(
@@ -299,7 +338,6 @@ class SqlAlchemyTerminationOperations:
                 return _view(row)
             _rev(row, revision)
             before = _view(row)
-            reason = await s.get(TerminationReasonModel, row.reason_id)
             if row.status != stage:
                 raise ValidationError("Termination case is not awaiting this review.")
             if decision in {"return", "reject"} and not comment.strip():
@@ -309,9 +347,9 @@ class SqlAlchemyTerminationOperations:
             elif decision == "reject":
                 row.status = "rejected"
             elif stage == "hr_review":
-                row.status = (
-                    "legal_review" if reason and reason.legal_review_required else "signature"
-                )
+                row.status = "economic_review"
+            elif stage == "economic_review":
+                row.status = "legal_review"
             elif stage == "legal_review":
                 row.status = "signature"
             elif stage == "signature":
@@ -323,9 +361,9 @@ class SqlAlchemyTerminationOperations:
                 raise ValidationError("Termination case has no linked workflow.")
             workflow_action: str | None = decision
             expected_phase = "hr_review"
-            if stage == "legal_review" and decision == "approve":
+            if stage in {"economic_review", "legal_review"} and decision == "approve":
                 workflow_action = None
-            elif stage in {"legal_review", "signature"}:
+            elif stage in {"economic_review", "legal_review", "signature"}:
                 expected_phase = "signature_registration"
                 if stage == "signature" and decision == "approve":
                     workflow_action = "complete"
@@ -424,6 +462,61 @@ class SqlAlchemyTerminationOperations:
             row.order_document_id = doc.id
             row.status = "offboarding"
             row.revision += 1
+            checklist = await s.scalar(
+                select(DocumentChecklistItemModel).where(
+                    DocumentChecklistItemModel.business_entity_type == "terminationCase",
+                    DocumentChecklistItemModel.business_entity_id == row.id,
+                    DocumentChecklistItemModel.document_type_id == doc.document_type_id,
+                )
+            )
+            if checklist is None:
+                s.add(
+                    DocumentChecklistItemModel(
+                        organization_id=row.organization_id,
+                        process_instance_id=row.process_instance_id,
+                        business_entity_type="terminationCase",
+                        business_entity_id=row.id,
+                        document_type_id=doc.document_type_id,
+                        document_id=doc.id,
+                        mandatory=True,
+                        status="validated",
+                        rejection_comment=None,
+                    )
+                )
+            else:
+                checklist.document_id = doc.id
+                checklist.mandatory = True
+                checklist.status = "validated"
+                checklist.rejection_comment = None
+                checklist.revision += 1
+            existing_types = set(
+                (
+                    await s.scalars(
+                        select(OffboardingTaskModel.task_type).where(
+                            OffboardingTaskModel.termination_case_id == row.id
+                        )
+                    )
+                ).all()
+            )
+            for task_type in (
+                "handover",
+                "asset_return",
+                "access_revocation",
+                "settlement",
+                "exit_interview",
+            ):
+                if task_type in existing_types:
+                    continue
+                task = OffboardingTaskModel(
+                    termination_case_id=row.id,
+                    task_type=task_type,
+                    status="pending",
+                    evidence={},
+                    restricted_notes=None,
+                )
+                s.add(task)
+                await s.flush()
+                await self._event(s, EventName.OFFBOARDING_TASK_ASSIGNED, task)
             await self._change(
                 s,
                 actor_id,
@@ -442,7 +535,18 @@ class SqlAlchemyTerminationOperations:
             if case.status not in {"offboarding", "scheduled"}:
                 raise ValidationError("Case is not in offboarding.")
             result = []
+            existing_types = set(
+                (
+                    await s.scalars(
+                        select(OffboardingTaskModel.task_type).where(
+                            OffboardingTaskModel.termination_case_id == case.id
+                        )
+                    )
+                ).all()
+            )
             for item in tasks:
+                if str(item["taskType"]) in existing_types:
+                    continue
                 row = OffboardingTaskModel(
                     termination_case_id=case.id,
                     task_type=str(item["taskType"]),
@@ -458,6 +562,7 @@ class SqlAlchemyTerminationOperations:
                 await s.flush()
                 result.append(_view(row))
                 await self._event(s, EventName.OFFBOARDING_TASK_ASSIGNED, row)
+                existing_types.add(row.task_type)
             await self._audit(
                 s, actor_id, case.organization_id, "termination.offboarding.tasks.created", case
             )
@@ -698,6 +803,59 @@ class SqlAlchemyTerminationOperations:
                 absence.status = "cancelled"
                 absence.updated_at = utc_now()
                 absence.revision += 1
+            for request_model in (LeaveRequestModel, BusinessTripRequestModel):
+                requests = (
+                    await s.scalars(
+                        select(request_model)
+                        .where(
+                            request_model.employee_id == employee.id,
+                            request_model.end_date >= row.effective_date,
+                            request_model.status.not_in(
+                                ("cancelled", "rejected", "completed")
+                            ),
+                        )
+                        .with_for_update()
+                    )
+                ).all()
+                for loaded_request in requests:
+                    request = cast(Any, loaded_request)
+                    request.status = "cancelled"
+                    request.cancelled_at = utc_now()
+                    request.cancellation_reason = "Employment terminated"
+                    request.revision += 1
+                    await self._close_linked_instance(s, request, "cancelled")
+            delegations = (
+                await s.scalars(
+                    select(DelegationModel)
+                    .where(
+                        (
+                            (DelegationModel.delegator_employee_id == employee.id)
+                            | (DelegationModel.delegate_employee_id == employee.id)
+                        ),
+                        DelegationModel.status.in_(("scheduled", "active")),
+                    )
+                    .with_for_update()
+                )
+            ).all()
+            for delegation in delegations:
+                delegation.status = "revoked"
+                delegation.revoked_at = utc_now()
+                delegation.revision += 1
+            accounts = (
+                await s.scalars(
+                    select(UserAccountModel)
+                    .where(
+                        UserAccountModel.employee_id == employee.id,
+                        UserAccountModel.active.is_(True),
+                    )
+                    .with_for_update()
+                )
+            ).all()
+            for account in accounts:
+                account.active = False
+                account.status = "disabled"
+                account.updated_at = utc_now()
+                account.revision += 1
             row.status = "completed"
             row.effective_at = utc_now()
             row.completed_at = utc_now()
@@ -778,7 +936,7 @@ class SqlAlchemyTerminationOperations:
 
     @staticmethod
     async def _close_linked_instance(
-        s: AsyncSession, row: TerminationCaseModel, status: str
+        s: AsyncSession, row: Any, status: str
     ) -> None:
         """Finish the linked workflow instance so it stops occupying task queues."""
 

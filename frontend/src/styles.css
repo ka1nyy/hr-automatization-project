@@ -975,6 +975,8 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hiring-status { border-radius: 999px; font-size: 11px; font-weight: 800; padding: 6px 9px; white-space: nowrap; }
 .hiring-status.draft, .hiring-status.pdf_generated { background: var(--soft); color: var(--muted); }
 .hiring-status.under_review { background: #fff4d6; color: #9a6700; }
+.hiring-status.hr_review, .hiring-status.economic_review, .hiring-status.legal_review, .hiring-status.signature { background: color-mix(in srgb, var(--primary) 12%, var(--paper)); color: var(--primary); }
+.hiring-status.registration, .hiring-status.offboarding, .hiring-status.scheduled, .hiring-status.effective { background: #fff4d6; color: #9a6700; }
 .hiring-status.returned, .hiring-status.rejected { background: #fee4e2; color: #b42318; }
 .hiring-status.final_approved, .hiring-status.completed { background: #dcfae6; color: #067647; }
 .hiring-status.dispatched, .hiring-status.partially_acknowledged { background: #e0e7ff; color: #4338ca; }
@@ -997,6 +999,12 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .workforce-create-form label { color: var(--text); font-size: 12px; font-weight: 600; }
 .workforce-create-form input, .workforce-create-form select, .workforce-create-form textarea { background: color-mix(in srgb, var(--paper) 94%, var(--primary)); border-radius: 10px; margin-top: 7px; }
 .workforce-create-form .hr-form-footer { border-top: 1px solid var(--border); margin: 4px -20px -20px; padding: 16px 20px; }
+.termination-form-intro, .termination-application-note { align-items: flex-start; background: color-mix(in srgb, var(--primary) 7%, var(--paper)); border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border)); border-radius: 14px; display: flex; gap: 12px; padding: 14px 16px; }
+.termination-form-intro > span, .termination-application-note > svg { color: var(--primary); flex: 0 0 auto; }
+.termination-form-intro > span { align-items: center; background: color-mix(in srgb, var(--primary) 13%, var(--paper)); border-radius: 10px; display: flex; height: 38px; justify-content: center; width: 38px; }
+.termination-form-intro strong, .termination-application-note strong { color: var(--text); display: block; font-size: 13px; }
+.termination-form-intro p, .termination-application-note p { color: var(--muted); font-size: 11px; line-height: 1.55; margin: 4px 0 0; }
+.termination-application-note { margin-top: 18px; }
 .leave-balance-inline { align-items: center; background: color-mix(in srgb, #12b76a 10%, var(--paper)); border: 1px solid color-mix(in srgb, #12b76a 28%, var(--border)); border-radius: 12px; color: #067647; display: flex; gap: 11px; padding: 12px 14px; }
 .leave-balance-inline span, .leave-balance-inline small, .leave-balance-inline strong { display: block; }
 .leave-balance-inline small { color: var(--muted); font-size: 10px; font-weight: 500; }
@@ -1454,6 +1462,10 @@ body { font-size: 14px; line-height: 1.5; }
 .hr-case-card > div > small { color: var(--muted); display: block; font-size: 8px; margin-top: 4px; }
 .hr-case-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .hr-termination-section > .secondary-button { margin: 0 17px 14px; }
+.termination-profile-empty { align-items: center; display: flex; gap: 11px; padding: 14px 17px; }
+.termination-profile-empty > span { align-items: center; background: color-mix(in srgb, var(--primary) 10%, var(--paper)); border-radius: 10px; color: var(--primary); display: flex; height: 38px; justify-content: center; width: 38px; }
+.termination-profile-empty strong { display: block; font-size: 10px; }
+.termination-profile-empty p { color: var(--muted); font-size: 8px; margin: 4px 0 0; }
 
 /* Redesigned Control Hub (Admin Command Center) */
 .admin-command-center.redesigned {

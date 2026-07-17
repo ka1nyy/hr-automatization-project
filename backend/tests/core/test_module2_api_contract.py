@@ -21,6 +21,7 @@ def test_module2_openapi_contract_contains_required_operations() -> None:
         "/api/v1/recruitment/requests",
         "/api/v1/recruitment/hiring-cases/{item_id}/complete",
         "/api/v1/terminations/{item_id}/schedule",
+        "/api/v1/terminations/{item_id}/economic-review",
         "/api/v1/terminations/{item_id}/complete",
     }
     assert required <= set(schema["paths"])

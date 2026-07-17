@@ -46,7 +46,12 @@ def test_organization_viewer_is_read_only_and_additive_for_scoped_personas() -> 
 def test_workforce_lifecycle_personas_have_the_permissions_used_by_the_ui() -> None:
     roles = {role.code: role.permission_codes for role in SEED_ROLES}
 
-    assert {"absence.read_all", "business_trip.review_finance"} <= roles[
+    assert {
+        "absence.read_all",
+        "business_trip.review_finance",
+        "termination.read_all",
+        "termination.review_economic",
+    } <= roles[
         "economic-planning-director"
     ]
     assert {"termination.read_all", "termination.review_legal"} <= roles[

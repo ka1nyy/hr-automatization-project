@@ -126,6 +126,8 @@ export interface EmployeeFunctionDescriptor {
 
 export interface CoreEmployeeRecord {
   id: string;
+  displayName?: string;
+  departmentName?: string | null;
   revision: number;
   employmentStatus: string;
   active: boolean;
