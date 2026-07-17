@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ArrowUpRight, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, ListTodo, ShieldCheck, UserCheck, UserPlus, UsersRound } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Calendar, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, ListTodo, MapPin, ShieldCheck, UserCheck, UserPlus, UsersRound, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { repositories } from '../../../repositories';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
@@ -11,6 +11,13 @@ import { UNIFIED_HR_WORKSPACE } from '../../../shared/unifiedHrWorkspace';
 import { hrRepository } from '../api';
 import { hiringRequestsApi, hiringStatusLabels, type HiringRequestScope } from '../api/hiringRequests';
 import { LeaveStatus } from '../components/HrStatus';
+
+const mockMeetings = [
+  { id: '1', title: 'Интервью: Смагулов Р. Э.', time: '11:30', date: 'Сегодня', type: 'online', location: 'Google Meet', badge: 'IT-Специалист' },
+  { id: '2', title: 'Синхронизация HR-департамента', time: '14:00', date: 'Сегодня', type: 'offline', location: 'Переговорная «Астана»', badge: 'Внутреннее' },
+  { id: '3', title: 'Финальный этап: Ахметова А. К.', time: '10:00', date: 'Завтра', type: 'online', location: 'Google Meet', badge: 'Бухгалтер' },
+  { id: '4', title: 'One-to-One с руководителем', time: '16:30', date: 'Завтра', type: 'offline', location: 'Кабинет 302', badge: 'Регулярная' },
+];
 
 export default function HrOverviewPage() {
   const persona = useDeveloperStore((state) => state.persona);
@@ -25,12 +32,11 @@ export default function HrOverviewPage() {
   const employee = useQuery({ queryKey: ['hr', 'employee', 'me'], queryFn: () => hrRepository.getCurrentEmployee(), enabled: canOpen && !isHr });
   const leaveRequests = useQuery({ queryKey: ['hr', 'leave'], queryFn: () => hrRepository.listLeaveRequests(), enabled: canOpen });
   const hiringActivity = useQuery({ queryKey: ['hiring-requests', attentionScope, persona], queryFn: () => hiringRequestsApi.list(attentionScope), enabled: canOpen && isHr });
-  const tasks = useQuery({ queryKey: ['tasks'], queryFn: () => repositories.tasks.list(), enabled: canOpen && isHr });
 
   if (!canOpen) return <div className="hr-access-denied"><span>HR</span><h1>Рабочее пространство недоступно</h1><p>Выбранная роль не участвует в HR self-service или кадровых процессах.</p><Link className="secondary-button" to="/">На главную</Link></div>;
-  if (overview.isLoading || employee.isLoading || leaveRequests.isLoading || hiringActivity.isLoading || tasks.isLoading) return <QueryState />;
-  const error = overview.error || employee.error || leaveRequests.error || hiringActivity.error || tasks.error;
-  if (error) return <QueryState error={error} retry={() => { overview.refetch(); employee.refetch(); leaveRequests.refetch(); hiringActivity.refetch(); tasks.refetch(); }} />;
+  if (overview.isLoading || employee.isLoading || leaveRequests.isLoading || hiringActivity.isLoading) return <QueryState />;
+  const error = overview.error || employee.error || leaveRequests.error || hiringActivity.error;
+  if (error) return <QueryState error={error} retry={() => { overview.refetch(); employee.refetch(); leaveRequests.refetch(); hiringActivity.refetch(); }} />;
 
   if (!isHr) {
     const person = employee.data!;
@@ -52,7 +58,6 @@ export default function HrOverviewPage() {
   const stats = overview.data!;
   const messages = hiringActivity.data!.filter((item) => !['draft', 'pdf_generated'].includes(item.status));
   const pending = permissions.includes('hiring.approve') ? messages : [];
-  const activeTasks = tasks.data!.filter((task) => task.state !== 'completed');
   const workforceTotal = Math.max(1, stats.activeEmployees + stats.onLeave + stats.onBusinessTrip + stats.onSickLeave);
   const presenceRate = Math.round(stats.activeEmployees / workforceTotal * 100);
   const workforceChart = [
@@ -61,38 +66,196 @@ export default function HrOverviewPage() {
     { label: 'Командировка', value: stats.onBusinessTrip, color: 'var(--violet)', detail: 'Служебная поездка', to: '/hr/calendar' },
     { label: 'Больничный', value: stats.onSickLeave, color: 'var(--coral)', detail: 'Нетрудоспособность', to: '/hr/sick-leave' },
   ];
-  const controlChart = [
-    { label: 'Процессы', value: stats.activeProcesses, color: 'var(--teal)', to: '/processes' },
-    { label: 'Дела < 90%', value: stats.incompleteFiles, color: 'var(--gold)', to: '/hr/documents' },
-    { label: 'Договоры', value: stats.expiringContracts, color: 'var(--violet)', to: '/hr/employees?query=2026' },
-    { label: 'Просрочено', value: stats.overdueTasks, color: 'var(--coral)', to: '/tasks?filter=overdue' },
-  ];
-  const overdueTasks = activeTasks.filter((task) => task.state === 'overdue').length;
-
   return <>
-    <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" actions={<><Link className="secondary-button" to="/hr/employees"><UsersRound size={16} /> Сотрудники</Link><Link className="primary-button" to="/hr/employees?add=true"><UserPlus size={16} /> Добавить сотрудника</Link></>} />
+    <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" />
     
-    <div className="dashboard-chart-grid hr-dashboard-charts">
-      <Section title="Структура присутствия" meta={`${workforceTotal} сотрудников`}><DonutChart data={workforceChart} centerValue={`${presenceRate}%`} centerLabel="активны" ariaLabel="Распределение сотрудников по типу присутствия" /></Section>
-      <Section title="HR-контроль" meta="Актуальные риски"><BarChart data={controlChart} ariaLabel="HR-показатели, требующие контроля" /></Section>
+    <div className="dashboard-staggered-layout">
+      {/* Row 1: 55 / 45 */}
+      <div className="staggered-row row-55-45">
+        {/* Left Column (55%): Approvals */}
+        <div className="col-55">
+          <section className="workspace-card approvals-section" aria-label="Панель согласований найма">
+            <header className="card-section-header">
+              <div className="card-title-wrap">
+                <ShieldCheck size={20} className="icon-amber" />
+                <h2>Согласования</h2>
+                <span className={`hub-badge badge-amber ${pending.length ? 'active' : ''}`}>{pending.length}</span>
+              </div>
+              <Link className="card-header-link" to="/hr/approvals">Все согласования <ArrowRight size={14} /></Link>
+            </header>
+
+            <div className="card-section-content">
+              {pending.length ? (
+                <div className="hub-decisions-list">
+                  {pending.slice(0, 3).map((request) => (
+                    <Link to={`/hiring/requests/${request.id}`} className="hub-decision-row-card" key={request.id}>
+                      <div className="hub-row-header">
+                        <div className="hub-row-candidate">
+                          <strong>{request.candidateName || 'Новый сотрудник'}</strong>
+                          <span className="hub-row-meta">
+                            {String(request.employmentData.department ?? 'Подразделение не указано')} · {String(request.employmentData.position ?? 'Должность не указана')}
+                          </span>
+                        </div>
+                        <span className="hub-row-tag tag-urgent">Требует действия</span>
+                      </div>
+
+                      <div className="hub-row-body">
+                        <div className="hub-route-tracker">
+                          <div className="hub-route-step completed">
+                            <CheckCircle2 size={13} />
+                            <span>Заявка</span>
+                          </div>
+                          <div className="hub-route-connector completed" />
+                          <div className="hub-route-step active">
+                            <Clock3 size={13} />
+                            <span>{request.currentStageName}</span>
+                          </div>
+                          <div className="hub-route-connector" />
+                          <div className="hub-route-step pending">
+                            <span className="step-dot" />
+                            <span>Финал</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="hub-row-footer">
+                        <span className="hub-row-info">
+                          Номер: <code>{request.requestNumber}</code> · Этап {request.currentStage ?? 0} из {request.approvalStages.length}
+                        </span>
+                        <span className="hub-row-action-btn">
+                          Рассмотреть <ArrowRight size={14} />
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="hub-empty-state state-success">
+                  <div className="hub-empty-icon">
+                    <CheckCircle2 size={32} />
+                    <div className="pulse-glow" />
+                  </div>
+                  <strong>Отличная работа!</strong>
+                  <p>Все входящие заявки согласованы. На вашей роли нет документов, требующих срочного решения.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column (45%): Staff Status / Presence */}
+        <div className="col-45">
+          <section className="workspace-card presence-section" aria-label="Статус персонала">
+            <header className="card-section-header">
+              <div className="card-title-wrap">
+                <UsersRound size={18} className="icon-teal" />
+                <h2>Статус персонала</h2>
+                <span className="hub-badge badge-blue">{workforceTotal}</span>
+              </div>
+              <span className="card-header-meta">присутствие</span>
+            </header>
+            <div className="card-section-content">
+              <DonutChart data={workforceChart} centerValue={`${presenceRate}%`} centerLabel="активны" ariaLabel="Распределение сотрудников по типу присутствия" />
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Row 2: 45 / 55 */}
+      <div className="staggered-row row-45-55">
+        {/* Left Column (45%): Meeting Plan */}
+        <div className="col-45">
+          <section className="workspace-card meetings-section" aria-label="План встреч">
+            <header className="card-section-header">
+              <div className="card-title-wrap">
+                <Calendar size={18} className="icon-teal" />
+                <h2>План встреч</h2>
+                <span className="hub-badge badge-blue">{mockMeetings.length}</span>
+              </div>
+              <span className="card-header-meta">ближайшие</span>
+            </header>
+            <div className="card-section-content">
+              <div className="meetings-list">
+                {mockMeetings.map((meeting) => (
+                  <div className="meeting-row-card" key={meeting.id}>
+                    <div className="meeting-time-box">
+                      <span className="meeting-date">{meeting.date}</span>
+                      <span className="meeting-time">{meeting.time}</span>
+                    </div>
+                    <div className="meeting-info">
+                      <div className="meeting-title-wrap">
+                        <strong>{meeting.title}</strong>
+                        <span className={`meeting-badge ${meeting.type}`}>{meeting.badge}</span>
+                      </div>
+                      <div className="meeting-location">
+                        {meeting.type === 'online' ? <Video size={12} className="loc-icon" /> : <MapPin size={12} className="loc-icon" />}
+                        <span>{meeting.location}</span>
+                      </div>
+                    </div>
+                    {meeting.type === 'online' && (
+                      <a href="https://meet.google.com" target="_blank" rel="noopener noreferrer" className="meeting-action-link">
+                        Войти
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column (55%): Incoming Messages */}
+        <div className="col-55">
+          <section className="workspace-card updates-section" aria-label="Входящие сообщения">
+            <header className="card-section-header">
+              <div className="card-title-wrap">
+                <Inbox size={18} className="icon-blue" />
+                <h2>Входящие сообщения</h2>
+                <span className="hub-badge badge-blue">{messages.length}</span>
+              </div>
+              <Link className="card-header-link" to="/hr/approvals">Все сообщения <ArrowRight size={14} /></Link>
+            </header>
+
+            <div className="card-section-content">
+              {messages.length ? (
+                <div className="hub-updates-timeline">
+                  {messages.slice(0, 4).map((item) => {
+                    const isPending = pending.some((request) => request.id === item.id);
+                    return (
+                      <Link to={`/hiring/requests/${item.id}`} className={`hub-timeline-item ${isPending ? 'highlighted' : ''}`} key={item.id}>
+                        <div className="hub-timeline-badge">
+                          <span className={`status-pulse pulse-${item.status}`} />
+                        </div>
+                        <div className="hub-timeline-body">
+                          <div className="hub-timeline-title">
+                            <strong>{item.candidateName || 'Новый сотрудник'}</strong>
+                            <span className="hub-timeline-time">{formatDate(item.createdAt, locale, 'dd MMM')}</span>
+                          </div>
+                          <p className="hub-timeline-text">
+                            Заявка <code>{item.requestNumber}</code> переведена в статус <strong>{hiringStatusLabels[item.status] ?? item.status}</strong>
+                          </p>
+                          <div className="hub-timeline-footer">
+                            <span>{item.currentStageName ?? 'Маршрут завершён'}</span>
+                            <span className="hub-timeline-action">Открыть <ArrowRight size={12} /></span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="hub-empty-state">
+                  <div className="hub-empty-icon mini">
+                    <Inbox size={24} />
+                  </div>
+                  <strong>Лента пуста</strong>
+                  <p>Пока нет входящих сообщений.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
-
-    <section className="admin-command-center" aria-labelledby="admin-command-title">
-      <header><div><span>ADMIN COMMAND CENTER</span><h2 id="admin-command-title">Что требует вашего внимания</h2><p>Двигайтесь слева направо: прочитайте новое, выполните задачи, примите решения.</p></div><span className="admin-live"><i /> Данные актуальны</span></header>
-
-      <div className="admin-command-summary">
-        <Link to="/hr/approvals" className="summary-blue"><span><Inbox size={21} /></span><div><small>1. Разобрать входящие</small><strong>{messages.length}<em>сообщений</em></strong><p>{messages.length ? 'Есть обновления по маршруту найма' : 'Новых сообщений нет'}</p></div><ArrowUpRight size={18} /></Link>
-        <Link to="/tasks" className="summary-violet"><span><ListTodo size={21} /></span><div><small>2. Выполнить задачи</small><strong>{activeTasks.length}<em>в работе</em></strong><p>{overdueTasks ? `${overdueTasks} просрочено — требуют действия` : 'Все задачи в плановом сроке'}</p></div><ArrowUpRight size={18} /></Link>
-        <Link to="/hr/approvals" className="summary-amber"><span><ShieldCheck size={21} /></span><div><small>3. Принять решения</small><strong>{pending.length}<em>ожидают вас</em></strong><p>{pending.length ? 'Откройте заявку и подтвердите этап' : 'Все решения приняты'}</p></div><ArrowUpRight size={18} /></Link>
-      </div>
-
-      <div className="admin-queue-board">
-        <section className="admin-queue queue-inbox"><header><span><Inbox size={18} /></span><div><h3>Входящие</h3><small>Обновления по маршруту найма</small></div><b>{messages.length}</b></header><div className="admin-queue-list">{messages.slice(0, 3).map((item) => <Link to={`/hiring/requests/${item.id}`} className="admin-queue-card" key={item.id}><div className="admin-card-top"><span className={`admin-priority priority-${pending.some((request) => request.id === item.id) ? 'urgent' : 'high'}`}>{pending.some((request) => request.id === item.id) ? 'Требует решения' : 'Обновление'}</span><time><Clock3 size={12} />{formatDate(item.createdAt, locale, 'dd MMM')}</time></div><strong>{item.candidateName || 'Новый сотрудник'}</strong><p>{item.requestNumber} · {item.currentStageName ?? 'Маршрут завершён'}</p><footer><span><i className={`status-dot status-${item.status}`} />{hiringStatusLabels[item.status] ?? item.status}</span><b>Открыть <ArrowRight size={14} /></b></footer></Link>)}</div><Link className="admin-queue-footer" to="/hr/approvals">Все входящие <ArrowRight size={15} /></Link></section>
-
-        <section className="admin-queue queue-tasks"><header><span><ListTodo size={18} /></span><div><h3>Задачи</h3><small>То, что нужно сделать</small></div><b>{activeTasks.length}</b></header><div className="admin-queue-list">{activeTasks.slice(0, 3).map((task) => <Link to="/tasks" className="admin-queue-card" key={task.id}><div className="admin-card-top"><span className={`admin-priority priority-${task.priority}`}>{task.state === 'overdue' ? 'Просрочено' : task.priority === 'urgent' ? 'Срочно' : 'В работе'}</span><time><Clock3 size={12} />до {formatDate(task.dueDate, locale, 'dd MMM')}</time></div><strong>{task.title}</strong><p>{task.process} · {task.documentNumber}</p><footer><span>{task.assignee ? `Исполнитель: ${task.assignee}` : 'Не назначено'}</span><b>К задаче <ArrowRight size={14} /></b></footer></Link>)}</div><Link className="admin-queue-footer" to="/tasks">Все задачи <ArrowRight size={15} /></Link></section>
-
-        <section className="admin-queue queue-approvals"><header><span><ShieldCheck size={18} /></span><div><h3>Согласования</h3><small>Там, где требуется ваше решение</small></div><b>{pending.length}</b></header><div className="admin-queue-list">{pending.length ? pending.slice(0, 3).map((request) => <Link to={`/hiring/requests/${request.id}`} className="admin-queue-card approval-card" key={request.id}><div className="admin-card-top"><span className="hiring-status under_review">На согласовании</span><time>{request.requestNumber}</time></div><strong>{request.candidateName || 'Новый сотрудник'}</strong><p>{String(request.employmentData.department ?? 'Подразделение не указано')} · {String(request.employmentData.position ?? 'Должность не указана')}</p><div className="approval-route" aria-label="Этапы согласования"><span className="done"><CheckCircle2 size={13} />Заявка</span><i /><span className="active">{request.currentStageName}</span><i /><span>Финал</span></div><footer><span>Этап {request.currentStage ?? 0} из {request.approvalStages.length}</span><b>Рассмотреть <ArrowRight size={14} /></b></footer></Link>) : <div className="admin-queue-empty"><span><CheckCircle2 size={24} /></span><strong>Всё согласовано</strong><p>Новых решений для вашей роли нет.</p></div>}</div><Link className="admin-queue-footer" to="/hr/approvals">Все согласования <ArrowRight size={15} /></Link></section>
-      </div>
-    </section>
   </>;
 }
