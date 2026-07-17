@@ -981,8 +981,8 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .api-error-card { background: #fff1f0; border: 1px solid #fda29b; border-radius: 14px; color: #b42318; margin-bottom: 14px; padding: 14px; }
 .api-error-card p { margin: 5px 0 0; }
 .hiring-detail-grid { align-items: stretch !important; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
-.hiring-detail-main { background: var(--paper); border: 1px solid var(--border); border-radius: 0 !important; padding: 18px; }
-.hiring-document-panel { background: var(--paper); border: 1px solid var(--border); border-radius: 0 !important; padding: 18px; display: flex !important; flex-direction: column !important; }
+.hiring-detail-main { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius) !important; padding: 18px; }
+.hiring-document-panel { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius) !important; padding: 18px; display: flex !important; flex-direction: column !important; }
 .hiring-panel-header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 12px; padding-bottom: 15px; margin-bottom: 15px; }
 .hiring-panel-header > span { align-items: center; background: color-mix(in srgb, var(--teal) 12%, var(--paper)) !important; border-radius: 10px !important; color: var(--teal) !important; display: flex; height: 38px; justify-content: center; width: 38px; }
 .hiring-panel-header strong { display: block; font-size: 15px; font-weight: 700; color: var(--ink); }
@@ -2589,7 +2589,7 @@ body { font-size: 14px; line-height: 1.5; }
   margin-top: 20px;
   background: var(--paper);
   border: 1px solid var(--border);
-  border-radius: 0 !important;
+  border-radius: var(--radius) !important;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -2889,99 +2889,4 @@ body { font-size: 14px; line-height: 1.5; }
   background: color-mix(in srgb, var(--teal) 85%, black) !important;
 }
 
-/* Global Border Radius Override: make all containers/cards/fields square, keep buttons rounded */
-:root {
-  --radius: 0px !important;
-}
 
-.panel,
-.card,
-.dashboard-action-card,
-.dashboard-metrics-summary,
-.inbox-item-card,
-.incoming-message-item-card,
-.process-request-card,
-.process-detail-main,
-.process-sidebar-panel,
-.process-summary-grid,
-.process-information-grid dl,
-.process-task-item,
-.process-task-detail-card,
-.hub-planned-empty,
-.hub-planned-detail-main,
-.hub-planned-sidebar-panel,
-.hub-planned-summary-grid,
-.hub-planned-information-grid dl,
-.hub-planned-route-preview,
-.hub-decision-card,
-.hub-planned-employee-info-box,
-.data-table-container,
-.data-table-wrap,
-.metric-grid article,
-.hr-metric-grid article,
-.hr-employee-hero,
-.hr-directory-summary,
-.hr-profile-header,
-.hr-leave-card a,
-.hr-leave-summary article,
-.hr-route-preview,
-.correspondence-card,
-.hr-alert-card,
-.task-filters,
-.task-list-panel,
-.popover,
-.search-dialog,
-.register-summary,
-.case-tabs,
-.case-status-bar,
-.employee-grid article,
-.organization-switch,
-.hiring-detail-main,
-.hiring-document-panel,
-.hiring-bottom-feedback-container,
-.hiring-employee-created-panel,
-.hired-employee-details,
-.workforce-create-section,
-.offboarding-task,
-.lifecycle-result,
-.leave-balance-inline,
-.field-search,
-.global-search,
-.upload-zone,
-.upload-compact,
-.checkbox-field,
-.validation-banner,
-.mutation-error,
-.restricted-note,
-.success-banner,
-.view-toggle,
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="date"],
-input[type="number"],
-select,
-textarea {
-  border-radius: 0px !important;
-}
-
-button,
-.button,
-.btn,
-.primary-button,
-.secondary-button,
-.create-button,
-.toolbar-button,
-.open-app-button,
-.blue-profile-button,
-.success-button,
-.danger-button,
-.approve-btn,
-.return-btn,
-.reject-btn,
-.action-buttons-row button,
-.icon-button,
-.register-toolbar button,
-.view-toggle button {
-  border-radius: 9px !important;
-}
