@@ -95,7 +95,7 @@ describe('application runtime', () => {
     expect(await screen.findByRole('heading', { name: 'Сотрудники' })).toBeTruthy();
   });
 
-  it('shows dynamic HR context and stores Add Employee drafts locally', async () => {
+  it('shows dynamic HR context and streamlined Add Employee actions', async () => {
     useDeveloperStore.setState({ persona: 'hr-specialist' });
     renderRoute('/hr/hiring/add-employee');
 
@@ -107,15 +107,19 @@ describe('application runtime', () => {
     expect(screen.getByText('Занятость')).toBeTruthy();
     expect(screen.getByText('Образование')).toBeTruthy();
     expect(screen.getAllByText('Документы').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Заполнение карточки')).toBeNull();
+    expect(screen.queryByText('Заполните этапы для добавления нового сотрудника в систему. Данные сохраняются автоматически.')).toBeNull();
+    expect(screen.queryByText('Заполняется')).toBeNull();
+    expect(screen.queryByText('Ожидает')).toBeNull();
     expect(screen.queryByLabelText('Департамент')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Продолжить/i }));
     expect(await screen.findByText('Укажите фамилию')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Персональная информация' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Сохранить$/i }));
-    expect(localStorage.getItem('ertis.hr.add-employee.draft.v1')).toContain('Зарина Ахметова');
-    expect(screen.getByText(/Файлы не сохраняются/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Продолжить/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Сохранить$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Очистить/i })).toBeNull();
   });
 
   it('opens planned HR modules for every persona in unified mode', async () => {
