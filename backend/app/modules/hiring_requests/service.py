@@ -6,7 +6,7 @@ from datetime import date
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.audit.repository import SqlAlchemyAuditLog
@@ -33,6 +33,17 @@ from .infrastructure.models import (
     HiringRequestModel,
 )
 from .pdf import render_hiring_request_pdf
+
+MAX_EMPLOYEE_NUMBER = 999_999
+
+
+def format_employee_identity(sequence_value: int) -> tuple[str, str]:
+    """Return the public employee ID and its deterministic corporate e-mail."""
+
+    if sequence_value < 1 or sequence_value > MAX_EMPLOYEE_NUMBER:
+        raise ConflictError("The six-digit employee identifier range is exhausted")
+    employee_number = f"{sequence_value:06d}"
+    return employee_number, f"ertis{employee_number}@ertis.kz"
 
 
 class HiringRequestService:
@@ -610,8 +621,8 @@ class HiringRequestService:
         employee_id = new_uuid()
         person_id = new_uuid()
         timestamp = utc_now()
-        employee_number = f"EMP-{employee_id.hex.upper()}"
-        corporate_email = f"employee.{employee_id.hex}@ertis.kz"
+        sequence_value = await session.scalar(text("SELECT nextval('employee_number_seq')"))
+        employee_number, corporate_email = format_employee_identity(int(sequence_value or 0))
         first_name = str(personal.get("firstName") or "").strip()
         last_name = str(personal.get("lastName") or "").strip()
         middle_name = str(personal.get("middleName") or "").strip() or None
