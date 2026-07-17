@@ -82,7 +82,9 @@ function toHrEmployee(employee: CoreEmployee, directory: Directory, activeAbsenc
     ? 'sick_leave'
     : activeAbsence?.absenceType === 'vacation' || activeAbsence?.absenceType === 'day_off'
       ? 'on_leave'
-      : null;
+      : activeAbsence?.absenceType === 'business_trip'
+        ? 'business_trip'
+        : null;
   return {
     id: employee.id,
     unitId,

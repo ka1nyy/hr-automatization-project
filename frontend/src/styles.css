@@ -474,7 +474,7 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hr-status i { background: currentColor; border-radius: 50%; height: 5px; width: 5px; }
 .hr-status-active, .hr-status-approved { background: color-mix(in srgb, var(--emerald) 8%, transparent); color: var(--emerald); }
 .hr-status-probation, .hr-status-hr_review { background: color-mix(in srgb, var(--gold) 8%, transparent); color: var(--gold); }
-.hr-status-on_leave, .hr-status-pending_manager { background: color-mix(in srgb, var(--violet) 8%, transparent); color: var(--violet); }
+.hr-status-on_leave, .hr-status-pending_manager, .hr-status-business_trip { background: color-mix(in srgb, var(--violet) 8%, transparent); color: var(--violet); }
 .hr-status-sick_leave, .hr-status-rejected { background: color-mix(in srgb, var(--coral) 8%, transparent); color: var(--coral); }
 .hr-focus-list-horizontal { display: flex; padding: 6px 16px; gap: 0; background: var(--paper); }
 .hr-focus-list-horizontal > div { align-items: center; display: flex; gap: 14px; flex: 1; padding: 4px 14px; border-right: 1px solid var(--border); }

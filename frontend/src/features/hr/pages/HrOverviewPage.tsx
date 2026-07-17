@@ -59,13 +59,14 @@ export default function HrOverviewPage() {
   const stats = overview.data!;
   const messages = hiringActivity.data!;
   const pending = permissions.includes('hiring.approve') || permissions.includes('hiring.initiate') ? messages : [];
-  const workforceTotal = Math.max(1, stats.activeEmployees + stats.onLeave + stats.onBusinessTrip + stats.onSickLeave);
-  const presenceRate = Math.round(stats.activeEmployees / workforceTotal * 100);
+  const workforceTotal = Math.max(1, stats.activeEmployees + stats.onProbation + stats.onLeave + stats.onBusinessTrip + stats.onSickLeave);
+  const presenceRate = Math.round((stats.activeEmployees + stats.onProbation) / workforceTotal * 100);
   const workforceChart = [
     { label: 'Активны', value: stats.activeEmployees, color: 'var(--teal)', detail: 'На рабочем месте', to: '/hr/employees' },
     { label: 'В отпуске', value: stats.onLeave, color: 'var(--gold)', detail: 'Плановое отсутствие', to: '/hr/leave' },
     { label: 'Командировка', value: stats.onBusinessTrip, color: 'var(--violet)', detail: 'Служебная поездка', to: '/hr/calendar' },
     { label: 'Больничный', value: stats.onSickLeave, color: 'var(--coral)', detail: 'Нетрудоспособность', to: '/hr/sick-leave' },
+    { label: 'Испытательный срок', value: stats.onProbation, color: 'var(--emerald)', detail: 'Вводный период', to: '/hr/employees?status=probation' },
   ];
   return <>
     <PageHeader eyebrow="HR · Главная" title="Рабочее пространство" />

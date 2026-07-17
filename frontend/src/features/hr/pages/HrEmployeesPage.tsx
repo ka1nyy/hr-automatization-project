@@ -51,6 +51,7 @@ export default function HrEmployeesPage() {
       active: list.filter(e => e.status === 'active').length,
       on_leave: list.filter(e => e.status === 'on_leave').length,
       sick_leave: list.filter(e => e.status === 'sick_leave').length,
+      business_trip: list.filter(e => e.status === 'business_trip').length,
       probation: list.filter(e => e.status === 'probation').length,
     };
   }, [deptFilteredEmployees]);
@@ -66,6 +67,7 @@ export default function HrEmployeesPage() {
   const statusFilters = [
     { status: 'active', label: 'Активны', count: counts.active },
     { status: 'on_leave', label: 'В отпуске', count: counts.on_leave },
+    { status: 'business_trip', label: 'В командировке', count: counts.business_trip },
     { status: 'sick_leave', label: 'Больничный', count: counts.sick_leave },
     { status: 'probation', label: 'Испытательный срок', count: counts.probation },
   ] as const;
