@@ -8,10 +8,11 @@ import {
   ChevronLeft,
   FileText,
   GraduationCap,
-  Info,
+  Loader2,
   Paperclip,
   RotateCcw,
   Save,
+  Send,
   Trash2,
   UserRound,
   X
@@ -35,6 +36,7 @@ import {
 } from '../add-employee/referenceData';
 import { addEmployeeSchema, type AddEmployeeFormValues } from '../add-employee/schema';
 import { validateAttachment, type EmployeeAttachment } from '../add-employee/utils';
+import { hiringRequestsApi } from '../api/hiringRequests';
 
 const genders = ['Женский', 'Мужской'] as const;
 const maritalStatuses = ['Не состоит в браке', 'Состоит в браке', 'Разведён(а)', 'Вдовец / вдова'] as const;
@@ -111,7 +113,13 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
   const [attachments, setAttachments] = useState<EmployeeAttachment[]>([]);
   const [notice, setNotice] = useState('');
   const [attachmentError, setAttachmentError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [requestRevision, setRequestRevision] = useState(1);
+  const [pdfVersionId, setPdfVersionId] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
   const { register, formState: { errors, isDirty }, getValues, handleSubmit, reset, trigger, watch } = form;
   const values = watch();
   const educationLevel = values.educationLevel;
@@ -138,11 +146,20 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
 
   if (!canOpen) return <div className="hr-access-denied"><span>HR</span><h1>Доступ ограничен</h1><p>Форма найма доступна только HR-роли.</p><Link className="secondary-button" to="/">На главную</Link></div>;
 
-  const saveDraft = () => {
+  const saveDraft = async (manageBusy = true) => {
     const draftValues = getValues();
     const draft = saveEmployeeDraft(localStorage, draftValues);
-    reset(draftValues);
-    setNotice(`Черновик сохранён · ${new Date(draft.savedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}. Файлы не сохраняются.`);
+    setNotice(`Локальный черновик сохранён · ${new Date(draft.savedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}. Файлы не сохраняются локально.`);
+    if (manageBusy) setBusy(true);
+    try {
+      const saved = requestId ? await hiringRequestsApi.update(requestId, requestRevision, draftValues) : await hiringRequestsApi.create(draftValues);
+      setRequestId(saved.id); setRequestRevision(saved.revision); reset(draftValues);
+      setNotice(`Черновик ${saved.requestNumber} сохранён на сервере · ${new Date(draft.savedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+      return saved;
+    } catch (error) {
+      setNotice(`Не удалось сохранить черновик: ${error instanceof Error ? error.message : 'ошибка API'}`);
+      return undefined;
+    } finally { if (manageBusy) setBusy(false); }
   };
 
   const clearForm = () => {
@@ -150,9 +167,11 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
     reset(addEmployeeDefaults);
     setAttachments([]);
     setAttachmentError('');
+    setSubmitError('');
     setActiveStep(0);
     setHighestStep(0);
     setConfirmClear(false);
+    setRequestId(null); setRequestRevision(1); setPdfVersionId(null); setSubmitted(false);
     setNotice('Форма и локальный черновик очищены');
   };
 
@@ -183,7 +202,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
     scrollToWizard();
   };
 
-  const complete = handleSubmit(() => {
+  const complete = handleSubmit(async () => {
     const hasIdentity = attachments.some((item) => item.category === 'Удостоверение личности');
     const hasDiploma = attachments.some((item) => item.category === 'Диплом');
     if (!hasIdentity || (diplomaRequired && !hasDiploma)) {
@@ -192,13 +211,42 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       setHighestStep(3);
       return;
     }
-    setAttachmentError('');
-    saveEmployeeDraft(localStorage, getValues());
-    setNotice('Все четыре этапа заполнены. Данные готовы для формирования PDF-заявления.');
+    setAttachmentError(''); setSubmitError(''); setBusy(true);
+    try {
+      if (requestId && pdfVersionId) {
+        const sent = await hiringRequestsApi.submit(requestId, requestRevision);
+        setRequestRevision(sent.revision);
+        setSubmitted(true);
+        clearEmployeeDraft(localStorage);
+        reset(getValues());
+        setNotice(`Заявление ${sent.requestNumber} отправлено. Текущий этап: ${sent.currentStageName}.`);
+        return;
+      }
+      const saved = await saveDraft(false);
+      if (!saved) return;
+      for (const attachment of attachments) {
+        await hiringRequestsApi.upload(saved.id, attachment.category === 'Удостоверение личности' ? 'identity' : 'diploma', attachment.file);
+      }
+      const withFiles = await hiringRequestsApi.get(saved.id);
+      await hiringRequestsApi.generatePdf(saved.id, withFiles.revision);
+      const generated = await hiringRequestsApi.get(saved.id);
+      setRequestRevision(generated.revision); setPdfVersionId(generated.pdfVersionId ?? null);
+      const sent = await hiringRequestsApi.submit(saved.id, generated.revision);
+      setRequestRevision(sent.revision);
+      setSubmitted(true);
+      clearEmployeeDraft(localStorage);
+      reset(getValues());
+      setNotice(`Заявление ${sent.requestNumber} сформировано в PDF и отправлено. Текущий этап: ${sent.currentStageName}.`);
+    } catch (error) {
+      const message = `Не удалось отправить заявление: ${error instanceof Error ? error.message : 'ошибка API'}`;
+      setSubmitError(message);
+      setNotice(message);
+    } finally { setBusy(false); }
   }, (invalidErrors) => {
     const invalidStep = registrationSteps.findIndex((step) => step.fields.some((field) => invalidErrors[field]));
     setActiveStep(invalidStep >= 0 ? invalidStep : 0);
     setNotice('Проверьте обязательные поля отмеченного этапа.');
+    scrollToWizard();
   });
 
   const documentUpload = (category: AttachmentCategory, title: string, description: string, required: boolean) => {
@@ -211,37 +259,52 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
   };
 
   return <>
-    <PageHeader eyebrow="HR · Регистрация сотрудника" title="Регистрация сотрудника" actions={onBack ? <button type="button" className="secondary-button" onClick={onBack}><ArrowLeft size={16} /> Назад к списку</button> : undefined} />
+    <PageHeader
+      eyebrow="HR · Регистрация сотрудника"
+      title={candidateName === 'Новый сотрудник' ? 'Регистрация сотрудника' : `Регистрация: ${candidateName}`}
+      description="Заполните этапы для добавления нового сотрудника в систему. Данные сохраняются автоматически."
+      actions={onBack ? <button type="button" className="secondary-button" onClick={onBack}><ArrowLeft size={16} /> Назад к списку</button> : undefined}
+    />
 
-    <div className="hr-registration-hero">
-      <div className="hr-registration-hero-copy">
-        <span className="hr-registration-kicker">НОВАЯ КАРТОЧКА СОТРУДНИКА</span>
-        <h2>{candidateName}</h2>
-        <p>Заполните четыре коротких этапа. Данные сохраняются между переходами и не пропадут при возврате назад.</p>
-      </div>
-      <div className="hr-registration-progress" aria-label={`Заполнено ${progress}%`}>
-        <div><strong>{progress}%</strong><small>этап {activeStep + 1} из 4</small></div>
-        <span><i style={{ width: `${progress}%` }} /></span>
-      </div>
-    </div>
-
-    <div className="hr-hiring-intro"><Info size={18} /><span><strong>PDF-заявление появится позже</strong><small>Сейчас форма подготавливает и проверяет данные кандидата. Автоматическое формирование заявления будет подключено отдельным этапом.</small></span></div>
     {notice && <div className="hr-form-notice" role="status"><span><CheckCircle2 size={15} />{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={14} /></button></div>}
 
     <form id="employee-registration-wizard" className="hr-registration-wizard" onSubmit={complete}>
-      <ol className="hr-registration-timeline" aria-label="Этапы регистрации сотрудника">
-        {registrationSteps.map((step, index) => {
-          const state = index < activeStep ? 'done' : index === activeStep ? 'active' : index <= highestStep ? 'available' : 'upcoming';
-          return <li className={state} key={step.shortTitle}>
-            <button type="button" onClick={() => goToStep(index)} disabled={index > highestStep} aria-current={index === activeStep ? 'step' : undefined}>
-              <span>{index < activeStep ? <Check size={17} /> : index + 1}</span>
-              <div><strong>{step.shortTitle}</strong><small>{index === activeStep ? 'Заполняется' : index < activeStep ? 'Готово' : 'Ожидает'}</small></div>
-            </button>
-          </li>;
-        })}
-      </ol>
+      <div className="hr-timeline-container">
+        <div className="hr-timeline-header">
+          <div className="hr-timeline-summary">
+            <span className="hr-timeline-progress-label">Заполнение карточки</span>
+            <span className="hr-timeline-candidate">{candidateName}</span>
+          </div>
+          <div className="hr-timeline-percentage" aria-label={`Заполнено ${progress}%`}>
+            <strong>{progress}%</strong>
+            <small>этап {activeStep + 1} из 4</small>
+          </div>
+        </div>
 
-      <section className="hr-registration-stage" aria-labelledby={`registration-step-${activeStep}`}>
+        <div className="hr-timeline-wrapper">
+          <div className="hr-timeline-line-background">
+            <div className="hr-timeline-line-filled" style={{ width: `${(activeStep / (registrationSteps.length - 1)) * 100}%` }} />
+          </div>
+          <ol className="hr-registration-timeline" aria-label="Этапы регистрации сотрудника">
+            {registrationSteps.map((step, index) => {
+              const state = index < activeStep ? 'done' : index === activeStep ? 'active' : index <= highestStep ? 'available' : 'upcoming';
+              return <li className={`hr-timeline-item ${state}`} key={step.shortTitle}>
+                <button type="button" onClick={() => goToStep(index)} disabled={index > highestStep} aria-current={index === activeStep ? 'step' : undefined}>
+                  <span className="hr-timeline-icon-wrapper">
+                    {index < activeStep ? <Check size={18} className="hr-icon-check" /> : step.icon}
+                  </span>
+                  <div className="hr-timeline-text">
+                    <strong>{step.shortTitle}</strong>
+                    <small>{index === activeStep ? 'Заполняется' : index < activeStep ? 'Готово' : 'Ожидает'}</small>
+                  </div>
+                </button>
+              </li>;
+            })}
+          </ol>
+        </div>
+      </div>
+
+      <section key={activeStep} className="hr-registration-stage" aria-labelledby={`registration-step-${activeStep}`}>
         <header>
           <span className="hr-registration-stage-icon">{currentStep.icon}</span>
           <div><small>ЭТАП {activeStep + 1} ИЗ 4</small><h2 id={`registration-step-${activeStep}`}>{currentStep.title}</h2><p>{currentStep.description}</p></div>
@@ -250,9 +313,11 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
 
         <div className="hr-registration-stage-body">
           {activeStep === 0 && <div className="field-grid hr-add-employee-fields">
-            <Field name="lastName" label="Фамилия" autoComplete="family-name" register={register} errors={errors} required />
-            <Field name="firstName" label="Имя" autoComplete="given-name" register={register} errors={errors} required />
-            <Field name="middleName" label="Отчество" autoComplete="additional-name" register={register} errors={errors} />
+            <div className="hr-name-row">
+              <Field name="lastName" label="Фамилия" autoComplete="family-name" register={register} errors={errors} required />
+              <Field name="firstName" label="Имя" autoComplete="given-name" register={register} errors={errors} required />
+              <Field name="middleName" label="Отчество" autoComplete="additional-name" register={register} errors={errors} />
+            </div>
             <Field name="iin" label="ИИН" inputMode="numeric" maxLength={12} placeholder="12 цифр" register={register} errors={errors} required />
             <Field name="birthDate" label="Дата рождения" type="date" register={register} errors={errors} required />
             <SelectField name="gender" label="Пол" options={genders} register={register} errors={errors} required />
@@ -290,26 +355,16 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
               {documentUpload('Диплом', 'Диплом об образовании', diplomaRequired ? 'Обязателен для выбранного уровня образования' : 'Не требуется для среднего общего образования', diplomaRequired)}
             </div>
             {attachmentError && <div className="hr-attachment-error" role="alert">{attachmentError}</div>}
-            <aside className="hr-registration-review">
-              <header><span><CheckCircle2 size={18} /></span><div><strong>Проверьте перед завершением</strong><small>Краткая сводка по заполненной карточке</small></div></header>
-              <dl>
-                <div><dt>Кандидат</dt><dd>{candidateName}</dd></div>
-                <div><dt>ИИН</dt><dd>{values.iin || 'Не указан'}</dd></div>
-                <div><dt>Должность</dt><dd>{values.position || 'Не выбрана'}</dd></div>
-                <div><dt>Департамент</dt><dd>{values.department || 'Не выбран'}</dd></div>
-                <div><dt>Дата выхода</dt><dd>{values.startDate || 'Не указана'}</dd></div>
-                <div><dt>Документы</dt><dd>{attachments.length ? `${attachments.length} файл(а)` : 'Не загружены'}</dd></div>
-              </dl>
-            </aside>
+            {submitError && <div className="hr-attachment-error" role="alert">{submitError}</div>}
           </div>}
         </div>
 
         <footer className="hr-registration-actions">
           <div className="hr-registration-save-state"><i className={isDirty ? 'dirty' : ''} /><span>{isDirty ? 'Есть несохранённые изменения' : 'Черновик сохранён'}<small>Можно вернуться к заполнению позже</small></span></div>
-          <div className="hr-registration-secondary-actions"><button type="button" className="text-button" onClick={() => setConfirmClear(true)}><RotateCcw size={15} />Очистить</button><button type="button" className="secondary-button" onClick={saveDraft}><Save size={16} />Сохранить</button></div>
+          <div className="hr-registration-secondary-actions"><button type="button" className="text-button" onClick={() => setConfirmClear(true)} disabled={busy}><RotateCcw size={15} />Очистить</button><button type="button" className="secondary-button" aria-label="Сохранить" onClick={() => void saveDraft()} disabled={busy || submitted}>{busy ? <Loader2 className="spin" size={16} /> : <Save size={16} />}Сохранить черновик</button>{pdfVersionId && requestId && <a className="secondary-button" href={hiringRequestsApi.downloadUrl(requestId, pdfVersionId, true)} target="_blank" rel="noreferrer"><FileText size={16} />PDF</a>}</div>
           <div className="hr-registration-navigation">
             {activeStep > 0 && <button type="button" className="secondary-button" onClick={() => { setActiveStep((step) => step - 1); scrollToWizard(); }}><ChevronLeft size={17} />Назад</button>}
-            {activeStep < 3 ? <button type="button" className="primary-button" onClick={goNext}>Продолжить<ArrowRight size={17} /></button> : <button type="submit" className="primary-button"><CheckCircle2 size={17} />Завершить заполнение</button>}
+            {activeStep < 3 ? <button type="button" className="primary-button" onClick={goNext}>Продолжить<ArrowRight size={17} /></button> : <button type="submit" className="primary-button" disabled={busy || submitted}>{busy ? <Loader2 className="spin" size={17} /> : <Send size={17} />}{submitted ? 'Заявление отправлено' : 'Отправить заявление'}</button>}
           </div>
         </footer>
       </section>

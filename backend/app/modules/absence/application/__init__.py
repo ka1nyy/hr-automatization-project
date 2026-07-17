@@ -1,0 +1,1 @@
+"""Absence application boundary."""

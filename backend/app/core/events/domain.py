@@ -51,6 +51,10 @@ class EventName(StrEnum):
     JOB_OFFER_DECLINED = "jobOfferDeclined"
     HIRING_CASE_STARTED = "hiringCaseStarted"
     HIRING_CASE_CANCELLED = "hiringCaseCancelled"
+    HIRING_REQUEST_SUBMITTED = "hiringRequestSubmitted"
+    HIRING_APPROVAL_DECIDED = "hiringApprovalDecided"
+    HIRING_PACKAGE_DISPATCHED = "hiringPackageDispatched"
+    HIRING_PACKAGE_ACKNOWLEDGED = "hiringPackageAcknowledged"
     TERMINATION_CASE_STARTED = "terminationCaseStarted"
     TERMINATION_CASE_APPROVED = "terminationCaseApproved"
     TERMINATION_SCHEDULED = "terminationScheduled"
@@ -59,6 +63,15 @@ class EventName(StrEnum):
     EMPLOYEE_TERMINATION_EFFECTIVE = "employeeTerminationEffective"
     TERMINATION_CASE_COMPLETED = "terminationCaseCompleted"
     TERMINATION_CASE_CANCELLED = "terminationCaseCancelled"
+    LEAVE_REQUEST_SUBMITTED = "leaveRequestSubmitted"
+    LEAVE_REQUEST_APPROVED = "leaveRequestApproved"
+    LEAVE_REQUEST_REJECTED = "leaveRequestRejected"
+    LEAVE_REQUEST_CANCELLED = "leaveRequestCancelled"
+    BUSINESS_TRIP_SUBMITTED = "businessTripSubmitted"
+    BUSINESS_TRIP_APPROVED = "businessTripApproved"
+    BUSINESS_TRIP_REGISTERED = "businessTripRegistered"
+    BUSINESS_TRIP_REJECTED = "businessTripRejected"
+    BUSINESS_TRIP_CANCELLED = "businessTripCancelled"
 
 
 @dataclass(frozen=True, slots=True)

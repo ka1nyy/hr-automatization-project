@@ -14,8 +14,11 @@ const OrganizationPage = lazy(() => import('../features/organization/Organizatio
 const HrOverviewPage = lazy(() => import('../features/hr/pages/HrOverviewPage'));
 const HrEmployeesPage = lazy(() => import('../features/hr/pages/HrEmployeesPage'));
 const HrEmployeeProfilePage = lazy(() => import('../features/hr/pages/HrEmployeeProfilePage'));
-const HrLeavePage = lazy(() => import('../features/hr/pages/HrLeavePage'));
 const HrPlannedPage = lazy(() => import('../features/hr/pages/HrPlannedPage'));
+const HiringRequestsPage = lazy(() => import('../features/hr/pages/HiringRequestsPage'));
+const HiringRequestDetailsPage = lazy(() => import('../features/hr/pages/HiringRequestDetailsPage'));
+const WorkforceProcessPage = lazy(() => import('../features/hr/pages/WorkforceProcessPage'));
+const WorkforceProcessDetailsPage = lazy(() => import('../features/hr/pages/WorkforceProcessDetailsPage'));
 
 function LoadingState() {
   return <div className="page-loading" aria-label="Загрузка"><span /><span /><span /></div>;
@@ -41,18 +44,26 @@ export function App() {
         <Route path="departments/hr" element={<Suspense fallback={<LoadingState />}><HrOverviewPage /></Suspense>} />
         <Route path="departments/hr/employees" element={<Suspense fallback={<LoadingState />}><HrEmployeesPage /></Suspense>} />
         <Route path="departments/hr/employees/:employeeId" element={<Suspense fallback={<LoadingState />}><HrEmployeeProfilePage /></Suspense>} />
-        <Route path="departments/hr/leave" element={<Suspense fallback={<LoadingState />}><HrLeavePage /></Suspense>} />
+        <Route path="departments/hr/leave" element={<Navigate to="/hr/leave" replace />} />
         <Route path="departments/hr/hiring/add-employee" element={<Navigate to="/hr/employees?add=true" replace />} />
         <Route path="hr" element={<Suspense fallback={<LoadingState />}><HrOverviewPage /></Suspense>} />
         <Route path="hr/employees" element={<Suspense fallback={<LoadingState />}><HrEmployeesPage /></Suspense>} />
         <Route path="hr/employees/:employeeId" element={<Suspense fallback={<LoadingState />}><HrEmployeeProfilePage /></Suspense>} />
-        <Route path="hr/leave" element={<Suspense fallback={<LoadingState />}><HrLeavePage /></Suspense>} />
+        <Route path="hr/leave" element={<Suspense fallback={<LoadingState />}><WorkforceProcessPage kind="leave" /></Suspense>} />
+        <Route path="hr/leave/:id" element={<Suspense fallback={<LoadingState />}><WorkforceProcessDetailsPage kind="leave" /></Suspense>} />
+        <Route path="hr/business-trips" element={<Suspense fallback={<LoadingState />}><WorkforceProcessPage kind="trip" /></Suspense>} />
+        <Route path="hr/business-trips/:id" element={<Suspense fallback={<LoadingState />}><WorkforceProcessDetailsPage kind="trip" /></Suspense>} />
         <Route path="hr/calendar" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="calendar" /></Suspense>} />
         <Route path="hr/sick-leave" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="sick" /></Suspense>} />
-        <Route path="hr/terminations" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="terminations" /></Suspense>} />
+        <Route path="hr/terminations" element={<Suspense fallback={<LoadingState />}><WorkforceProcessPage kind="termination" /></Suspense>} />
+        <Route path="hr/terminations/:id" element={<Suspense fallback={<LoadingState />}><WorkforceProcessDetailsPage kind="termination" /></Suspense>} />
         <Route path="hr/documents" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="documents" /></Suspense>} />
-        <Route path="hr/approvals" element={<Suspense fallback={<LoadingState />}><HrPlannedPage kind="approvals" /></Suspense>} />
+        <Route path="hr/approvals" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
         <Route path="hr/hiring/add-employee" element={<Navigate to="/hr/employees?add=true" replace />} />
+        <Route path="hiring/requests" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
+        <Route path="hiring/inbox" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
+        <Route path="hiring/received" element={<Suspense fallback={<LoadingState />}><HiringRequestsPage /></Suspense>} />
+        <Route path="hiring/requests/:id" element={<Suspense fallback={<LoadingState />}><HiringRequestDetailsPage /></Suspense>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes></DepartmentProvider>

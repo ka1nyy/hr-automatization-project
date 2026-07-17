@@ -3,47 +3,6 @@
 from enum import StrEnum
 
 
-class LeaveCategory(StrEnum):
-    """Broad family a configurable leave type belongs to.
-
-    The category drives system behaviour (balance checks, medical confirmation);
-    organizations add their own leave types on top of these families.
-    """
-
-    ANNUAL = "annual"
-    SICK = "sick"
-    UNPAID = "unpaid"
-    DAY_OFF = "day_off"
-    PARENTAL = "parental"
-    STUDY = "study"
-    OTHER = "other"
-
-
-class LeaveRequestStatus(StrEnum):
-    """Mirrors the shared process states in section 3 of the MVP plan."""
-
-    DRAFT = "draft"
-    UNDER_REVIEW = "under_review"
-    UNDER_APPROVAL = "under_approval"
-    AWAITING_SIGNATURE = "awaiting_signature"
-    APPROVED = "approved"
-    RETURNED = "returned"
-    REJECTED = "rejected"
-    CANCELLED = "cancelled"
-
-
-class LeaveLedgerEntryType(StrEnum):
-    """Append-only ledger movements; balances are never overwritten in place."""
-
-    ACCRUAL = "accrual"
-    CARRY_OVER = "carry_over"
-    BOOKING = "booking"
-    RELEASE = "release"
-    CORRECTION = "correction"
-    EXPIRY = "expiry"
-    PAYOUT = "payout"
-
-
 class TimeCodeCategory(StrEnum):
     """Determines how a timesheet entry is interpreted downstream."""
 

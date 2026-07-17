@@ -1,9 +1,10 @@
 """Deterministic, idempotent reference configuration and storage seed for Module 4.
 
-Covers the timesheet and leave reference data an organization must have before any
-request can be raised: timesheet codes, leave types, working-time schedules, the
-document types and order templates those processes emit, and an opening leave balance
-for the demo employees.
+Covers the timesheet reference data an organization must have before any time can be
+recorded: timesheet codes, working-time schedules, an open period per demo unit, and
+the document types and order templates the leave and correction processes emit.
+
+Leave types and balances belong to :mod:`app.modules.absence` and are not seeded here.
 
 Everything here is configuration the customer edits in the interface later (sections 2
 and 12 of the MVP plan) — the values are a working starting point, not a commitment.
@@ -13,7 +14,6 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import AsyncIterator, Sequence
-from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
@@ -30,9 +30,6 @@ from app.modules.documents.infrastructure.models import (
 )
 from app.modules.timekeeping.infrastructure.models import (
     EmployeeWorkScheduleModel,
-    LeaveBalanceEntryModel,
-    LeaveEntitlementModel,
-    LeaveTypeModel,
     TimeCodeModel,
     TimesheetPeriodModel,
     WorkScheduleDayModel,
@@ -58,100 +55,6 @@ TIME_CODES: tuple[tuple[str, str, str, str, bool, bool], ...] = (
     ("business_trip", "К", "Business trip", "business_trip", True, True),
     ("day_off", "ОВ", "Approved day off", "absence", False, False),
     ("absence_unexcused", "ПР", "Unexcused absence", "unpaid_absence", False, False),
-)
-
-@dataclass(frozen=True, slots=True)
-class LeaveTypeSeed:
-    code: str
-    name: str
-    category: str
-    paid: bool
-    consumes_balance: bool
-    requires_manager_approval: bool
-    requires_supporting_document: bool
-    requires_order_document: bool
-    time_code: str
-    default_annual_days: Decimal | None = None
-    max_carry_over_days: Decimal | None = None
-    min_notice_days: int | None = None
-
-
-LEAVE_TYPES: tuple[LeaveTypeSeed, ...] = (
-    LeaveTypeSeed(
-        code="annual",
-        name="Annual paid leave",
-        category="annual",
-        paid=True,
-        consumes_balance=True,
-        requires_manager_approval=True,
-        requires_supporting_document=False,
-        requires_order_document=True,
-        time_code="annual_leave",
-        default_annual_days=Decimal("24"),
-        max_carry_over_days=Decimal("12"),
-        min_notice_days=14,
-    ),
-    # Section 9: the manager is notified of sick leave but does not approve the
-    # medical fact, so this type needs no manager approval step.
-    LeaveTypeSeed(
-        code="sick",
-        name="Certified sick leave",
-        category="sick",
-        paid=True,
-        consumes_balance=False,
-        requires_manager_approval=False,
-        requires_supporting_document=True,
-        requires_order_document=False,
-        time_code="sick_leave",
-    ),
-    LeaveTypeSeed(
-        code="unpaid",
-        name="Leave without pay",
-        category="unpaid",
-        paid=False,
-        consumes_balance=False,
-        requires_manager_approval=True,
-        requires_supporting_document=False,
-        requires_order_document=True,
-        time_code="unpaid_leave",
-        min_notice_days=3,
-    ),
-    LeaveTypeSeed(
-        code="day_off",
-        name="Day off",
-        category="day_off",
-        paid=False,
-        consumes_balance=False,
-        requires_manager_approval=True,
-        requires_supporting_document=False,
-        requires_order_document=False,
-        time_code="day_off",
-        min_notice_days=1,
-    ),
-    LeaveTypeSeed(
-        code="study",
-        name="Study leave",
-        category="study",
-        paid=True,
-        consumes_balance=False,
-        requires_manager_approval=True,
-        requires_supporting_document=True,
-        requires_order_document=True,
-        time_code="study_leave",
-        min_notice_days=14,
-    ),
-    LeaveTypeSeed(
-        code="parental",
-        name="Parental leave",
-        category="parental",
-        paid=False,
-        consumes_balance=False,
-        requires_manager_approval=True,
-        requires_supporting_document=True,
-        requires_order_document=True,
-        time_code="parental_leave",
-        min_notice_days=30,
-    ),
 )
 
 # code, name, kind, cycle length, weekly hours, working-day count.
@@ -352,33 +255,6 @@ async def seed_module4(
     )
     await insert_rows(
         session,
-        LeaveTypeModel.__table__,
-        [
-            {
-                "id": seed_id("leave-type", item.code),
-                "organization_id": organization_id,
-                "code": item.code,
-                "name": item.name,
-                "category": item.category,
-                "paid": item.paid,
-                "consumes_balance": item.consumes_balance,
-                "requires_manager_approval": item.requires_manager_approval,
-                "requires_supporting_document": item.requires_supporting_document,
-                "requires_order_document": item.requires_order_document,
-                "default_annual_days": item.default_annual_days,
-                "max_carry_over_days": item.max_carry_over_days,
-                "min_notice_days": item.min_notice_days,
-                "time_code_id": seed_id("time-code", item.time_code),
-                "active": True,
-                "revision": 1,
-                "created_at": timestamp,
-                "updated_at": timestamp,
-            }
-            for item in LEAVE_TYPES
-        ],
-    )
-    await insert_rows(
-        session,
         WorkScheduleModel.__table__,
         [
             {
@@ -504,50 +380,6 @@ async def seed_module4(
         )
     await insert_rows(session, DocumentTemplateModel.__table__, template_rows)
     await insert_rows(session, DocumentTemplateVersionModel.__table__, template_version_rows)
-
-    # A leave grant covers a calendar year, so the seed keys it by year: re-running within
-    # the year is a no-op, and a later year gets its own grant rather than mutating this one.
-    year = today.year
-    period_start = date(year, 1, 1)
-    period_end = date(year, 12, 31)
-    annual_days = Decimal("24")
-    entitlement_rows: list[dict[str, Any]] = []
-    ledger_rows: list[dict[str, Any]] = []
-    for employee_id in employee_ids:
-        entitlement_id = seed_id("leave-entitlement", f"{employee_id}:annual:{year}")
-        entitlement_rows.append(
-            {
-                "id": entitlement_id,
-                "organization_id": organization_id,
-                "employee_id": employee_id,
-                "leave_type_id": seed_id("leave-type", "annual"),
-                "period_start": period_start,
-                "period_end": period_end,
-                "granted_days": annual_days,
-                "basis": f"Annual entitlement for {year}",
-                "revision": 1,
-                "created_at": timestamp,
-                "updated_at": timestamp,
-            }
-        )
-        ledger_rows.append(
-            {
-                "id": seed_id("leave-ledger", f"{employee_id}:annual:{year}:accrual"),
-                "organization_id": organization_id,
-                "employee_id": employee_id,
-                "leave_type_id": seed_id("leave-type", "annual"),
-                "entitlement_id": entitlement_id,
-                "entry_type": "accrual",
-                "days": annual_days,
-                "leave_request_id": None,
-                "reverses_entry_id": None,
-                "reason": f"Opening annual leave accrual for {year}",
-                "created_by": actor_id,
-                "occurred_at": timestamp,
-            }
-        )
-    await insert_rows(session, LeaveEntitlementModel.__table__, entitlement_rows)
-    await insert_rows(session, LeaveBalanceEntryModel.__table__, ledger_rows)
 
     # An open period for the current month gives each demo unit somewhere to record time.
     month_start, month_end = _month_bounds(today)

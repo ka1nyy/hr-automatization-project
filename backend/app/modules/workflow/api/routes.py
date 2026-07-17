@@ -382,6 +382,7 @@ async def my_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, alias="pageSize", ge=1, le=100),
 ) -> ListResponse[dict[str, Any]]:
+    await service._require(principal, "workflow.task.read", principal.organization_id)
     items, total = await service._operations.my_tasks(
         principal.user_id, (page - 1) * page_size, page_size
     )

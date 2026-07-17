@@ -3,9 +3,9 @@ import {
   CoreOrganizationRepository,
   CoreWorkflowRepository,
   PlaceholderCorrespondenceRepository,
-  PlaceholderOperationsRepository,
-  PlaceholderTaskRepository
+  PlaceholderOperationsRepository
 } from './placeholderRepositories';
+import { WorkflowTaskRepository } from './workflowTaskRepository';
 
 export const repositories = import.meta.env.MODE === 'test' ? {
   correspondence: new MockCorrespondenceRepository(),
@@ -14,11 +14,11 @@ export const repositories = import.meta.env.MODE === 'test' ? {
   organization: new MockOrganizationRepository(),
   operations: new MockOperationsRepository()
 } : {
-  // Correspondence, tasks and the operations dashboard lost their backend when
+  // Correspondence and the operations dashboard lost their backend when
   // business_processes was removed; placeholders keep the pages rendering until
   // the real modules land on the core API.
   correspondence: new PlaceholderCorrespondenceRepository(),
-  tasks: new PlaceholderTaskRepository(),
+  tasks: new WorkflowTaskRepository(),
   workflows: new CoreWorkflowRepository(),
   organization: new CoreOrganizationRepository(),
   operations: new PlaceholderOperationsRepository()

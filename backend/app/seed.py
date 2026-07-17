@@ -354,6 +354,14 @@ DEVELOPMENT_ROLE_CODES: dict[str, str] = {
     "reviewer": "organization-reviewer",
     "publisher": "organization-publisher",
     "auditor": "auditor",
+    "hr.initiator": "hr-request-initiator",
+    "hr.director": "hr-document-management-director",
+    "economic.director": "economic-planning-director",
+    "commission": "competition-commission-reviewer",
+    "legal": "legal-department-reviewer",
+    "chairman": "management-board-chairman",
+    "accountant": "accountant",
+    "it.specialist": "it-department-specialist",
 }
 
 DEVELOPMENT_SCOPE_TYPES: dict[str, str] = {
@@ -364,6 +372,14 @@ DEVELOPMENT_SCOPE_TYPES: dict[str, str] = {
     "reviewer": "organization",
     "publisher": "organization",
     "auditor": "organization",
+    "hr.initiator": "organization",
+    "hr.director": "organization",
+    "economic.director": "organization",
+    "commission": "organization",
+    "legal": "organization",
+    "chairman": "organization",
+    "accountant": "organization",
+    "it.specialist": "organization",
 }
 
 DEVELOPMENT_DISPLAY_NAMES: dict[str, str] = {
@@ -374,6 +390,14 @@ DEVELOPMENT_DISPLAY_NAMES: dict[str, str] = {
     "reviewer": "Development Organization Reviewer",
     "publisher": "Development Organization Publisher",
     "auditor": "Development Auditor",
+    "hr.initiator": "Айгерим Садыкова",
+    "hr.director": "Данияр Ахметов",
+    "economic.director": "Алия Нуртаева",
+    "commission": "Представитель конкурсной комиссии",
+    "legal": "Марат Ибраев",
+    "chairman": "Председатель правления",
+    "accountant": "Бухгалтер демо",
+    "it.specialist": "IT-специалист демо",
 }
 
 ORGANIZATION_VIEWER_HANDLES: tuple[str, ...] = ("director", "employee")
@@ -485,7 +509,20 @@ async def _seed_foundation(session: AsyncSession) -> None:
                 "id": _development_user_id(handle),
                 "external_subject": f"development:{handle}",
                 "username": handle,
-                "email": f"{handle}@example.invalid",
+                "email": f"{handle}@demo.local"
+                if handle
+                in {
+                    "admin",
+                    "hr.initiator",
+                    "hr.director",
+                    "economic.director",
+                    "commission",
+                    "legal",
+                    "chairman",
+                    "accountant",
+                    "it.specialist",
+                }
+                else f"{handle}@example.invalid",
                 "display_name": display_name,
                 "employee_id": None,
                 "status": "active",

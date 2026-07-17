@@ -263,6 +263,54 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Manage formal hiring and employee conversion.",
     ),
     PermissionDefinition(
+        "hiring.request.create",
+        "Create hiring requests",
+        "Create and edit own new employee hiring requests.",
+    ),
+    PermissionDefinition(
+        "hiring.request.read",
+        "Read hiring requests",
+        "Read authorized new employee hiring requests.",
+    ),
+    PermissionDefinition(
+        "hiring.request.read_sensitive",
+        "Read sensitive hiring data",
+        "Read protected candidate data in a hiring request.",
+    ),
+    PermissionDefinition(
+        "hiring.approve.hr_director",
+        "HR director hiring approval",
+        "Act at the HR document management approval stage.",
+    ),
+    PermissionDefinition(
+        "hiring.approve.economic",
+        "Economic planning hiring approval",
+        "Act at the economic planning approval stage.",
+    ),
+    PermissionDefinition(
+        "hiring.approve.commission",
+        "Commission hiring approval",
+        "Act at the competition commission approval stage.",
+    ),
+    PermissionDefinition(
+        "hiring.approve.legal", "Legal hiring approval", "Act at the legal approval stage."
+    ),
+    PermissionDefinition(
+        "hiring.approve.chairman",
+        "Chairman hiring approval",
+        "Act at the final chairman approval stage.",
+    ),
+    PermissionDefinition(
+        "hiring.request.dispatch",
+        "Dispatch approved hiring packages",
+        "Send final hiring packages to Accounting and IT.",
+    ),
+    PermissionDefinition(
+        "hiring.request.acknowledge",
+        "Acknowledge hiring packages",
+        "Acknowledge receipt of an assigned hiring package.",
+    ),
+    PermissionDefinition(
         "termination.initiate_self",
         "Initiate own termination",
         "Initiate a termination case for the actor.",
@@ -321,6 +369,23 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "termination.complete",
         "Complete termination",
         "Finalize an effective and fully offboarded termination case.",
+    ),
+    PermissionDefinition("absence.read_self", "Read own absences", "Read own leave and trips."),
+    PermissionDefinition("absence.read_unit", "Read unit absences", "Read unit leave and trips."),
+    PermissionDefinition("absence.read_all", "Read all absences", "Read organization absences."),
+    PermissionDefinition("leave.request", "Request leave", "Submit and correct own leave."),
+    PermissionDefinition("leave.review_manager", "Review unit leave", "Review leave as manager."),
+    PermissionDefinition("leave.review_hr", "Review leave as HR", "Finalize leave decisions."),
+    PermissionDefinition("leave.balance.manage", "Manage leave balances", "Adjust entitlements."),
+    PermissionDefinition("business_trip.request", "Request trip", "Submit and correct own trips."),
+    PermissionDefinition(
+        "business_trip.review_manager", "Review unit trips", "Review trips as manager."
+    ),
+    PermissionDefinition(
+        "business_trip.review_finance", "Review trip finance", "Approve trip funding."
+    ),
+    PermissionDefinition(
+        "business_trip.register", "Register business trips", "Complete HR trip registration."
     ),
 )
 

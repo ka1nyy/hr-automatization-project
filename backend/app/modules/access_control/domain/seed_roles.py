@@ -88,6 +88,15 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "termination.read_all",
                 "termination.review_hr",
                 "termination.complete",
+                "hiring.request.create",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.request.dispatch",
+                "absence.read_all",
+                "absence.read_self",
+                "leave.review_hr",
+                "leave.balance.manage",
+                "business_trip.register",
             }
         ),
     ),
@@ -109,6 +118,10 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "termination.initiate_unit",
                 "termination.read_unit",
                 "termination.handover",
+                "absence.read_unit",
+                "absence.read_self",
+                "leave.review_manager",
+                "business_trip.review_manager",
             }
         ),
     ),
@@ -126,6 +139,9 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "documents.acknowledge",
                 "termination.initiate_self",
                 "termination.read_self",
+                "absence.read_self",
+                "leave.request",
+                "business_trip.request",
             }
         ),
     ),
@@ -160,6 +176,125 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "organization.structure.read",
                 "employees.read",
                 "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hr-request-initiator",
+        name="Сотрудник HR",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "organization.structure.read",
+                "hiring.request.create",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.request.dispatch",
+                "documents.read",
+                "documents.read_sensitive",
+                "documents.create",
+                "documents.upload",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hr-document-management-director",
+        name="Директор департамента документооборота и управления персоналом",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.approve.hr_director",
+                "documents.read_sensitive",
+                "documents.create",
+                "documents.upload",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="economic-planning-director",
+        name="Директор департамента экономического планирования",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.approve.economic",
+                "documents.read_sensitive",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="competition-commission-reviewer",
+        name="Конкурсная комиссия",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.approve.commission",
+                "documents.read_sensitive",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="legal-department-reviewer",
+        name="Юридический департамент",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.approve.legal",
+                "documents.read_sensitive",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="management-board-chairman",
+        name="Председатель правления",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.approve.chairman",
+                "documents.read_sensitive",
+                "documents.create",
+                "documents.upload",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="accountant",
+        name="Бухгалтер",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.request.acknowledge",
+                "documents.read_sensitive",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="it-department-specialist",
+        name="Специалист IT-отдела",
+        permission_codes=frozenset(
+            {
+                "organization.read",
+                "hiring.request.read",
+                "hiring.request.read_sensitive",
+                "hiring.request.acknowledge",
+                "documents.read_sensitive",
             }
         ),
     ),

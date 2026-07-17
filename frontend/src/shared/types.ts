@@ -1,6 +1,8 @@
 export type Locale = 'ru' | 'kk' | 'en';
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type PersonaId = 'secretary' | 'executive' | 'employee' | 'hr-specialist' | 'process-designer';
+export type PersonaId = 'secretary' | 'executive' | 'employee' | 'hr-specialist' | 'process-designer'
+  | 'hr-initiator' | 'hr-director' | 'economic-director' | 'commission-reviewer'
+  | 'legal-reviewer' | 'board-chairman' | 'accountant' | 'it-specialist';
 export type Priority = 'normal' | 'high' | 'urgent';
 export type CorrespondenceStatus =
   | 'draft'

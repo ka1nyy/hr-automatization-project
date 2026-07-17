@@ -6,8 +6,11 @@ import type {
   EmployeeFunctionDescriptor,
   HrEmployee,
   HrOverview,
+  InitiateTerminationInput,
   LeaveRequest,
-  StaffingSlotOption
+  StaffingSlotOption,
+  TerminationCase,
+  TerminationReason
 } from '../model/types';
 
 export interface HrRepository {
@@ -22,6 +25,11 @@ export interface HrRepository {
   listVacantSlots(): Promise<StaffingSlotOption[]>;
   listAbsences(employeeId: string): Promise<EmployeeAbsences>;
   listActiveAbsences(): Promise<EmployeeAbsence[]>;
+  listTerminationReasons(unitId?: string | null): Promise<TerminationReason[]>;
+  listTerminationCases(employeeId: string): Promise<TerminationCase[]>;
+  initiateTermination(input: InitiateTerminationInput): Promise<TerminationCase>;
+  decideTermination(caseId: string, decision: 'approve' | 'return' | 'reject', comment: string, revision: number): Promise<TerminationCase>;
+  cancelTermination(caseId: string, revision: number, reason: string): Promise<TerminationCase>;
   listLeaveRequests(): Promise<LeaveRequest[]>;
   createLeaveRequest(input: CreateLeaveRequestInput): Promise<LeaveRequest>;
   reviewLeaveRequest(id: string, decision: 'approve' | 'reject'): Promise<LeaveRequest>;

@@ -12,10 +12,16 @@ describe('permission matrix', () => {
     expect(getPermissions('executive')).not.toContain('workflow.definition.edit');
   });
 
-  it('separates employee self-service from HR operations', () => {
+  it('allows the primary chairman account to approve the final hiring stage', () => {
+    expect(getPermissions('executive')).toContain('hiring.approve');
+  });
+
+  it('temporarily exposes the HR workspace permissions to every persona', () => {
     expect(getPermissions('employee')).toContain('hr.leave.create');
-    expect(getPermissions('employee')).not.toContain('hr.employees.read');
-    expect(getPermissions('employee')).not.toContain('hr.sensitive.read');
+    expect(getPermissions('employee')).toContain('hr.employees.read');
+    expect(getPermissions('employee')).toContain('hr.sensitive.read');
+    expect(getPermissions('secretary')).toContain('hr.read');
+    expect(getPermissions('accountant')).toContain('hr.leave.review');
 
     expect(getPermissions('hr-specialist')).toContain('hr.employees.read');
     expect(getPermissions('hr-specialist')).toContain('hr.sensitive.read');

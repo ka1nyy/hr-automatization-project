@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, UserPlus } from 'lucide-react';
+import { Building, ChevronDown, Search, UserCheck, UserPlus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader, QueryState } from '../../../shared/components';
 import { usePermission } from '../../../shared/permissions';
 import { hrRepository } from '../api';
 import { EmployeeStatus } from '../components/HrStatus';
 import HrAddEmployeePage from './HrAddEmployeePage';
+import type { HrEmployeeStatus } from '../model/types';
 
 const departmentsList = [
   { name: 'Руководство', label: 'Председатель Правления' },
@@ -28,6 +29,8 @@ export default function HrEmployeesPage() {
   const queryParam = searchParams.get('query') || '';
   const [query, setQuery] = useState(queryParam);
   const [department, setDepartment] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | HrEmployeeStatus>('all');
+  
   const result = useQuery({ queryKey: ['hr', 'employees'], queryFn: () => hrRepository.listEmployees(), enabled: canRead });
   const collectionFunctions = useQuery({
     queryKey: ['employee-functions', 'collection'],
@@ -36,13 +39,54 @@ export default function HrEmployeesPage() {
   });
   const canHire = (collectionFunctions.data ?? []).some((item) => item.key === 'employee.hire');
   
-  const filtered = useMemo(() => {
+  const deptFilteredEmployees = useMemo(() => {
     return (result.data ?? []).filter((employee) => {
-      const matchesDept = department === 'all' || employee.department === department;
-      const matchesQuery = `${employee.fullName} ${employee.position} ${employee.employeeNumber}`.toLowerCase().includes(query.toLowerCase());
-      return matchesDept && matchesQuery;
+      return department === 'all' || employee.department === department;
     });
-  }, [result.data, department, query]);
+  }, [result.data, department]);
+
+  const counts = useMemo(() => {
+    const list = deptFilteredEmployees;
+    return {
+      active: list.filter(e => e.status === 'active').length,
+      on_leave: list.filter(e => e.status === 'on_leave').length,
+      sick_leave: list.filter(e => e.status === 'sick_leave').length,
+      probation: list.filter(e => e.status === 'probation').length,
+    };
+  }, [deptFilteredEmployees]);
+
+  const filtered = useMemo(() => {
+    return deptFilteredEmployees.filter((employee) => {
+      const matchesStatus = statusFilter === 'all' || employee.status === statusFilter;
+      const matchesQuery = `${employee.fullName} ${employee.position} ${employee.employeeNumber}`.toLowerCase().includes(query.toLowerCase());
+      return matchesStatus && matchesQuery;
+    });
+  }, [deptFilteredEmployees, statusFilter, query]);
+
+  const statusFilters = [
+    { status: 'active', label: 'Активны', count: counts.active },
+    { status: 'on_leave', label: 'В отпуске', count: counts.on_leave },
+    { status: 'sick_leave', label: 'Больничный', count: counts.sick_leave },
+    { status: 'probation', label: 'Испытательный срок', count: counts.probation },
+  ] as const;
+
+  const toggleStatusFilter = (status: HrEmployeeStatus) => {
+    setStatusFilter(prev => prev === status ? 'all' : status);
+  };
+
+  const [isDeptOpen, setIsDeptOpen] = useState(false);
+
+  const selectedDeptLabel = useMemo(() => {
+    if (department === 'all') return 'Все подразделения';
+    return departmentsList.find(d => d.name === department)?.label ?? department;
+  }, [department]);
+
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+
+  const selectedStatusLabel = useMemo(() => {
+    if (statusFilter === 'all') return 'Все статусы';
+    return statusFilters.find(sf => sf.status === statusFilter)?.label ?? statusFilter;
+  }, [statusFilter]);
 
   if (!canRead) return <div className="hr-access-denied"><span>HR</span><h1>Доступ ограничен</h1><p>Каталог сотрудников доступен только HR-ролям. Переключите developer persona на HR Specialist для проверки этой стороны.</p><Link className="secondary-button" to="/departments/hr">Вернуться в HR</Link></div>;
 
@@ -52,28 +96,6 @@ export default function HrEmployeesPage() {
 
   return <>
     <PageHeader eyebrow="HR · Сотрудники" title="Сотрудники" actions={canHire ? <button type="button" className="primary-button" onClick={() => setSearchParams((prev) => { prev.set('add', 'true'); return prev; })}><UserPlus size={16} /> Добавить сотрудника</button> : undefined} />
-    <div className="message-tabs" role="tablist" aria-label="Фильтр по департаментам">
-      <button
-        className={department === 'all' ? 'active' : ''}
-        onClick={() => setDepartment('all')}
-      >
-        Все <b>{result.data?.length ?? 0}</b>
-      </button>
-      {departmentsList.map((dept) => {
-        const isActive = department === dept.name;
-        const count = (result.data ?? []).filter(emp => emp.department === dept.name).length;
-        return (
-          <button
-            key={dept.name}
-            className={isActive ? 'active' : ''}
-            onClick={() => setDepartment(isActive ? 'all' : dept.name)}
-          >
-            {dept.label} {count > 0 && <b>{count}</b>}
-          </button>
-        );
-      })}
-    </div>
-
     <div className="register-toolbar hr-toolbar">
       <label className="field-search" style={{ flex: 1 }}>
         <Search size={16} />
@@ -91,6 +113,105 @@ export default function HrEmployeesPage() {
           placeholder="ФИО, должность или табельный номер"
         />
       </label>
+
+      {/* Custom Department Dropdown Selector */}
+      <div className="custom-select-container">
+        <button 
+          type="button" 
+          className={`custom-select-btn ${department !== 'all' ? 'active' : ''}`}
+          onClick={() => setIsDeptOpen(!isDeptOpen)}
+        >
+          <Building size={14} className="select-icon" />
+          <span>{selectedDeptLabel}</span>
+          <ChevronDown size={14} className={`arrow-icon ${isDeptOpen ? 'open' : ''}`} />
+        </button>
+        
+        {isDeptOpen && (
+          <>
+            <div className="custom-select-overlay" onClick={() => setIsDeptOpen(false)} />
+            <div className="custom-select-dropdown">
+              <button 
+                type="button" 
+                className={`select-option ${department === 'all' ? 'selected' : ''}`}
+                onClick={() => {
+                  setDepartment('all');
+                  setIsDeptOpen(false);
+                }}
+              >
+                <span>Все подразделения</span>
+                <span className="option-count">{result.data?.length ?? 0}</span>
+              </button>
+              {departmentsList.map((dept) => {
+                const count = (result.data ?? []).filter(emp => emp.department === dept.name).length;
+                const isSelected = department === dept.name;
+                return (
+                  <button 
+                    key={dept.name}
+                    type="button" 
+                    className={`select-option ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setDepartment(dept.name);
+                      setIsDeptOpen(false);
+                    }}
+                  >
+                    <span>{dept.label}</span>
+                    <span className="option-count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Custom Status Dropdown Selector */}
+      <div className="custom-select-container">
+        <button 
+          type="button" 
+          className={`custom-select-btn ${statusFilter !== 'all' ? 'active' : ''}`}
+          onClick={() => setIsStatusOpen(!isStatusOpen)}
+        >
+          <UserCheck size={14} className="select-icon" />
+          <span>{selectedStatusLabel}</span>
+          <ChevronDown size={14} className={`arrow-icon ${isStatusOpen ? 'open' : ''}`} />
+        </button>
+        
+        {isStatusOpen && (
+          <>
+            <div className="custom-select-overlay" onClick={() => setIsStatusOpen(false)} />
+            <div className="custom-select-dropdown">
+              <button 
+                type="button" 
+                className={`select-option ${statusFilter === 'all' ? 'selected' : ''}`}
+                onClick={() => {
+                  setStatusFilter('all');
+                  setIsStatusOpen(false);
+                }}
+              >
+                <span>Все статусы</span>
+                <span className="option-count">{deptFilteredEmployees.length}</span>
+              </button>
+              {statusFilters.map((sf) => {
+                const isSelected = statusFilter === sf.status;
+                return (
+                  <button 
+                    key={sf.status}
+                    type="button" 
+                    className={`select-option ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setStatusFilter(sf.status);
+                      setIsStatusOpen(false);
+                    }}
+                  >
+                    <span>{sf.label}</span>
+                    <span className="option-count">{sf.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
 
     {result.isLoading ? (

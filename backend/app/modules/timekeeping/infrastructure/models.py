@@ -1,20 +1,19 @@
-"""Relational schema for timesheets and leave.
+"""Relational schema for timesheets and working-time schedules.
 
-Two invariants from the MVP plan shape this schema:
+Leave itself lives in :mod:`app.modules.absence`; this module covers the timesheet
+half of Module 4 and reads leave only as a source of timesheet rows.
 
-* A timesheet is never typed from scratch (section 8).  ``timesheet_entries`` carries
-  the source that produced each row, and once a period is closed the rows are locked;
-  further change goes through ``timesheet_corrections``.
-* Leave balances are derived, not stored as a mutable counter (section 9).  The truth
-  is the append-only ``leave_balance_entries`` ledger; ``leave_entitlements`` holds the
-  grant for a period, and the remaining days are the ledger sum over it.
+One invariant from section 8 of the MVP plan shapes the schema: a timesheet is never
+typed from scratch.  ``timesheet_entries`` records the source that produced each row,
+a manual row must carry a reason, and once a period closes its rows lock and change
+only through ``timesheet_corrections``.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -27,197 +26,14 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
-    Table,
     Text,
     UniqueConstraint,
-    func,
-    text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, ExcludeConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.core.database.mixins import RevisionMixin, TimestampMixin, UUIDPrimaryKeyMixin
-
-
-class LeaveTypeModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixin, Base):
-    """Configurable leave kinds; organizations edit these without a code change."""
-
-    __tablename__ = "leave_types"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "code", name="uq_leave_types_organization_code"),
-        CheckConstraint(
-            "default_annual_days IS NULL OR default_annual_days >= 0",
-            name="default_days_nonnegative",
-        ),
-        CheckConstraint(
-            "max_carry_over_days IS NULL OR max_carry_over_days >= 0",
-            name="carry_over_nonnegative",
-        ),
-        Index("ix_leave_types_organization_active", "organization_id", "active"),
-    )
-
-    organization_id: Mapped[UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="RESTRICT"), index=True
-    )
-    code: Mapped[str] = mapped_column(String(100))
-    name: Mapped[str] = mapped_column(String(300))
-    category: Mapped[str] = mapped_column(String(30))
-    paid: Mapped[bool] = mapped_column(Boolean, default=True)
-    # Section 9: the balance check only applies to leave that draws down an entitlement.
-    consumes_balance: Mapped[bool] = mapped_column(Boolean, default=True)
-    # Section 9: the manager is notified of sick leave but does not approve the medical fact.
-    requires_manager_approval: Mapped[bool] = mapped_column(Boolean, default=True)
-    requires_supporting_document: Mapped[bool] = mapped_column(Boolean, default=False)
-    requires_order_document: Mapped[bool] = mapped_column(Boolean, default=True)
-    default_annual_days: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    max_carry_over_days: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
-    min_notice_days: Mapped[int | None] = mapped_column(Integer)
-    time_code_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("time_codes.id", ondelete="RESTRICT")
-    )
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class LeaveEntitlementModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixin, Base):
-    """A grant of leave days to one employee for one period.
-
-    The stored days are the grant.  The remaining balance is the ledger sum and is
-    never written back here.
-    """
-
-    __tablename__ = "leave_entitlements"
-    __table_args__ = (
-        UniqueConstraint(
-            "employee_id",
-            "leave_type_id",
-            "period_start",
-            name="uq_leave_entitlements_employee_type_period",
-        ),
-        CheckConstraint("period_end >= period_start", name="valid_period"),
-        CheckConstraint("granted_days >= 0", name="granted_nonnegative"),
-        Index(
-            "ix_leave_entitlements_employee_period",
-            "employee_id",
-            "period_start",
-            "period_end",
-        ),
-    )
-
-    organization_id: Mapped[UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="RESTRICT"), index=True
-    )
-    employee_id: Mapped[UUID] = mapped_column(
-        ForeignKey("employees.id", ondelete="RESTRICT"), index=True
-    )
-    leave_type_id: Mapped[UUID] = mapped_column(ForeignKey("leave_types.id", ondelete="RESTRICT"))
-    period_start: Mapped[date] = mapped_column(Date)
-    period_end: Mapped[date] = mapped_column(Date)
-    granted_days: Mapped[Decimal] = mapped_column(Numeric(6, 2))
-    basis: Mapped[str | None] = mapped_column(Text)
-
-
-class LeaveBalanceEntryModel(UUIDPrimaryKeyMixin, Base):
-    """Append-only ledger of balance movements.
-
-    Section 8 of the plan forbids physically deleting events, so a mistake is fixed by
-    posting a compensating entry rather than editing or removing a row.  There is no
-    ``updated_at``/``revision`` here for that reason: entries are immutable once posted.
-    """
-
-    __tablename__ = "leave_balance_entries"
-    __table_args__ = (
-        CheckConstraint("days <> 0", name="days_nonzero"),
-        Index(
-            "ix_leave_balance_entries_employee_type",
-            "employee_id",
-            "leave_type_id",
-            "occurred_at",
-        ),
-        Index("ix_leave_balance_entries_entitlement", "entitlement_id"),
-    )
-
-    organization_id: Mapped[UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="RESTRICT"), index=True
-    )
-    employee_id: Mapped[UUID] = mapped_column(
-        ForeignKey("employees.id", ondelete="RESTRICT"), index=True
-    )
-    leave_type_id: Mapped[UUID] = mapped_column(ForeignKey("leave_types.id", ondelete="RESTRICT"))
-    entitlement_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("leave_entitlements.id", ondelete="RESTRICT")
-    )
-    entry_type: Mapped[str] = mapped_column(String(30))
-    # Positive adds days to the balance (accrual, carry-over, release);
-    # negative draws them down (booking, expiry, payout).
-    days: Mapped[Decimal] = mapped_column(Numeric(6, 2))
-    leave_request_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("leave_requests.id", ondelete="RESTRICT")
-    )
-    # A compensating entry points at the entry it reverses.
-    reverses_entry_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("leave_balance_entries.id", ondelete="RESTRICT")
-    )
-    reason: Mapped[str] = mapped_column(Text)
-    created_by: Mapped[UUID] = mapped_column(ForeignKey("user_accounts.id", ondelete="RESTRICT"))
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-
-class LeaveRequestModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixin, Base):
-    """An employee's leave request, routed through the shared workflow engine."""
-
-    __tablename__ = "leave_requests"
-    __table_args__ = (
-        CheckConstraint("date_to >= date_from", name="valid_dates"),
-        CheckConstraint("requested_days > 0", name="days_positive"),
-        Index("ix_leave_requests_employee_dates", "employee_id", "date_from", "date_to"),
-        Index("ix_leave_requests_scope_status", "organization_id", "status", "date_from"),
-        Index("ix_leave_requests_process_instance", "process_instance_id"),
-    )
-
-    organization_id: Mapped[UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="RESTRICT"), index=True
-    )
-    employee_id: Mapped[UUID] = mapped_column(
-        ForeignKey("employees.id", ondelete="RESTRICT"), index=True
-    )
-    leave_type_id: Mapped[UUID] = mapped_column(ForeignKey("leave_types.id", ondelete="RESTRICT"))
-    # The requester is not always the employee: HR registers sick leave on their behalf.
-    requested_by_user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("user_accounts.id", ondelete="RESTRICT")
-    )
-    date_from: Mapped[date] = mapped_column(Date)
-    date_to: Mapped[date] = mapped_column(Date)
-    # Calendar span minus non-working days, so it is stored rather than recomputed.
-    requested_days: Mapped[Decimal] = mapped_column(Numeric(6, 2))
-    half_day_start: Mapped[bool] = mapped_column(Boolean, default=False)
-    half_day_end: Mapped[bool] = mapped_column(Boolean, default=False)
-    reason: Mapped[str | None] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(30), index=True)
-    process_instance_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("process_instances.id", ondelete="RESTRICT")
-    )
-    order_document_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("document_records.id", ondelete="RESTRICT")
-    )
-    # Set once approved; ties the request to the absence record the rest of the system reads.
-    absence_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("employee_absences.id", ondelete="RESTRICT")
-    )
-    substitute_employee_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("employees.id", ondelete="RESTRICT")
-    )
-    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    decided_by_user_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("user_accounts.id", ondelete="RESTRICT")
-    )
-    decision_reason: Mapped[str | None] = mapped_column(Text)
-    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    cancellation_reason: Mapped[str | None] = mapped_column(Text)
 
 
 class TimeCodeModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixin, Base):
@@ -397,7 +213,7 @@ class TimesheetEntryModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixin, Ba
     time_code_id: Mapped[UUID] = mapped_column(ForeignKey("time_codes.id", ondelete="RESTRICT"))
     hours: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     source: Mapped[str] = mapped_column(String(30))
-    # Set for derived rows: the absence, leave request, or trip that produced this entry.
+    # Set for derived rows: the absence or leave request that produced this entry.
     source_absence_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("employee_absences.id", ondelete="RESTRICT")
     )
@@ -469,26 +285,3 @@ class TimesheetCorrectionModel(UUIDPrimaryKeyMixin, RevisionMixin, TimestampMixi
     extra_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONB, nullable=False, default=dict
     )
-
-
-_leave_request_table = cast(Table, LeaveRequestModel.__table__)
-_leave_request_table.append_constraint(
-    # An employee cannot hold two live leave requests over the same days.  Terminal
-    # states are excluded so a rejected or cancelled request never blocks a new one.
-    ExcludeConstraint(
-        (_leave_request_table.c.employee_id, "="),
-        (
-            func.daterange(
-                _leave_request_table.c.date_from,
-                _leave_request_table.c.date_to,
-                "[]",
-            ),
-            "&&",
-        ),
-        where=text(
-            "status IN ('under_review', 'under_approval', 'awaiting_signature', 'approved')"
-        ),
-        name="ex_leave_requests_no_overlap_per_employee",
-        using="gist",
-    )
-)

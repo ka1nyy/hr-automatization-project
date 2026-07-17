@@ -15,20 +15,19 @@ services:
     volumes:
       - spk-postgres-data:/var/lib/postgresql/data
 
-  app:
+  backend:
     build:
-      context: .
-      args:
-        VITE_API_URL: /api/v1
+      context: ./backend
     environment:
       SPK_DATABASE_URL: postgresql+psycopg://spk:spk@postgres:5432/spk_hr
       SPK_ENVIRONMENT: development
       SPK_DEV_AUTH_ENABLED: "true"
       SPK_DEV_DEFAULT_USER: admin
       SPK_SENSITIVE_DATA_KEY: Y2Ij-yv_7CnluYWbVrE0Cakluy1JLmVWPwqH7E8qlRY=
-      SPK_CORS_ORIGINS: http://localhost:${APP_PORT:-5173}
+      SPK_CORS_ORIGINS: http://localhost:${VITE_PORT:-5173}
+    command: ["sh", "-c", "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     ports:
-      - "${APP_PORT:-5173}:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy

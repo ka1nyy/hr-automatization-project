@@ -334,6 +334,14 @@ class SqlAlchemyRecruitmentOperations:
             row.requirements = str(data["requirements"])
             row.status = "hr_review"
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Recruitment request has no linked workflow.")
+            await SqlAlchemyWorkflowOperations(self._sessions).resume_linked_task(
+                session,
+                row.process_instance_id,
+                actor_id,
+                f"recruitment:{row.id}:resubmit:{revision}",
+            )
             await self._audit(
                 session,
                 actor_id,
@@ -355,6 +363,13 @@ class SqlAlchemyRecruitmentOperations:
     ) -> RecruitmentView:
         async with self._sessions.begin() as session:
             row = await _locked(session, RecruitmentRequestModel, request_id)
+            workflow_key = (
+                f"recruitment:{row.id}:"
+                f"{'staffing' if staffing is not None else 'hr'}:{revision}:{decision}"
+            )
+            workflow = SqlAlchemyWorkflowOperations(self._sessions)
+            if await workflow.linked_action_exists(session, workflow_key):
+                return _view(row)
             _revision(row, revision)
             before = _view(row)
             if staffing is None:
@@ -409,6 +424,17 @@ class SqlAlchemyRecruitmentOperations:
             if not row.status:
                 raise ValidationError("Unsupported decision.")
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Recruitment request has no linked workflow.")
+            await workflow.act_linked_task(
+                session,
+                row.process_instance_id,
+                actor_id,
+                decision,
+                comment,
+                workflow_key,
+                expected_phase="staffing_review" if staffing is not None else "hr_review",
+            )
             await self._audit(
                 session,
                 actor_id,
@@ -1229,6 +1255,14 @@ class SqlAlchemyRecruitmentOperations:
             )
             request.status = "completed"
             request.revision += 1
+            if case.process_instance_id is None:
+                raise ValidationError("Hiring case has no linked workflow.")
+            await SqlAlchemyWorkflowOperations(self._sessions).complete_linked_instance(
+                session,
+                case.process_instance_id,
+                actor_id,
+                "Hiring completed after document and onboarding validation.",
+            )
             for task in (
                 await session.scalars(
                     select(OnboardingTaskModel).where(
@@ -1259,6 +1293,11 @@ class SqlAlchemyRecruitmentOperations:
                 raise ValidationError("Completed hiring cannot be cancelled.")
             row.status = "cancelled"
             row.revision += 1
+            if row.process_instance_id is None:
+                raise ValidationError("Hiring case has no linked workflow.")
+            await SqlAlchemyWorkflowOperations(self._sessions).cancel_linked_instance(
+                session, row.process_instance_id, actor_id, reason
+            )
             for task in (
                 await session.scalars(
                     select(OnboardingTaskModel).where(

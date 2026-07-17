@@ -15,9 +15,16 @@ describe('application runtime', () => {
     localStorage.clear();
     useDeveloperStore.setState({ persona: 'secretary' });
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [], meta: { requestId: 'test-request' } })
+    }));
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it('opens directly in the operations workspace without authentication', () => {
     renderRoute('/');
@@ -77,14 +84,15 @@ describe('application runtime', () => {
     expect(screen.queryByText('Обработка входящей корреспонденции')).toBeNull();
   });
 
-  it('keeps the employee in self-service and out of the HR directory', async () => {
+  it('shows the unified HR workspace and directory to an employee persona', async () => {
     useDeveloperStore.setState({ persona: 'employee' });
-    const view = renderRoute('/departments/hr/leave');
-    expect(await screen.findByRole('heading', { name: 'Мои отпуска' })).toBeTruthy();
+    const view = renderRoute('/');
+    expect(await screen.findByRole('heading', { name: 'Рабочее пространство' })).toBeTruthy();
+    expect(screen.getByText('HR', { selector: '.breadcrumbs span' })).toBeTruthy();
 
     view.unmount();
     renderRoute('/departments/hr/employees');
-    expect(await screen.findByRole('heading', { name: 'Доступ ограничен' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Сотрудники' })).toBeTruthy();
   });
 
   it('shows dynamic HR context and stores Add Employee drafts locally', async () => {
@@ -110,8 +118,8 @@ describe('application runtime', () => {
     expect(screen.getByText(/Файлы не сохраняются/i)).toBeTruthy();
   });
 
-  it('opens planned HR modules only for HR roles', async () => {
-    useDeveloperStore.setState({ persona: 'hr-specialist' });
+  it('opens planned HR modules for every persona in unified mode', async () => {
+    useDeveloperStore.setState({ persona: 'secretary' });
     const view = renderRoute('/hr/calendar');
     expect(await screen.findByRole('heading', { name: 'Календарь' })).toBeTruthy();
     expect(screen.getByText('Ближайшие события')).toBeTruthy();
@@ -119,6 +127,45 @@ describe('application runtime', () => {
     view.unmount();
     useDeveloperStore.setState({ persona: 'employee' });
     renderRoute('/hr/terminations');
-    expect(await screen.findByRole('heading', { name: 'Доступ ограничен' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Увольнения' })).toBeTruthy();
+  });
+
+  it('opens backend workforce workflows with role-specific creation actions', async () => {
+    useDeveloperStore.setState({ persona: 'employee' });
+    const leaveView = renderRoute('/hr/leave');
+    expect(await screen.findByRole('heading', { name: 'Отпуска' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Создать заявку' })).toBeTruthy();
+
+    leaveView.unmount();
+    renderRoute('/hr/business-trips');
+    expect(await screen.findByRole('heading', { name: 'Командировки' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Создать заявку' })).toBeTruthy();
+
+    cleanup();
+    useDeveloperStore.setState({ persona: 'hr-specialist' });
+    renderRoute('/hr/terminations');
+    expect(await screen.findByRole('heading', { name: 'Увольнения' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Начать увольнение' })).toBeTruthy();
+  });
+
+  it('opens backend hiring approvals as clickable records', async () => {
+    useDeveloperStore.setState({ persona: 'hr-director' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{
+          id: 'request-1', requestNumber: 'HR-HIRE-2026-00002', candidateName: 'Смагулов Рамин Эрнарович',
+          status: 'under_review', currentStageName: 'Директор HR-департамента', createdAt: '2026-07-16T10:00:00Z',
+          employmentData: { department: 'HR', position: 'HR специалист' }
+        }],
+        meta: { requestId: 'test-request' }
+      })
+    }));
+
+    renderRoute('/hr/approvals');
+
+    expect(await screen.findByRole('heading', { name: 'Согласования' })).toBeTruthy();
+    const requestLink = await screen.findByRole('link', { name: /HR-HIRE-2026-00002.*Смагулов Рамин Эрнарович/i });
+    expect(requestLink.getAttribute('href')).toBe('/hiring/requests/request-1');
   });
 });

@@ -24,6 +24,7 @@ from app.core.security.dependencies import get_current_principal
 from app.core.security.factory import build_token_authenticator
 from app.core.security.middleware import AuthenticationMiddleware
 from app.core.security.ports import AuthorizationPort
+from app.modules.absence.api import router as absence_router
 from app.modules.access_control.api import router as access_router
 from app.modules.access_control.api.dependencies import (
     get_database_authorization_port,
@@ -54,6 +55,7 @@ from app.modules.employees.infrastructure.organization_adapter import (
 from app.modules.employees.infrastructure.repositories import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
+from app.modules.hiring_requests.api import router as hiring_requests_router
 from app.modules.identity.api import get_database_principal
 from app.modules.organization.api.routes import (
     organization_exception_handler,
@@ -240,7 +242,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="1.0.0",
         description=(
             "SPK API for identity, scoped access, organization and staffing, employees, "
-            "workflow, documents, recruitment, hiring, termination, audit, and outbox events."
+            "workflow, documents, recruitment, hiring, termination, leave, business trips, "
+            "audit, and outbox events."
         ),
         lifespan=lifespan,
     )
@@ -316,7 +319,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(workflow_router, prefix=runtime.api_prefix)
     application.include_router(documents_router, prefix=runtime.api_prefix)
     application.include_router(recruitment_router, prefix=runtime.api_prefix)
+    application.include_router(hiring_requests_router, prefix=runtime.api_prefix)
     application.include_router(termination_router, prefix=runtime.api_prefix)
+    application.include_router(absence_router, prefix=runtime.api_prefix)
     application.include_router(
         create_employee_router(
             employee_service_provider,

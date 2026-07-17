@@ -4,16 +4,16 @@ React frontend for the corporate correspondence, document workflow, organization
 
 ## Start locally
 
-Start PostgreSQL and backend from the repository root, then start Vite:
+Start the database and backend from the repository root, then start Vite:
 
 ```powershell
-docker compose up -d postgres backend
+docker compose up -d --build
 cd frontend
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
-Open `http://localhost:5173`. Run all commands from the `frontend` directory.
+Open `http://localhost:5173`. Docker does not publish a frontend port; this address belongs only to the Vite development server.
 
 ## Quality checks
 
@@ -23,7 +23,7 @@ pnpm test
 pnpm build
 ```
 
-Vite proxies `/api` to the backend on `http://localhost:8000`. Production nginx proxies the same path to the backend service, so no browser-visible localhost API address is embedded in the build.
+Vite proxies `/api` to the backend published by Docker Compose on `http://127.0.0.1:8000`. The production build uses same-origin `/api/v1`, so no browser-visible backend address is embedded in the bundle.
 
 ## HR workspace
 

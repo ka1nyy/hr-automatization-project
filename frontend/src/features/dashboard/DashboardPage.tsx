@@ -6,11 +6,12 @@ import { LinkArrow, PageHeader, QueryState, Section } from '../../shared/compone
 import { BarChart, DonutChart } from '../../shared/charts';
 import { formatDate, statusLabels } from '../../shared/format';
 import { useDeveloperStore } from '../../shared/store';
+import { UNIFIED_HR_WORKSPACE } from '../../shared/unifiedHrWorkspace';
 import HrOverviewPage from '../hr/pages/HrOverviewPage';
 
 export default function DashboardPage() {
   const persona = useDeveloperStore((state) => state.persona);
-  return persona === 'hr-specialist' ? <HrOverviewPage /> : <OperationsDashboard />;
+  return UNIFIED_HR_WORKSPACE || persona === 'hr-specialist' ? <HrOverviewPage /> : <OperationsDashboard />;
 }
 
 function OperationsDashboard() {

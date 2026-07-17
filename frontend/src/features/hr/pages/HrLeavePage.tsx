@@ -7,6 +7,7 @@ import { PageHeader, QueryState, Section } from '../../../shared/components';
 import { formatDate } from '../../../shared/format';
 import { usePermission } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
+import { UNIFIED_HR_WORKSPACE } from '../../../shared/unifiedHrWorkspace';
 import { hrRepository } from '../api';
 import { LeaveStatus } from '../components/HrStatus';
 import { calculateLeaveDays, leaveRequestSchema, type LeaveRequestForm } from '../model/schemas';
@@ -20,7 +21,7 @@ const errorLabels: Record<string, string> = {
 export default function HrLeavePage() {
   const persona = useDeveloperStore((state) => state.persona);
   const locale = useDeveloperStore((state) => state.locale);
-  const isHr = persona === 'hr-specialist';
+  const isHr = UNIFIED_HR_WORKSPACE || persona === 'hr-specialist';
   const canReview = usePermission('hr.leave.review');
   const [successNumber, setSuccessNumber] = useState<string | null>(null);
   const queryClient = useQueryClient();

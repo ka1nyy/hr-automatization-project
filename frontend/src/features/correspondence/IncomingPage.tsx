@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, LayoutGrid, List, Plus, Search, SlidersHorizontal } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Building, CalendarDays, ChevronDown, Plus, Search, UserCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { repositories } from '../../repositories';
 import { EmptyState, PageHeader, QueryState } from '../../shared/components';
 import { formatDate, statusLabels } from '../../shared/format';
@@ -37,38 +37,40 @@ function normalizeDept(name: string): string {
 export default function IncomingPage() {
   const locale = useDeveloperStore((state) => state.locale);
   const department = useDepartmentContext();
+  const navigate = useNavigate();
   
-  // Standard filters
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
-  const [activeTab, setActiveTab] = useState('external');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-
-  // Filters state (shared in the side drawer)
+  const [selectedDept, setSelectedDept] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [confidentialityFilter, setConfidentialityFilter] = useState('all');
-  
-  // Right Drawer toggle
-  const [isFiltersDrawerOpen, setIsFiltersDrawerOpen] = useState(false);
+
+  const [isDeptOpen, setIsDeptOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   const result = useQuery({ queryKey: ['incoming'], queryFn: () => repositories.correspondence.listIncoming() });
 
-  const filtered = useMemo(() => {
+  const deptFilteredIncoming = useMemo(() => {
     return (result.data ?? []).filter((item) => {
-      // Tab filter
-      let matchesTab = true;
-      if (activeTab === 'external') {
-        matchesTab = item.channel !== 'Внутренняя система';
-      } else if (activeTab !== 'all') {
-        matchesTab = normalizeDept(item.department) === normalizeDept(activeTab);
-      }
-      
-      // Status filter
+      return selectedDept === 'all' || normalizeDept(item.department) === normalizeDept(selectedDept);
+    });
+  }, [result.data, selectedDept]);
+
+  const statusCounts = useMemo(() => {
+    const list = deptFilteredIncoming;
+    return {
+      resolution: list.filter(item => item.status === 'resolution').length,
+      execution: list.filter(item => item.status === 'execution').length,
+      approval: list.filter(item => item.status === 'approval').length,
+      signature: list.filter(item => item.status === 'signature').length,
+      dispatch: list.filter(item => item.status === 'dispatch').length,
+    };
+  }, [deptFilteredIncoming]);
+
+  const filtered = useMemo(() => {
+    return deptFilteredIncoming.filter((item) => {
       const matchesStatus = status === 'all' || item.status === status;
       
-      // Date range filter
       let matchesDate = true;
       if (startDate) {
         matchesDate = matchesDate && item.receivedAt >= startDate;
@@ -77,141 +79,163 @@ export default function IncomingPage() {
         matchesDate = matchesDate && item.receivedAt <= `${endDate}T23:59:59.999Z`;
       }
 
-      // Priority filter
-      const matchesPriority = priorityFilter === 'all' || item.priority === priorityFilter;
-
-      // Confidentiality filter
-      const matchesConfidentiality = confidentialityFilter === 'all' || item.confidentiality === confidentialityFilter;
-
-      // Text query search
       const matchesQuery = `${item.number} ${item.sender} ${item.subject}`.toLowerCase().includes(query.toLowerCase());
 
-      return matchesTab && matchesStatus && matchesDate && matchesPriority && matchesConfidentiality && matchesQuery;
+      return matchesStatus && matchesDate && matchesQuery;
     });
-  }, [result.data, activeTab, query, status, startDate, endDate, priorityFilter, confidentialityFilter]);
+  }, [deptFilteredIncoming, status, startDate, endDate, query]);
 
   const isHr = department.isHrWorkspace;
 
-  const getCount = (tab: string) => {
-    if (!result.data) return 0;
-    if (tab === 'all') return result.data.length;
-    if (tab === 'external') return result.data.filter(item => item.channel !== 'Внутренняя система').length;
-    return result.data.filter(item => normalizeDept(item.department) === normalizeDept(tab)).length;
-  };
+  const selectedDeptLabel = useMemo(() => {
+    if (selectedDept === 'all') return 'Все подразделения';
+    return departmentsList.find(d => d.name === selectedDept)?.label ?? selectedDept;
+  }, [selectedDept]);
 
-  const hasActivePeriod = startDate || endDate;
-  const hasActiveAdvanced = priorityFilter !== 'all' || confidentialityFilter !== 'all';
+  const statusFilters = [
+    { status: 'resolution', label: 'На резолюции', count: statusCounts.resolution },
+    { status: 'execution', label: 'В работе', count: statusCounts.execution },
+    { status: 'approval', label: 'На согласовании', count: statusCounts.approval },
+    { status: 'signature', label: 'На подписи', count: statusCounts.signature },
+    { status: 'dispatch', label: 'К отправке', count: statusCounts.dispatch },
+  ] as const;
+
+  const selectedStatusLabel = useMemo(() => {
+    if (status === 'all') return 'Все статусы';
+    return statusFilters.find(sf => sf.status === status)?.label ?? status;
+  }, [status]);
 
   return <>
     <PageHeader eyebrow={isHr ? 'HR · Входящие сообщения' : 'Секретариат · Реестр'} title={isHr ? 'Входящие сообщения' : 'Входящая корреспонденция'} actions={!isHr ? <Link className="primary-button" to="/correspondence/incoming/new"><Plus size={16} /> Зарегистрировать письмо</Link> : undefined} />
     
-    <div className="message-tabs" role="tablist" aria-label="Категории сообщений">
-      <button className={activeTab === 'external' ? 'active' : ''} onClick={() => setActiveTab('external')}>Внешние <b>{getCount('external')}</b></button>
-      {departmentsList.map((dept) => (
-        <button key={dept.name} className={activeTab === dept.name ? 'active' : ''} onClick={() => setActiveTab(dept.name)}>
-          {dept.label} {getCount(dept.name) > 0 && <b>{getCount(dept.name)}</b>}
-        </button>
-      ))}
-    </div>
-
     <div className="register-toolbar">
-      <label className="field-search">
+      <label className="field-search" style={{ flex: 1 }}>
         <Search size={16} />
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Номер, отправитель или тема" />
       </label>
       
-      <select value={status} onChange={(e) => setStatus(e.target.value)}>
-        <option value="all">Все статусы</option>
-        <option value="resolution">На резолюции</option>
-        <option value="execution">В работе</option>
-        <option value="approval">На согласовании</option>
-        <option value="signature">На подписи</option>
-        <option value="dispatch">К отправке</option>
-      </select>
-
-      <button className={`toolbar-button ${hasActivePeriod ? 'active' : ''}`} onClick={() => setIsFiltersDrawerOpen(true)}>
-        <CalendarDays size={16} /> Период {hasActivePeriod && '●'}
-      </button>
-
-      <button className={`toolbar-button icon-only ${hasActiveAdvanced ? 'active' : ''}`} onClick={() => setIsFiltersDrawerOpen(true)}>
-        <SlidersHorizontal size={16} />
-      </button>
-
-      <span className="view-toggle">
-        <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')} aria-label="Списком">
-          <List size={16} />
+      {/* Custom Department Dropdown Selector */}
+      <div className="custom-select-container">
+        <button 
+          type="button" 
+          className={`custom-select-btn ${selectedDept !== 'all' ? 'active' : ''}`}
+          onClick={() => setIsDeptOpen(!isDeptOpen)}
+        >
+          <Building size={14} className="select-icon" />
+          <span>{selectedDeptLabel}</span>
+          <ChevronDown size={14} className={`arrow-icon ${isDeptOpen ? 'open' : ''}`} />
         </button>
-        <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')} aria-label="Сеткой">
-          <LayoutGrid size={16} />
+        
+        {isDeptOpen && (
+          <>
+            <div className="custom-select-overlay" onClick={() => setIsDeptOpen(false)} />
+            <div className="custom-select-dropdown">
+              <button 
+                type="button" 
+                className={`select-option ${selectedDept === 'all' ? 'selected' : ''}`}
+                onClick={() => {
+                  setSelectedDept('all');
+                  setIsDeptOpen(false);
+                }}
+              >
+                <span>Все подразделения</span>
+                <span className="option-count">{result.data?.length ?? 0}</span>
+              </button>
+              {departmentsList.map((dept) => {
+                const count = (result.data ?? []).filter(item => normalizeDept(item.department) === normalizeDept(dept.name)).length;
+                const isSelected = selectedDept === dept.name;
+                return (
+                  <button 
+                    key={dept.name}
+                    type="button" 
+                    className={`select-option ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedDept(dept.name);
+                      setIsDeptOpen(false);
+                    }}
+                  >
+                    <span>{dept.label}</span>
+                    <span className="option-count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Custom Status Dropdown Selector */}
+      <div className="custom-select-container">
+        <button 
+          type="button" 
+          className={`custom-select-btn ${status !== 'all' ? 'active' : ''}`}
+          onClick={() => setIsStatusOpen(!isStatusOpen)}
+        >
+          <UserCheck size={14} className="select-icon" />
+          <span>{selectedStatusLabel}</span>
+          <ChevronDown size={14} className={`arrow-icon ${isStatusOpen ? 'open' : ''}`} />
         </button>
-      </span>
-    </div>
+        
+        {isStatusOpen && (
+          <>
+            <div className="custom-select-overlay" onClick={() => setIsStatusOpen(false)} />
+            <div className="custom-select-dropdown">
+              <button 
+                type="button" 
+                className={`select-option ${status === 'all' ? 'selected' : ''}`}
+                onClick={() => {
+                  setStatus('all');
+                  setIsStatusOpen(false);
+                }}
+              >
+                <span>Все статусы</span>
+                <span className="option-count">{deptFilteredIncoming.length}</span>
+              </button>
+              {statusFilters.map((sf) => {
+                const isSelected = status === sf.status;
+                return (
+                  <button 
+                    key={sf.status}
+                    type="button" 
+                    className={`select-option ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setStatus(sf.status);
+                      setIsStatusOpen(false);
+                    }}
+                  >
+                    <span>{sf.label}</span>
+                    <span className="option-count">{sf.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
 
-    {/* Right Sliding Filters Drawer */}
-    {isFiltersDrawerOpen && (
-      <div className="drawer-overlay" onClick={() => setIsFiltersDrawerOpen(false)}>
-        <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
-          <header className="drawer-header">
-            <h2>Фильтры и период</h2>
-            <button className="drawer-close" onClick={() => setIsFiltersDrawerOpen(false)} aria-label="Закрыть">×</button>
-          </header>
-          
-          <div className="drawer-content">
-            <section className="drawer-section">
-              <h3>Период получения</h3>
-              <div className="drawer-field-group">
-                <label>
-                  <span>Дата от</span>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                </label>
-                <label>
-                  <span>Дата до</span>
-                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                </label>
-              </div>
-            </section>
-            
-            <section className="drawer-section">
-              <h3>Параметры письма</h3>
-              
-              <label className="drawer-field">
-                <span>Приоритет</span>
-                <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-                  <option value="all">Все приоритеты</option>
-                  <option value="normal">Обычный</option>
-                  <option value="high">Высокий</option>
-                  <option value="urgent">Срочный</option>
-                </select>
-              </label>
-
-              <label className="drawer-field">
-                <span>Конфиденциальность</span>
-                <select value={confidentialityFilter} onChange={(e) => setConfidentialityFilter(e.target.value)}>
-                  <option value="all">Все уровни</option>
-                  <option value="public">Открытый</option>
-                  <option value="internal">ДСП</option>
-                  <option value="restricted">Ограниченный доступ</option>
-                </select>
-              </label>
-            </section>
-          </div>
-
-          <footer className="drawer-footer">
-            <button className="secondary-button" onClick={() => {
-              setStartDate('');
-              setEndDate('');
-              setPriorityFilter('all');
-              setConfidentialityFilter('all');
-            }}>
-              Сбросить
-            </button>
-            <button className="primary-button" onClick={() => setIsFiltersDrawerOpen(false)}>
-              Применить
-            </button>
-          </footer>
+      {/* Date Range Group with Calendar icons */}
+      <div className="date-range-group">
+        <div className="date-field">
+          <CalendarDays size={14} />
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={(e) => setStartDate(e.target.value)} 
+            title="Дата начала"
+          />
+        </div>
+        <span className="date-separator">—</span>
+        <div className="date-field">
+          <CalendarDays size={14} />
+          <input 
+            type="date" 
+            value={endDate} 
+            onChange={(e) => setEndDate(e.target.value)} 
+            title="Дата конца"
+          />
         </div>
       </div>
-    )}
+    </div>
 
     {result.isLoading ? (
       <QueryState />
@@ -219,35 +243,6 @@ export default function IncomingPage() {
       <QueryState error={result.error} retry={() => result.refetch()} />
     ) : filtered.length === 0 ? (
       <EmptyState title="Ничего не найдено" text="Измените запрос или сбросьте фильтры реестра." />
-    ) : viewMode === 'grid' ? (
-      <div className="correspondence-grid">
-        {filtered.map((item) => (
-          <article className="correspondence-card" key={item.id} onClick={() => location.assign(`/correspondence/incoming/${item.id}`)}>
-            <header className="card-header">
-              <Link to={`/correspondence/incoming/${item.id}`} className="card-number" onClick={(e) => e.stopPropagation()}>
-                <strong>{item.number}</strong>
-              </Link>
-              <span className={`status-pill status-${item.status}`}>
-                <i />{statusLabels[item.status]}
-              </span>
-            </header>
-            <div className="card-body">
-              <span className="card-date">{formatDate(item.receivedAt, locale, 'dd MMM yyyy, HH:mm')}</span>
-              <h3 className="card-sender">{item.sender}</h3>
-              <p className="card-subject">{item.subject}</p>
-            </div>
-            <footer className="card-footer">
-              <div className="card-meta">
-                <span>{item.department}</span>
-                <small>{item.executor}</small>
-              </div>
-              <span className={`sla-chip ${item.priority === 'urgent' ? 'risk' : ''}`}>
-                {item.priority === 'urgent' ? '1д 4ч' : '6д'}
-              </span>
-            </footer>
-          </article>
-        ))}
-      </div>
     ) : (
       <div className="data-table-wrap">
         <table className="data-table">
@@ -264,7 +259,7 @@ export default function IncomingPage() {
           </thead>
           <tbody>
             {filtered.map((item) => (
-              <tr key={item.id} onClick={() => location.assign(`/correspondence/incoming/${item.id}`)}>
+              <tr key={item.id} onClick={() => navigate(`/correspondence/incoming/${item.id}`)}>
                 <td>
                   <Link to={`/correspondence/incoming/${item.id}`} onClick={(e) => e.stopPropagation()}>
                     <strong>{item.number}</strong>
