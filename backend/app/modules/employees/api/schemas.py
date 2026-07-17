@@ -125,6 +125,7 @@ class EmployeeResponse(ApiModel):
     display_name: str
     employment_status: EmploymentStatus
     hire_date: date
+    probation_end: date | None
     termination_date: date | None
     corporate_email: str | None
     active: bool
@@ -153,6 +154,7 @@ class EmployeeResponse(ApiModel):
             display_name=person.display_name or "",
             employment_status=employee.employment_status,
             hire_date=employee.hire_date,
+            probation_end=employee.probation_end,
             termination_date=employee.termination_date,
             corporate_email=employee.corporate_email,
             active=employee.active,

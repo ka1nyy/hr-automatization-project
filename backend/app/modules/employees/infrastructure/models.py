@@ -86,6 +86,7 @@ class EmployeeModel(Base):
     employee_number: Mapped[str] = mapped_column(String(64), nullable=False)
     employment_status: Mapped[str] = mapped_column(String(32), nullable=False)
     hire_date: Mapped[date] = mapped_column(Date, nullable=False)
+    probation_end: Mapped[date | None] = mapped_column(Date, nullable=True)
     termination_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     corporate_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

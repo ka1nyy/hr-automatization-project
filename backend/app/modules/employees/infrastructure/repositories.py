@@ -104,6 +104,7 @@ def _employee(model: EmployeeModel) -> Employee:
         employee_number=model.employee_number,
         employment_status=EmploymentStatus(model.employment_status),
         hire_date=model.hire_date,
+        probation_end=model.probation_end,
         termination_date=model.termination_date,
         corporate_email=model.corporate_email,
         active=model.active,
@@ -386,6 +387,7 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
                 employee_number=employee.employee_number,
                 employment_status=employee.employment_status.value,
                 hire_date=employee.hire_date,
+                probation_end=employee.probation_end,
                 termination_date=employee.termination_date,
                 corporate_email=employee.corporate_email,
                 active=employee.active,
@@ -405,6 +407,7 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
             .where(EmployeeModel.id == employee.id, EmployeeModel.revision == expected_revision)
             .values(
                 employment_status=employee.employment_status.value,
+                probation_end=employee.probation_end,
                 termination_date=employee.termination_date,
                 corporate_email=employee.corporate_email,
                 active=employee.active,

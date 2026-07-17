@@ -73,6 +73,7 @@ class Employee:
     hire_date: date
     id: UUID = field(default_factory=uuid4)
     employment_status: EmploymentStatus = EmploymentStatus.DRAFT
+    probation_end: date | None = None
     termination_date: date | None = None
     corporate_email: str | None = None
     active: bool = True

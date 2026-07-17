@@ -1627,6 +1627,9 @@ class EmployeeService:
             "displayName": person.display_name,
             "employmentStatus": employee.employment_status.value,
             "hireDate": employee.hire_date.isoformat(),
+            "probationEnd": employee.probation_end.isoformat()
+            if employee.probation_end
+            else None,
             "terminationDate": employee.termination_date.isoformat()
             if employee.termination_date
             else None,

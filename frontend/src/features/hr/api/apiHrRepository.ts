@@ -36,6 +36,7 @@ type CoreEmployee = {
   displayName: string;
   employmentStatus: string;
   hireDate: string;
+  probationEnd?: string | null;
   terminationDate: string | null;
   corporateEmail: string | null;
   active: boolean;
@@ -61,21 +62,21 @@ function initials(name: string) {
   return name.split(' ').slice(0, 2).map((part) => part[0] ?? '').join('').toUpperCase();
 }
 
+export function isProbationActive(probationEnd: string | null | undefined, today = new Date().toISOString().slice(0, 10)) {
+  return Boolean(probationEnd && probationEnd >= today);
+}
+
 function primaryAssignment(employee: CoreEmployee) {
   return employee.assignments.find((item) => item.primary && (item.status === 'active' || item.status === 'scheduled_end'))
     ?? employee.assignments.find((item) => item.primary && item.status === 'planned')
     ?? null;
 }
 
-const PROBATION_DAYS = 90;
-
 function toHrEmployee(employee: CoreEmployee, directory: Directory, activeAbsence?: EmployeeAbsence, leaveBalance = 24): HrEmployee {
   const assignment = primaryAssignment(employee);
   const slot = assignment ? directory.slots.get(assignment.staffingSlotId) : undefined;
   const unitId = slot?.organizationUnitId ?? null;
-  const probationEnd = new Date(employee.hireDate);
-  probationEnd.setDate(probationEnd.getDate() + PROBATION_DAYS);
-  const onProbation = employee.employmentStatus === 'draft' || probationEnd > new Date();
+  const onProbation = isProbationActive(employee.probationEnd);
   const completeness = 50 + (employee.corporateEmail ? 25 : 0) + (assignment ? 25 : 0);
   const absenceStatus = activeAbsence?.absenceType === 'sick_leave'
     ? 'sick_leave'
@@ -99,7 +100,7 @@ function toHrEmployee(employee: CoreEmployee, directory: Directory, activeAbsenc
     availability: activeAbsence ? 'away' : 'available',
     employmentType: assignment?.assignmentType ?? 'not_assigned',
     contractEnd: assignment?.effectiveTo ?? null,
-    probationEnd: probationEnd > new Date() ? probationEnd.toISOString().slice(0, 10) : null,
+    probationEnd: employee.probationEnd ?? null,
     leaveBalance,
     personnelFileCompleteness: completeness,
     salary: 0,
