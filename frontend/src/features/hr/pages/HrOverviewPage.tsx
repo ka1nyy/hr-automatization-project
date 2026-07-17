@@ -58,7 +58,7 @@ export default function HrOverviewPage() {
 
   const stats = overview.data!;
   const messages = hiringActivity.data!;
-  const pending = permissions.includes('hiring.approve') || permissions.includes('hiring.initiate') ? messages : [];
+  const pending = permissions.includes('hiring.approve') || permissions.includes('hiring.initiate') || permissions.includes('hiring.receive') ? messages : [];
   const workforceTotal = Math.max(1, stats.activeEmployees + stats.onProbation + stats.onLeave + stats.onBusinessTrip + stats.onSickLeave);
   const presenceRate = Math.round((stats.activeEmployees + stats.onProbation) / workforceTotal * 100);
   const workforceChart = [
@@ -112,7 +112,7 @@ export default function HrOverviewPage() {
                           Номер: <code>{request.requestNumber}</code> · Пакет зарегистрирован
                         </span>
                         <span className="hub-row-action-btn">
-                          {attentionScope === 'dispatch' ? 'Передать в бухгалтерию и IT' : 'Рассмотреть'} <ArrowRight size={14} />
+                          {attentionScope === 'dispatch' ? 'Передать в бухгалтерию и IT' : attentionScope === 'received' ? 'Подтвердить получение' : 'Рассмотреть'} <ArrowRight size={14} />
                         </span>
                       </div>
                     </Link>
