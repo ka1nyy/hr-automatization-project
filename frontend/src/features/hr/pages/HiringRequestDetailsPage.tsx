@@ -63,9 +63,10 @@ export default function HiringRequestDetailsPage() {
     
     {error && <div className="api-error-card"><strong>Действие не выполнено</strong><p>{error}</p></div>}
     
+    <div className="hiring-main-title">ЗАЯВЛЕНИЕ НА НАЙМ</div>
+    
     <div className="hiring-detail-grid">
       <section className="hiring-detail-main hiring-request-information">
-        <div className="hiring-main-title">ЗАЯВЛЕНИЕ НА НАЙМ</div>
         
         <header className="hiring-panel-header">
           <span><UserRound size={20} /></span>

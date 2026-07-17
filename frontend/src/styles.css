@@ -981,7 +981,8 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .api-error-card { background: #fff1f0; border: 1px solid #fda29b; border-radius: 14px; color: #b42318; margin-bottom: 14px; padding: 14px; }
 .api-error-card p { margin: 5px 0 0; }
 .hiring-detail-grid { align-items: stretch !important; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); }
-.hiring-detail-main, .hiring-document-panel { background: var(--paper); border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
+.hiring-detail-main { background: var(--paper); border: 1px solid var(--border); border-radius: 0 !important; padding: 18px; }
+.hiring-document-panel { background: var(--paper); border: 1px solid var(--border); border-radius: 0 !important; padding: 18px; display: flex !important; flex-direction: column !important; }
 .hiring-panel-header { align-items: center; border-bottom: 1px solid var(--border); display: flex; gap: 12px; padding-bottom: 15px; margin-bottom: 15px; }
 .hiring-panel-header > span { align-items: center; background: color-mix(in srgb, var(--teal) 12%, var(--paper)) !important; border-radius: 10px !important; color: var(--teal) !important; display: flex; height: 38px; justify-content: center; width: 38px; }
 .hiring-panel-header strong { display: block; font-size: 15px; font-weight: 700; color: var(--ink); }
@@ -1028,13 +1029,13 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .lifecycle-hire-complete dd { margin: 0; overflow-wrap: anywhere; color: var(--text); font-weight: 700; }
 @keyframes lifecycle-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .workforce-create-section, .lifecycle-result, .lifecycle-hire-box { animation: none; } .offboarding-task { transition: none; } }
-.hiring-summary-grid { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin-top: 15px; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--border); }
+.hiring-summary-grid { display: grid; gap: 1px; grid-template-columns: repeat(4, 1fr); margin-top: 15px; overflow: hidden; border: 1px solid var(--border); border-radius: 0; background: var(--border); }
 .hiring-summary-grid dl { background: var(--soft); margin: 0; padding: 14px 16px; }
 .hiring-summary-grid dt { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
 .hiring-summary-grid dd { font-size: 13px; font-weight: 700; margin: 6px 0 0; color: var(--ink); }
 .hiring-request-information > header p { color: var(--muted); font-size: 11px; margin: 3px 0 0; }
 .hiring-information-section { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 1px; }
-.hiring-information-grid { display: grid; gap: 1px; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); margin-top: 12px; }
+.hiring-information-grid { display: grid; gap: 1px; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 0; overflow: hidden; background: var(--border); margin-top: 12px; }
 .hiring-information-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
 .hiring-information-grid dl { background: var(--soft); margin: 0; padding: 14px 16px; border: none; border-radius: 0; min-height: unset; }
 .hiring-information-grid dt { color: var(--muted); font-size: 10px; letter-spacing: .03em; text-transform: uppercase; }
@@ -1048,7 +1049,7 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hub-request-facts small { color: var(--muted); font-size: 9px; text-transform: uppercase; }
 .hub-request-facts strong { font-size: 11px; margin-top: 3px; overflow-wrap: anywhere; }
 .hiring-document-panel { position: sticky; top: 82px; }
-.hiring-files { display: grid; gap: 1px; margin: 12px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--border); }
+.hiring-files { display: grid; gap: 1px; margin: 12px 0; border: 1px solid var(--border); border-radius: 0; overflow: hidden; background: var(--border); }
 .hiring-files a { align-items: center; background: var(--soft); color: inherit; display: flex; justify-content: space-between; padding: 14px 16px; text-decoration: none; border: none; border-radius: 0; transition: background-color 0.2s ease; }
 .hiring-files a:hover { background: color-mix(in srgb, var(--teal) 6%, var(--soft)) !important; }
 .hiring-files strong, .hiring-files small { display: block; }
@@ -2588,7 +2589,7 @@ body { font-size: 14px; line-height: 1.5; }
   margin-top: 20px;
   background: var(--paper);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 0 !important;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -2739,7 +2740,7 @@ body { font-size: 14px; line-height: 1.5; }
   resize: none !important;
   background: var(--soft) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
+  border-radius: 0 !important;
   padding: 12px !important;
   font-size: 13px !important;
   color: var(--ink) !important;
@@ -2876,7 +2877,7 @@ body { font-size: 14px; line-height: 1.5; }
   cursor: pointer;
   transition: background-color 0.15s ease;
   width: 100%;
-  margin-top: 15px;
+  margin-top: auto !important;
 }
 
 .open-app-button:hover {
