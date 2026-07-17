@@ -2828,32 +2828,35 @@ body { font-size: 14px; line-height: 1.5; }
 }
 
 .hired-employee-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  background: color-mix(in srgb, var(--emerald) 6%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 1px !important;
+  background: var(--border) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
 }
 
 .hired-employee-details dl {
-  margin: 0;
+  background: var(--soft) !important;
+  margin: 0 !important;
+  padding: 14px 16px !important;
 }
 
 .hired-employee-details dt {
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  margin-bottom: 4px;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  margin-bottom: 6px !important;
 }
 
 .hired-employee-details dd {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
+  margin: 0 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
 }
 
 .hiring-information-grid.cols-4 {

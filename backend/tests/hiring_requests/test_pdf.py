@@ -22,6 +22,6 @@ def test_pdf_contains_cyrillic_candidate_and_request_number() -> None:
         "educationData": {"educationLevel": "Высшее", "institution": "Университет"},
     }
     personal = {"lastName": "Ахметова", "firstName": "Алия", "iin": "900101300001"}
-    content = render_hiring_request_pdf(request, personal, [], [{"originalFilename": "диплом.pdf"}])
+    content = render_hiring_request_pdf(request, personal, [{"originalFilename": "диплом.pdf"}])
     assert content.startswith(b"%PDF-")
     assert len(content) > 5_000

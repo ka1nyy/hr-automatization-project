@@ -344,7 +344,6 @@ class HiringRequestService:
         content = render_hiring_request_pdf(
             details,
             cast(Mapping[str, Any], details["personal"]),
-            cast(list[Mapping[str, Any]], details["decisions"]),
             cast(list[Mapping[str, Any]], details["attachments"]),
         )
         if document_id is None:
@@ -747,16 +746,6 @@ class HiringRequestService:
                 .order_by(HiringAttachmentModel.category)
             )
         ).all()
-        decisions = (
-            await session.scalars(
-                select(HiringApprovalDecisionModel)
-                .where(HiringApprovalDecisionModel.request_id == row.id)
-                .order_by(
-                    HiringApprovalDecisionModel.approval_cycle,
-                    HiringApprovalDecisionModel.stage_number,
-                )
-            )
-        ).all()
         dispatches = (
             await session.scalars(
                 select(HiringDispatchModel)
@@ -828,25 +817,9 @@ class HiringRequestService:
                 }
                 for x in attachments
             ],
-            "decisions": [
-                {
-                    "id": x.id,
-                    "approvalCycle": x.approval_cycle,
-                    "stageNumber": x.stage_number,
-                    "stageCode": x.stage_code,
-                    "stageName": x.stage_name,
-                    "approverName": x.approver_name,
-                    "approverRole": x.approver_role,
-                    "decision": x.decision,
-                    "comment": x.comment,
-                    "decidedAt": x.decided_at,
-                }
-                for x in decisions
-            ],
-            "approvalStages": [
-                {"stageNumber": i + 1, "code": x.code, "name": x.name, "role": x.role_label}
-                for i, x in enumerate(APPROVAL_STAGES)
-            ],
+            # The route and decision history stay internal to the workflow engine.
+            "decisions": [],
+            "approvalStages": [],
             "dispatches": [
                 {
                     "id": x.id,

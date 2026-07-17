@@ -5,13 +5,11 @@ import { Link, useParams } from 'react-router-dom';
 import { PageHeader } from '../../../shared/components';
 import { getPermissions } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
-import { formatDate } from '../../../shared/format';
 import { canPersonaAcknowledgeRequest, canPersonaApproveRequest, hiringRequestsApi } from '../api/hiringRequests';
 
 export default function HiringRequestDetailsPage() {
   const { id = '' } = useParams();
   const persona = useDeveloperStore((state) => state.persona);
-  const locale = useDeveloperStore((state) => state.locale);
   const permissions = getPermissions(persona);
   const client = useQueryClient();
   
@@ -191,34 +189,8 @@ export default function HiringRequestDetailsPage() {
     </div>
 
     {/* Full-width Feedback and Decision History Container */}
-    {(canApprove || canAcknowledge || (request.decisions && request.decisions.length > 0) || (permissions.includes('hiring.initiate') && request.status === 'final_approved') || (request.status === 'completed' && request.hiredEmployee)) && (
+    {(canApprove || canAcknowledge || (permissions.includes('hiring.initiate') && request.status === 'final_approved') || (request.status === 'completed' && request.hiredEmployee)) && (
       <div className="hiring-bottom-feedback-container">
-        
-        {/* Decisions history / Timeline of comments */}
-        {request.decisions && request.decisions.length > 0 && (
-          <div className="hiring-decisions-history">
-            <h4>История согласования</h4>
-            <div className="decisions-timeline">
-              {request.decisions.map((dec) => (
-                <div key={dec.id} className={`timeline-item decision-${dec.decision}`}>
-                  <div className="timeline-dot" />
-                  <div className="timeline-content">
-                    <header>
-                      <strong>{dec.approverName}</strong>
-                      <span>({dec.approverRole})</span>
-                      <time>{formatDate(dec.decidedAt, locale, 'dd MMM yyyy, HH:mm')}</time>
-                      <span className={`decision-badge decision-${dec.decision}`}>
-                        {dec.decision === 'approve' ? 'Согласовано' : dec.decision === 'return' ? 'Возвращено' : 'Отклонено'}
-                      </span>
-                    </header>
-                    {dec.comment && <p className="decision-comment">{dec.comment}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Comment input & approval action panel */}
         {(canApprove || canAcknowledge) && (
           <div className="hiring-comment-action-panel">
@@ -267,13 +239,12 @@ export default function HiringRequestDetailsPage() {
         {/* Created Employee info box */}
         {request.status === 'completed' && request.hiredEmployee && (
           <div className="hiring-employee-created-panel">
-            <div className="lifecycle-action-title">
-              <span><UserPlus size={18} /></span>
+            <header className="hiring-panel-header">
+              <span><UserPlus size={20} /></span>
               <div>
                 <strong>Сотрудник создан автоматически</strong>
-                <small>Карточка сформирована после подтверждения бухгалтерии и IT</small>
               </div>
-            </div>
+            </header>
             <div className="hired-employee-details">
               <dl>
                 <dt>Табельный номер</dt>

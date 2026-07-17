@@ -5,13 +5,11 @@ import type { AddEmployeeFormValues } from '../add-employee/schema';
 export const DEMO_ORGANIZATION_ID = '63f3d186-4702-561f-b6f3-c410df730708';
 
 export type HiringAttachment = { id: string; category: 'identity' | 'diploma'; documentId: string; versionId: string; originalFilename: string; sizeBytes: number; mimeType: string };
-export type ApprovalDecision = { id: string; stageNumber: number; stageCode: string; stageName: string; approverName: string; approverRole: string; decision: 'approve' | 'return' | 'reject'; comment?: string; decidedAt: string };
 export type HiringRequest = {
   id: string; organizationId: string; requestNumber: string; candidateName: string; initiatorName: string;
   status: string; currentStage?: number; currentStageCode?: string; currentStageName?: string; revision: number;
   personal: Record<string, unknown>; employmentData: Record<string, unknown>; educationData: Record<string, unknown>;
-  pdfVersionId?: string; finalPdfVersionId?: string; attachments: HiringAttachment[]; decisions: ApprovalDecision[];
-  approvalStages: Array<{ stageNumber: number; code: string; name: string; role: string }>;
+  pdfVersionId?: string; finalPdfVersionId?: string; attachments: HiringAttachment[];
   dispatches: Array<{ id: string; recipientType: 'accounting' | 'it'; status: string; acknowledgedAt?: string }>;
   hiredEmployee?: { id: string; employeeNumber: string; corporateEmail?: string } | null;
   createdAt: string; submittedAt?: string; finalApprovedAt?: string;
