@@ -1034,7 +1034,7 @@ kbd { align-items: center; background: var(--paper); border: 1px solid var(--bor
 .hiring-summary-grid dt { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
 .hiring-summary-grid dd { font-size: 13px; font-weight: 700; margin: 6px 0 0; color: var(--ink); }
 .hiring-request-information > header p { color: var(--muted); font-size: 11px; margin: 3px 0 0; }
-.hiring-information-section { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 1px; }
+.hiring-information-section { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 18px; }
 .hiring-information-grid { display: grid; gap: 1px; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 0; overflow: hidden; background: var(--border); margin-top: 12px; }
 .hiring-information-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
 .hiring-information-grid dl { background: var(--soft); margin: 0; padding: 14px 16px; border: none; border-radius: 0; min-height: unset; }
