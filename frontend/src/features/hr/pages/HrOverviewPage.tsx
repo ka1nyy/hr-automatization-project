@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Calendar, CalendarCheck2, CheckCircle2, Clock3, FileWarning, GraduationCap, Inbox, MapPin, ShieldCheck, UserCheck, UsersRound, Video } from 'lucide-react';
+import { ArrowRight, Calendar, CalendarCheck2, CheckCircle2, FileWarning, GraduationCap, Inbox, MapPin, ShieldCheck, UserCheck, UsersRound, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, QueryState, Section } from '../../../shared/components';
 import { DonutChart } from '../../../shared/charts';
@@ -98,28 +98,15 @@ export default function HrOverviewPage() {
                         <span className="hub-row-tag tag-urgent">Требует действия</span>
                       </div>
 
-                      <div className="hub-row-body">
-                        <div className="hub-route-tracker">
-                          <div className="hub-route-step completed">
-                            <CheckCircle2 size={13} />
-                            <span>Заявка</span>
-                          </div>
-                          <div className="hub-route-connector completed" />
-                          <div className="hub-route-step active">
-                            <Clock3 size={13} />
-                            <span>{request.currentStageName}</span>
-                          </div>
-                          <div className="hub-route-connector" />
-                          <div className="hub-route-step pending">
-                            <span className="step-dot" />
-                            <span>Финал</span>
-                          </div>
-                        </div>
+                      <div className="hub-row-body hub-request-facts">
+                        <span><small>Дата выхода</small><strong>{String(request.employmentData.startDate ?? '—')}</strong></span>
+                        <span><small>Формат</small><strong>{String(request.employmentData.workArrangement ?? '—')}</strong></span>
+                        <span><small>Документы</small><strong>{request.attachments?.length ?? 0}</strong></span>
                       </div>
 
                       <div className="hub-row-footer">
                         <span className="hub-row-info">
-                          Номер: <code>{request.requestNumber}</code> · Этап {request.currentStage ?? 0} из {request.approvalStages.length}
+                          Номер: <code>{request.requestNumber}</code> · Пакет зарегистрирован
                         </span>
                         <span className="hub-row-action-btn">
                           Рассмотреть <ArrowRight size={14} />
@@ -234,7 +221,7 @@ export default function HrOverviewPage() {
                             Заявка <code>{item.requestNumber}</code> переведена в статус <strong>{hiringStatusLabels[item.status] ?? item.status}</strong>
                           </p>
                           <div className="hub-timeline-footer">
-                            <span>{item.currentStageName ?? 'Маршрут завершён'}</span>
+                            <span>Пакет документов</span>
                             <span className="hub-timeline-action">Открыть <ArrowRight size={12} /></span>
                           </div>
                         </div>

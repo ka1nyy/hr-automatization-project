@@ -171,5 +171,7 @@ describe('application runtime', () => {
     expect(await screen.findByRole('heading', { name: 'Согласования' })).toBeTruthy();
     const requestLink = await screen.findByRole('link', { name: /HR-HIRE-2026-00002.*Смагулов Рамин Эрнарович/i });
     expect(requestLink.getAttribute('href')).toBe('/hiring/requests/request-1');
+    expect(requestLink.textContent).not.toContain('Директор HR-департамента');
+    expect(screen.getByText('Пакет документов')).toBeTruthy();
   });
 });

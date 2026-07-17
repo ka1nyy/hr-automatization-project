@@ -202,7 +202,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
         setSubmitted(true);
         clearEmployeeDraft(localStorage);
         reset(getValues());
-        setNotice(`Заявление ${sent.requestNumber} отправлено. Текущий этап: ${sent.currentStageName}.`);
+        setNotice(`Заявление ${sent.requestNumber} отправлено на рассмотрение.`);
         return;
       }
       const saved = await saveDraft(false);
@@ -219,7 +219,7 @@ export default function HrAddEmployeePage({ onBack }: { onBack?: () => void }) {
       setSubmitted(true);
       clearEmployeeDraft(localStorage);
       reset(getValues());
-      setNotice(`Заявление ${sent.requestNumber} сформировано в PDF и отправлено. Текущий этап: ${sent.currentStageName}.`);
+      setNotice(`Заявление ${sent.requestNumber} сформировано в PDF и отправлено на рассмотрение.`);
     } catch (error) {
       const message = `Не удалось отправить заявление: ${error instanceof Error ? error.message : 'ошибка API'}`;
       setSubmitError(message);
