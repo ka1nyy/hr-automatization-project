@@ -7,8 +7,8 @@ leaving administrator-defined permissions fully editable.
 Existing rows are backfilled as system=true: every permission present before this
 revision came from the seeded catalog, so all of them are code contracts.
 
-Revision ID: 0007_permission_admin
-Revises: 0006_merge_hiring_absence
+Revision ID: 0012_permission_admin
+Revises: 0011_employee_hiring_profile
 Create Date: 2026-07-17
 """
 
@@ -17,8 +17,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0007_permission_admin"
-down_revision: str | None = "0006_merge_hiring_absence"
+revision: str = "0012_permission_admin"
+down_revision: str | None = "0011_employee_hiring_profile"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
