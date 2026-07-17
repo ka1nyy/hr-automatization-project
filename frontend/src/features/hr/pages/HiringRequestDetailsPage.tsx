@@ -284,7 +284,7 @@ export default function HiringRequestDetailsPage() {
                 <dd>{request.hiredEmployee.corporateEmail ?? '—'}</dd>
               </dl>
             </div>
-            <Link className="primary-button" style={{ alignSelf: 'flex-start' }} to={`/hr/employees/${request.hiredEmployee.id}?hired=1`}>
+            <Link className="blue-profile-button" style={{ alignSelf: 'flex-start' }} to={`/hr/employees/${request.hiredEmployee.id}?hired=1`}>
               Открыть профиль сотрудника
             </Link>
           </div>

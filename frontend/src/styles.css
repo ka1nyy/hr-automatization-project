@@ -2860,7 +2860,7 @@ body { font-size: 14px; line-height: 1.5; }
   grid-template-columns: repeat(4, 1fr) !important;
 }
 
-.open-app-button {
+.open-app-button, .blue-profile-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2870,25 +2870,19 @@ body { font-size: 14px; line-height: 1.5; }
   border: none !important;
   border-radius: 9px !important;
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 20px;
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
   transition: background-color 0.15s ease;
+}
+
+.open-app-button {
   width: 100%;
   margin-top: auto !important;
 }
 
-.open-app-button:hover {
+.open-app-button:hover, .blue-profile-button:hover {
   background: color-mix(in srgb, var(--teal) 85%, black) !important;
 }
-
-
-
-
-
-
-
-
-
