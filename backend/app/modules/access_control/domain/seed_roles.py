@@ -98,6 +98,11 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "leave.review_hr",
                 "leave.balance.manage",
                 "business_trip.register",
+                "regulated_hiring.read",
+                "regulated_hiring.start",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "regulated_hiring.authority.manage",
             }
         ),
     ),
@@ -123,6 +128,9 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "absence.read_self",
                 "leave.review_manager",
                 "business_trip.review_manager",
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
             }
         ),
     ),
@@ -338,5 +346,174 @@ SEED_ROLES: tuple[SeedRoleDefinition, ...] = (
                 "termination.access.confirm",
             }
         ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-process-owner",
+        name="Владелец процесса найма — директор ДДО",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.start",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "recruitment.request.read",
+                "recruitment.candidate.read",
+                "documents.read",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-hr-recruiter",
+        name="HR-бизнес-партнер / рекрутер",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.start",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "recruitment.request.create",
+                "recruitment.request.read",
+                "recruitment.vacancy.manage",
+                "recruitment.vacancy.publish",
+                "recruitment.candidate.read",
+                "recruitment.candidate.read_sensitive",
+                "recruitment.candidate.manage",
+                "recruitment.screen",
+                "recruitment.interview.manage",
+                "recruitment.offer.manage",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-hr-inspector",
+        name="HR-инспектор / специалист по кадровому администрированию",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "recruitment.hiring.manage",
+                "documents.read_sensitive",
+                "documents.create",
+                "documents.upload",
+                "documents.generate",
+                "documents.register",
+                "employees.create",
+                "employees.hire",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-department-director",
+        name="Директор нанимающего департамента",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.start",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "recruitment.request.create",
+                "recruitment.request.read",
+                "recruitment.interview.evaluate",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-economic-reviewer",
+        name="Согласующий ДЭП по бюджету найма",
+        permission_codes=frozenset(
+            {"regulated_hiring.read", "regulated_hiring.stage.act", "regulated_hiring.form.manage"}
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-legal-reviewer",
+        name="Согласующий ЮД по найму",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "documents.read_sensitive",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-compliance-officer",
+        name="Комплаенс-офицер процесса найма",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "audit.read",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-curating-deputy",
+        name="Курирующий заместитель Председателя",
+        permission_codes=frozenset(
+            {"regulated_hiring.read", "regulated_hiring.stage.act", "regulated_hiring.form.manage"}
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-authorized-signatory",
+        name="Председатель Правления / уполномоченное лицо",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "documents.sign_request",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-commission-chair",
+        name="Председатель конкурсной комиссии",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "recruitment.commission.decide",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-commission-member",
+        name="Член конкурсной комиссии",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.stage.act",
+                "regulated_hiring.form.manage",
+                "recruitment.interview.evaluate",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-commission-secretary",
+        name="Секретарь конкурсной комиссии без права голоса",
+        permission_codes=frozenset(
+            {
+                "regulated_hiring.read",
+                "regulated_hiring.form.manage",
+                "recruitment.commission.manage",
+            }
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-it-executor",
+        name="IT-исполнитель найма",
+        permission_codes=frozenset(
+            {"regulated_hiring.read", "regulated_hiring.stage.act", "regulated_hiring.form.manage"}
+        ),
+    ),
+    SeedRoleDefinition(
+        code="hiring-system-owner",
+        name="Владелец системы или данных",
+        permission_codes=frozenset({"regulated_hiring.read", "regulated_hiring.form.manage"}),
     ),
 )

@@ -45,6 +45,7 @@ from app.modules.organization.infrastructure.models import (
     PositionDefinitionModel,
     StaffingSlotModel,
 )
+from app.modules.regulated_hiring.seed import seed_regulated_hiring
 from app.shared.identifiers import deterministic_uuid
 
 SEED_TIMESTAMP = datetime(2025, 1, 1, 9, 0, tzinfo=UTC)
@@ -977,13 +978,14 @@ async def seed_database() -> None:
             unit_ids=[_seed_id("unit", code) for code in DEMO_UNIT_CODES],
             effective_from=SEED_EFFECTIVE_DATE,
         )
+        await seed_regulated_hiring(session, organization_id=ORGANIZATION_ID)
 
 
 def main() -> None:
     # psycopg async requires a selector loop on Windows; it is also valid on POSIX.
     with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
         runner.run(seed_database())
-    print(f"Module 1, Module 2, and Module 4 seed completed for organization {ORGANIZATION_ID}.")
+    print(f"Module 1, Module 2, Module 4, and regulated hiring seed completed for organization {ORGANIZATION_ID}.")
 
 
 if __name__ == "__main__":
