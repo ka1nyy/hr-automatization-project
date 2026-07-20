@@ -68,6 +68,7 @@ from app.modules.organization.infrastructure.scope_factory import (
     SessionFactoryOrganizationScopeResolver,
 )
 from app.modules.recruitment.api import router as recruitment_router
+from app.modules.regulated_hiring.api import router as regulated_hiring_router
 from app.modules.termination.api import router as termination_router
 from app.modules.workflow.api import router as workflow_router
 from app.shared.api import DataResponse, ResponseMeta
@@ -319,6 +320,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(workflow_router, prefix=runtime.api_prefix)
     application.include_router(documents_router, prefix=runtime.api_prefix)
     application.include_router(recruitment_router, prefix=runtime.api_prefix)
+    application.include_router(regulated_hiring_router, prefix=runtime.api_prefix)
     application.include_router(hiring_requests_router, prefix=runtime.api_prefix)
     application.include_router(termination_router, prefix=runtime.api_prefix)
     application.include_router(absence_router, prefix=runtime.api_prefix)

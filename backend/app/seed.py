@@ -42,6 +42,7 @@ from app.modules.organization.infrastructure.models import (
     PositionDefinitionModel,
     StaffingSlotModel,
 )
+from app.modules.regulated_hiring.seed import seed_regulated_hiring
 from app.shared.identifiers import deterministic_uuid
 
 SEED_TIMESTAMP = datetime(2025, 1, 1, 9, 0, tzinfo=UTC)
@@ -959,6 +960,7 @@ async def seed_database() -> None:
             seed_id=_seed_id,
             insert_rows=_insert_rows,
         )
+        await seed_regulated_hiring(session, organization_id=ORGANIZATION_ID)
 
 
 def main() -> None:

@@ -387,6 +387,31 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
     PermissionDefinition(
         "business_trip.register", "Register business trips", "Complete HR trip registration."
     ),
+    PermissionDefinition(
+        "regulated_hiring.read",
+        "Read regulated hiring",
+        "Read the normative hiring catalog, cases, stages, and safe history.",
+    ),
+    PermissionDefinition(
+        "regulated_hiring.start",
+        "Start regulated hiring",
+        "Start hiring only for an approved request and a confirmed staffing slot.",
+    ),
+    PermissionDefinition(
+        "regulated_hiring.stage.act",
+        "Act on regulated hiring stages",
+        "Complete, return, reject, or cancel a stage when holding its functional role.",
+    ),
+    PermissionDefinition(
+        "regulated_hiring.form.manage",
+        "Manage regulated hiring forms",
+        "Create, sign, and supersede NAIM-01 through NAIM-21 records.",
+    ),
+    PermissionDefinition(
+        "regulated_hiring.authority.manage",
+        "Manage normative authority",
+        "Maintain confirmed, model, and document-required authority bindings.",
+    ),
 )
 
 REQUIRED_PERMISSION_CODES: frozenset[str] = frozenset(item.code for item in PERMISSION_CATALOG)

@@ -40,6 +40,7 @@ from app.modules.organization.infrastructure.models import (
     StructureReviewRequestModel,
 )
 from app.modules.recruitment.infrastructure import models as recruitment_models
+from app.modules.regulated_hiring.infrastructure import models as regulated_hiring_models
 from app.modules.termination.infrastructure import models as termination_models
 from app.modules.workflow.infrastructure import models as workflow_models
 
@@ -77,6 +78,7 @@ _MODULE_MODELS = (
     document_models,
     hiring_request_models,
     recruitment_models,
+    regulated_hiring_models,
     termination_models,
     workflow_models,
 )

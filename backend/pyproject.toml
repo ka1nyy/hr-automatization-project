@@ -62,6 +62,7 @@ ignore = ["B008"]
 # Business-function titles are user-facing Russian labels rendered by the client.
 "app/modules/employees/application/functions.py" = ["RUF001"]
 "app/modules/hiring_requests/**/*.py" = ["RUF001"]
+"app/modules/regulated_hiring/**/*.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.12"
