@@ -6,7 +6,7 @@ import { getPermissions } from '../../../shared/permissions';
 import { useDeveloperStore } from '../../../shared/store';
 import { hiringRequestsApi, hiringStatusLabels, type HiringRequestScope } from '../api/hiringRequests';
 
-export default function HiringRequestsPage() {
+export default function HiringRequestsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const pathname = useLocation().pathname;
   const persona = useDeveloperStore((state) => state.persona);
   const permissions = getPermissions(persona);
@@ -20,8 +20,9 @@ export default function HiringRequestsPage() {
         : permissions.includes('hiring.monitor') ? undefined : 'mine';
   const query = useQuery({ queryKey: ['hiring-requests', scope, persona], queryFn: () => hiringRequestsApi.list(scope) });
   const title = isApprovalsPage ? 'Согласования' : scope === 'inbox' ? 'Входящие согласования' : scope === 'received' ? 'Документы новых сотрудников' : 'Заявки на найм';
+  const createAction = permissions.includes('hiring.initiate') ? <Link className="primary-button" to="/hr/employees?add=true"><Plus size={16} />Создать заявку</Link> : undefined;
   return <>
-    <PageHeader eyebrow="HR · Сквозной процесс" title={title} description={scope === 'inbox' ? 'Здесь только заявки, на которых сейчас требуется ваше решение.' : scope === 'received' ? 'Пакеты, направленные вашему подразделению после финального согласования.' : scope === 'dispatch' ? 'Заявки, финально согласованные председателем и готовые к отправке в бухгалтерию и IT.' : 'Черновики, согласование, финальные документы и отправка получателям — в одном месте.'} actions={permissions.includes('hiring.initiate') ? <Link className="primary-button" to="/hr/employees?add=true"><Plus size={16} />Создать заявку</Link> : undefined} />
+    {embedded ? (createAction && <div className="wf-embedded-actions">{createAction}</div>) : <PageHeader eyebrow="HR · Сквозной процесс" title={title} description={scope === 'inbox' ? 'Здесь только заявки, на которых сейчас требуется ваше решение.' : scope === 'received' ? 'Пакеты, направленные вашему подразделению после финального согласования.' : scope === 'dispatch' ? 'Заявки, финально согласованные председателем и готовые к отправке в бухгалтерию и IT.' : 'Черновики, согласование, финальные документы и отправка получателям — в одном месте.'} actions={createAction} />}
     <div className="hiring-list-toolbar"><span><Inbox size={17} />{query.data?.length ?? 0} заявок</span><button className="secondary-button" onClick={() => void query.refetch()}><RefreshCw size={15} />Обновить</button></div>
     {query.isError ? <div className="api-error-card"><strong>Не удалось загрузить заявки</strong><p>{query.error instanceof Error ? query.error.message : 'Ошибка API'}</p></div> : query.isLoading ? <div className="hiring-empty">Загрузка заявок…</div> : query.data?.length ? <div className="hiring-request-list">{query.data.map((request) => <Link to={`/hiring/requests/${request.id}`} key={request.id} className="hiring-request-card"><span className="hiring-request-icon"><FileCheck2 size={20} /></span><div><small>{request.requestNumber}</small><strong>{request.candidateName || 'Кандидат не указан'}</strong><p>{String(request.employmentData.department ?? 'Подразделение не выбрано')} · {String(request.employmentData.position ?? 'Должность не выбрана')}</p></div><span className={`hiring-status ${request.status}`}>{hiringStatusLabels[request.status] ?? request.status}</span><div className="hiring-request-stage"><small>Пакет документов</small><time>{new Date(request.createdAt).toLocaleDateString('ru-RU')}</time></div><ArrowRight size={18} /></Link>)}</div> : <div className="hiring-empty"><span><FileCheck2 size={28} /></span><strong>Очередь пуста</strong><p>Когда появится заявка, требующая вашего действия, она будет показана здесь.</p></div>}
   </>;

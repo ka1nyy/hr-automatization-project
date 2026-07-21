@@ -64,7 +64,6 @@ export function AppShell() {
     { section: 'Обзор', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: counts?.correspondence },
     { section: 'Обзор', to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
     { section: 'Персонал', to: '/hr/employees', icon: UsersRound, label: t(store.locale, 'employees') },
-    { section: 'Персонал', to: '/hr/hierarchy', icon: Network, label: 'Иерархия ролей' },
     { section: 'Персонал', to: '/hr/hiring', icon: ScrollText, label: 'Регламент найма' },
     { section: 'Персонал', to: '/hr/terminations', icon: UserMinus, label: 'Прекращение отношений' },
     { section: 'Персонал', to: '/hr/leave', icon: CalendarDays, label: 'Система отпусков', badge: counts?.leaves },

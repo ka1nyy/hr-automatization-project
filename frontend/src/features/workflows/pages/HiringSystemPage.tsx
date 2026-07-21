@@ -1,6 +1,7 @@
-import { ProcessSystemPage } from '../ProcessSystemPage';
+import { ProcessWorkspace } from '../ProcessWorkspace';
+import HiringRequestsPage from '../../hr/pages/HiringRequestsPage';
 import { hiringSystemConfig } from '../configs';
 
 export default function HiringSystemPage() {
-  return <ProcessSystemPage config={hiringSystemConfig} />;
+  return <ProcessWorkspace config={hiringSystemConfig} recordsLabel="Заявки" operational={<HiringRequestsPage embedded />} />;
 }
