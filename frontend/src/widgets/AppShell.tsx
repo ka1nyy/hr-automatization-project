@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Blocks, BriefcaseBusiness, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileCheck2, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, X } from 'lucide-react';
+import { Bell, Blocks, BriefcaseBusiness, Building2, CalendarDays, CheckSquare2, ClipboardCheck, FileCheck2, FileInput, FileText, Gauge, HeartPulse, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Plus, ScrollText, Search, Settings2, Sun, UserMinus, UserPlus, UsersRound, Workflow, X } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { repositories } from '../repositories';
 import { hrRepository } from '../features/hr/api';
@@ -64,12 +64,12 @@ export function AppShell() {
     { section: 'Обзор', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'messages'), badge: counts?.correspondence },
     { section: 'Обзор', to: '/tasks', icon: CheckSquare2, label: t(store.locale, 'tasks'), badge: counts?.tasks },
     { section: 'Персонал', to: '/hr/employees', icon: UsersRound, label: t(store.locale, 'employees') },
-    { section: 'Персонал', to: '/hr/employees?add=true', icon: UserPlus, label: 'Найм' },
-    { section: 'Персонал', to: '/hr/terminations', icon: UserMinus, label: 'Увольнения' },
+    { section: 'Персонал', to: '/hr/hiring', icon: ScrollText, label: 'Регламент найма' },
+    { section: 'Персонал', to: '/hr/terminations', icon: UserMinus, label: 'Прекращение отношений' },
+    { section: 'Персонал', to: '/hr/leave', icon: CalendarDays, label: 'Система отпусков', badge: counts?.leaves },
+    { section: 'Персонал', to: '/hr/sick-leave', icon: HeartPulse, label: 'Система больничных' },
     { section: 'Время и отсутствия', to: '/hr/calendar', icon: CalendarDays, label: 'Календарь' },
-    { section: 'Время и отсутствия', to: '/hr/leave', icon: CalendarDays, label: t(store.locale, 'leave'), badge: counts?.leaves },
     { section: 'Время и отсутствия', to: '/hr/business-trips', icon: BriefcaseBusiness, label: 'Командировки' },
-    { section: 'Время и отсутствия', to: '/hr/sick-leave', icon: HeartPulse, label: 'Больничные' },
     { section: 'Управление', to: '/hr/documents', icon: FileText, label: 'Документы' },
     { section: 'Управление', to: '/hr/approvals', icon: ClipboardCheck, label: 'Согласования' },
     { section: 'Управление', to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
@@ -81,7 +81,11 @@ export function AppShell() {
     { section: 'Меню', to: '/correspondence/incoming', icon: FileInput, label: t(store.locale, 'incoming'), badge: counts?.correspondence },
     { section: 'Управление', to: '/processes', icon: Blocks, label: t(store.locale, 'processes'), badge: counts?.processes },
     { section: 'Управление', to: '/organization', icon: Building2, label: t(store.locale, 'organization') },
-    ...(canOpenHr ? [{ section: 'HR', to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') }] : []),
+    ...(canOpenHr ? [
+      { section: 'HR', to: '/hr', icon: UsersRound, label: t(store.locale, 'hr') },
+      { section: 'HR', to: '/hr/systems', icon: Workflow, label: 'Кадровые системы' },
+      { section: 'HR', to: '/hr/hierarchy', icon: Network, label: 'Иерархия ролей' }
+    ] : []),
     ...hiringNav
   ], [canOpenHr, counts, department.isHrWorkspace, hiringNav, store.locale]);
   const notificationQuery = useQuery({ queryKey: ['hr', 'planned-notifications'], queryFn: () => plannedHrService.listNotifications(), enabled: notificationsOpen });

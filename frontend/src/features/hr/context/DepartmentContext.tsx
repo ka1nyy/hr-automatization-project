@@ -11,12 +11,14 @@ const DepartmentContext = createContext<DepartmentContextValue>({ departmentId: 
 
 const hrPages: Array<[RegExp, string]> = [
   [/\/employees\/[^/]+$/, 'Профиль сотрудника'], [/\/employees$/, 'Сотрудники'],
-  [/\/hiring\/add-employee$/, 'Регистрация сотрудника'], [/\/leave$/, 'Отпуска'], [/\/calendar$/, 'Календарь'],
-  [/\/sick-leave$/, 'Больничные'], [/\/business-trips$/, 'Командировки'],
+  [/\/hiring\/add-employee$/, 'Регистрация сотрудника'], [/\/leave$/, 'Система отпусков'], [/\/calendar$/, 'Календарь'],
+  [/\/sick-leave$/, 'Система больничных'], [/\/business-trips$/, 'Командировки'],
   [/\/absence-calendar$/, 'Календарь отсутствий'], [/\/onboarding$/, 'Адаптация'],
-  [/\/probation$/, 'Испытательный срок'], [/\/terminations$/, 'Увольнения'],
+  [/\/probation$/, 'Испытательный срок'], [/\/terminations$/, 'Прекращение отношений'],
   [/\/offboarding$/, 'Оффбординг'], [/\/messages$/, 'Входящие сообщения'],
-  [/\/documents$/, 'Документы'], [/\/approvals$/, 'Согласования'], [/\/analytics$/, 'Аналитика'], [/\/(hr|departments\/hr)\/?$/, 'Главная']
+  [/\/documents$/, 'Документы'], [/\/approvals$/, 'Согласования'], [/\/analytics$/, 'Аналитика'],
+  [/\/systems$/, 'Кадровые системы'], [/\/hierarchy$/, 'Иерархия ролей'], [/\/hiring$/, 'Регламент найма'],
+  [/\/(hr|departments\/hr)\/?$/, 'Главная']
 ];
 
 export function DepartmentProvider({ children }: PropsWithChildren) {

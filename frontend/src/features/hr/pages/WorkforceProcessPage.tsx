@@ -93,7 +93,7 @@ function ProcessCreateForm({ kind, close, initialEmployeeId = '' }: { kind: Proc
   </Section>;
 }
 
-export default function WorkforceProcessPage({ kind }: { kind: ProcessKind }) {
+export default function WorkforceProcessPage({ kind, embedded = false }: { kind: ProcessKind; embedded?: boolean }) {
   const persona = useDeveloperStore((state) => state.persona);
   const locale = useDeveloperStore((state) => state.locale);
   const [searchParams] = useSearchParams();
@@ -119,9 +119,10 @@ export default function WorkforceProcessPage({ kind }: { kind: ProcessKind }) {
   const completed = rows.filter((item) => ['approved', 'registered', 'completed'].includes(item.status)).length;
   const canCreate = kind === 'termination' ? hrPersonas.includes(persona) : persona === 'employee';
   const Icon = definition.icon;
+  const createButton = canCreate ? <button className="primary-button" onClick={() => setCreating(!creating)}><Plus size={16} />{kind === 'termination' ? 'Начать увольнение' : 'Создать заявку'}</button> : null;
 
   return <>
-    <PageHeader eyebrow={definition.eyebrow} title={definition.title} description={definition.description} actions={<>{canCreate && <button className="primary-button" onClick={() => setCreating(!creating)}><Plus size={16} />{kind === 'termination' ? 'Начать увольнение' : 'Создать заявку'}</button>}</>} />
+    {embedded ? (createButton && <div className="wf-embedded-actions">{createButton}</div>) : <PageHeader eyebrow={definition.eyebrow} title={definition.title} description={definition.description} actions={createButton} />}
     {creating && <ProcessCreateForm kind={kind} initialEmployeeId={searchParams.get('employee') ?? ''} close={() => setCreating(false)} />}
     <div className="planned-metric-grid">
       <article><span><Icon size={20} /></span><div><small>Всего записей</small><strong>{rows.length}</strong><em>из backend</em></div></article>

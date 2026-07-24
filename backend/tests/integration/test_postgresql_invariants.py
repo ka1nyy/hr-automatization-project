@@ -8,7 +8,15 @@ from uuid import UUID, uuid4
 import app.models  # noqa: F401
 import pytest
 from app.core.database import Base
-from app.seed import DIRECTOR_EMPLOYEE_ID, EMPLOYEE_EMPLOYEE_ID, _seed_id
+from app.module2_seed import DOCUMENT_TYPES
+from app.modules.access_control.domain.seed_roles import SEED_ROLES
+from app.seed import (
+    DEVELOPMENT_ROLE_CODES,
+    DIRECTOR_EMPLOYEE_ID,
+    EMPLOYEE_EMPLOYEE_ID,
+    ORGANIZATION_VIEWER_HANDLES,
+    _seed_id,
+)
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Connection, inspect, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
@@ -74,7 +82,7 @@ async def test_alembic_upgrade_from_empty_creates_complete_schema(
 
     assert tables == EXPECTED_TABLES
     assert set(Base.metadata.tables) == EXPECTED_TABLES - {"alembic_version"}
-    assert revision == "0005_absence"
+    assert revision == "0007_regulated_hiring"
 
 
 @pytest.mark.asyncio
@@ -408,8 +416,8 @@ async def test_seed_is_idempotent_and_api_reports_database_ready(
         "organizations": 1,
         "published_versions": 1,
         "organization_units": 15,
-        "system_roles": 8,
-        "role_assignments": 9,
+        "system_roles": len(SEED_ROLES),
+        "role_assignments": len(DEVELOPMENT_ROLE_CODES) + len(ORGANIZATION_VIEWER_HANDLES),
         "employees": 2,
         "primary_assignments": 2,
         "viewer_assignments": 2,
@@ -458,7 +466,7 @@ async def test_seed_is_idempotent_and_api_reports_database_ready(
     assert dict(module2_counts._mapping) == {
         "processes": 3,
         "published_processes": 3,
-        "document_types": 22,
+        "document_types": len(DOCUMENT_TYPES),
         "forms": 3,
         "published_forms": 3,
         "form_fields": 8,

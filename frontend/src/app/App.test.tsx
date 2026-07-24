@@ -131,13 +131,13 @@ describe('application runtime', () => {
     view.unmount();
     useDeveloperStore.setState({ persona: 'employee' });
     renderRoute('/hr/terminations');
-    expect(await screen.findByRole('heading', { name: 'Увольнения' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Система прекращения трудовых отношений' })).toBeTruthy();
   });
 
   it('opens backend workforce workflows with role-specific creation actions', async () => {
     useDeveloperStore.setState({ persona: 'employee' });
     const leaveView = renderRoute('/hr/leave');
-    expect(await screen.findByRole('heading', { name: 'Отпуска' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Система отпусков' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Создать заявку' })).toBeTruthy();
 
     leaveView.unmount();
@@ -148,7 +148,7 @@ describe('application runtime', () => {
     cleanup();
     useDeveloperStore.setState({ persona: 'hr-specialist' });
     renderRoute('/hr/terminations');
-    expect(await screen.findByRole('heading', { name: 'Увольнения' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Система прекращения трудовых отношений' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Начать увольнение' })).toBeTruthy();
   });
 
